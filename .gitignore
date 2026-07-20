@@ -1,0 +1,22 @@
+# Dados pessoais e documentos locais
+uploads/
+Foto Perfil.jpeg
+Carteirinha SC Saúde - Frente - Juarez Hermógenes.jpeg
+Carteirinha SC Saúde - Verso - Juarez Hermógenes.jpeg
+VitaLink - Anotações.docx
+Linha da vida.docx
+Prompts.docx
+
+# Arquivos temporários e pacotes gerados
+tmp_docx_render/
+*.zip
+
+# Configurações locais das ferramentas
+.agents/
+.codex/
+
+# Sistema operacional e editores
+.DS_Store
+Thumbs.db
+*.tmp
+*.log

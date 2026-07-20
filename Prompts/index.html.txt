@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VitaLink - Conectando Sua Saúde</title>
+
+  <link rel="stylesheet" href="style.css"/>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+  <!-- SPLASH -->
+  <div id="splashScreen">
+    <img src="logo.png" class="logoSplash" alt="VitaLink"/>
+    <h1>VitaLink</h1>
+    <p>Conectando Sua Saúde</p>
+  </div>
+
+  <!-- APP -->
+  <div class="app hidden" id="app">
+
+    <!-- HEADER -->
+    <header>
+      <div class="headerTop">
+        <div>
+          <h2>VitaLink</h2>
+          <span>Controle Inteligente da Saúde</span>
+        </div>
+
+        <div class="profileMini">
+          <img id="miniPhoto"
+            src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+        </div>
+      </div>
+
+      <div class="searchBox">
+        <input type="text" id="globalSearch" placeholder="Buscar exames, médicos, medicamentos...">
+      </div>
+    </header>
+
+    <!-- TELA 1 -->
+    <section class="screen active" id="screen1">
+
+      <div class="card">
+        <h3>Ficha do Paciente</h3>
+
+        <div class="patientTop">
+          <img id="patientPhoto"
+            src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+
+          <div>
+            <input type="file" id="photoInput">
+          </div>
+        </div>
+
+        <div class="grid2">
+          <input type="text" placeholder="Nome Completo" id="nome">
+          <input type="email" placeholder="E-mail" id="email">
+          <input type="text" placeholder="Sexo">
+          <input type="number" placeholder="Idade">
+          <input type="text" placeholder="Tipo Sanguíneo">
+          <input type="text" placeholder="Alérgico a">
+          <input type="text" placeholder="Contato Emergência">
+          <input type="text" placeholder="Telefone">
+        </div>
+
+        <button class="primaryBtn">Salvar Dados</button>
+      </div>
+
+    </section>
+
+    <!-- TELA 2 -->
+    <section class="screen" id="screen2">
+
+      <div class="card">
+        <div class="titleFlex">
+          <h3>Agenda Médica</h3>
+          <button onclick="openAppointmentModal()" class="primaryBtn smallBtn">
+            + Agendar
+          </button>
+        </div>
+
+        <div id="appointmentsList"></div>
+      </div>
+
+    </section>
+
+    <!-- TELA 3 -->
+    <section class="screen" id="screen3">
+
+      <div class="card">
+        <h3>Mapa Corporal</h3>
+
+        <div class="humanMap">
+
+          <img src="https://cdn-icons-png.flaticon.com/512/3209/3209265.png">
+
+          <button class="specialty cardiologia">Cardiologia</button>
+          <button class="specialty ortopedia">Ortopedia</button>
+          <button class="specialty urologia">Urologia</button>
+          <button class="specialty pneumo">Pneumologia</button>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TELA 4 -->
+    <section class="screen" id="screen4">
+
+      <div class="card">
+        <div class="titleFlex">
+          <h3>Especialidades Médicas</h3>
+
+          <button onclick="openFolderModal()" class="primaryBtn smallBtn">
+            + Nova Pasta
+          </button>
+        </div>
+
+        <div id="foldersContainer" class="foldersGrid"></div>
+      </div>
+
+    </section>
+
+    <!-- TELA 5 -->
+    <section class="screen" id="screen5">
+
+      <div class="card">
+        <h3>Linha do Tempo</h3>
+
+        <canvas id="examChart"></canvas>
+      </div>
+
+      <div class="card">
+        <h3>Adicionar Resultado</h3>
+
+        <div class="grid2">
+          <input type="text" id="examName" placeholder="Exame">
+          <input type="number" id="examValue" placeholder="Valor">
+        </div>
+
+        <button class="primaryBtn" onclick="addExamData()">
+          Adicionar
+        </button>
+      </div>
+
+    </section>
+
+    <!-- TELA 6 -->
+    <section class="screen" id="screen6">
+
+      <div class="card">
+        <div class="titleFlex">
+          <h3>Medicamentos</h3>
+
+          <button onclick="openMedicationModal()" class="primaryBtn smallBtn">
+            + Medicamento
+          </button>
+        </div>
+
+        <div class="tableContainer">
+
+          <table>
+            <thead>
+              <tr>
+                <th>Medicamento</th>
+                <th>Dosagem</th>
+                <th>Horário</th>
+                <th>Uso Contínuo</th>
+                <th>Finalidade</th>
+                <th>Médico</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+
+            <tbody id="medicationsTable"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- MENU -->
+    <nav class="bottomNav">
+
+      <button onclick="showScreen('screen1')">Paciente</button>
+      <button onclick="showScreen('screen2')">Agenda</button>
+      <button onclick="showScreen('screen3')">Mapa</button>
+      <button onclick="showScreen('screen4')">Pastas</button>
+      <button onclick="showScreen('screen5')">Timeline</button>
+      <button onclick="showScreen('screen6')">Medicamentos</button>
+
+    </nav>
+
+  </div>
+
+  <!-- MODAL AGENDA -->
+  <div class="modal hidden" id="appointmentModal">
+
+    <div class="modalContent">
+
+      <h3>Novo Compromisso</h3>
+
+      <input type="text" id="appointmentTitle" placeholder="Consulta / Exame">
+      <input type="date" id="appointmentDate">
+      <input type="time" id="appointmentTime">
+
+      <button class="primaryBtn" onclick="saveAppointment()">
+        Salvar
+      </button>
+
+      <button class="dangerBtn" onclick="closeAppointmentModal()">
+        Fechar
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL PASTA -->
+  <div class="modal hidden" id="folderModal">
+
+    <div class="modalContent">
+
+      <h3>Nova Especialidade</h3>
+
+      <input type="text" id="folderName" placeholder="Nome da Especialidade">
+
+      <input type="file" id="folderFiles" multiple accept=".pdf,image/*">
+
+      <button class="primaryBtn" onclick="saveFolder()">
+        Salvar
+      </button>
+
+      <button class="dangerBtn" onclick="closeFolderModal()">
+        Fechar
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- MODAL MEDICAMENTO -->
+  <div class="modal hidden" id="medicationModal">
+
+    <div class="modalContent">
+
+      <h3>Novo Medicamento</h3>
+
+      <input type="text" id="medName" placeholder="Medicamento">
+      <input type="text" id="medDose" placeholder="Dosagem">
+      <input type="text" id="medTime" placeholder="Horário">
+      <input type="text" id="medUse" placeholder="Uso Contínuo?">
+      <input type="text" id="medPurpose" placeholder="Indicação">
+      <input type="text" id="medDoctor" placeholder="Médico Responsável">
+
+      <button class="primaryBtn" onclick="saveMedication()">
+        Salvar
+      </button>
+
+      <button class="dangerBtn" onclick="closeMedicationModal()">
+        Fechar
+      </button>
+
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
