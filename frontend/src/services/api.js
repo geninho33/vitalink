@@ -2,15 +2,35 @@ import { getToken } from './session';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
-export async function apiRequest(path, { method = 'GET', body, query } = {}) {
+/**
+ * Monta URL absoluta mesmo quando VITE_API_URL é relativo (ex.: /api/v1 no Nginx).
+ */
+function buildUrl(path, query) {
   const base = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-  const url = new URL(`${base}${path.startsWith('/') ? path : `/${path}`}`);
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  const joined = `${base}${suffix}`;
+
+  let url;
+  if (/^https?:\/\//i.test(joined)) {
+    url = new URL(joined);
+  } else {
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost';
+    url = new URL(joined.startsWith('/') ? joined : `/${joined}`, origin);
+  }
+
   if (query) {
     Object.entries(query).forEach(([k, v]) => {
       if (v != null && v !== '') url.searchParams.set(k, v);
     });
   }
 
+  return url.toString();
+}
+
+export async function apiRequest(path, { method = 'GET', body, query } = {}) {
   const headers = {
     Accept: 'application/json',
   };
@@ -23,7 +43,7 @@ export async function apiRequest(path, { method = 'GET', body, query } = {}) {
     payload = JSON.stringify(body);
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await fetch(buildUrl(path, query), {
     method,
     headers,
     body: payload,
