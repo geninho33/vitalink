@@ -18,10 +18,22 @@ function createApp() {
   const app = express();
 
   app.set('trust proxy', 1);
-  app.use(helmet());
+  app.use(helmet({
+    // Permite o frontend (outra origem/IP) embutir/consumir a API
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }));
+
+  const allowAllCors = env.corsOrigin.includes('*');
   app.use(
     cors({
-      origin: env.corsOrigin,
+      origin: allowAllCors
+        ? true
+        : (origin, cb) => {
+            if (!origin || env.corsOrigin.includes(origin)) {
+              return cb(null, true);
+            }
+            return cb(null, false);
+          },
       credentials: true,
     })
   );

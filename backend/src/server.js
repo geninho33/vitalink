@@ -4,7 +4,7 @@ const logger = require('./utils/logger');
 
 const app = createApp();
 
-app.listen(env.port, () => {
+app.listen(env.port, '0.0.0.0', () => {
   logger.info('VitaLink API iniciada', {
     port: env.port,
     prefix: env.apiPrefix,

@@ -1,5 +1,5 @@
 # VitaLink — orquestração Docker
-# Portas host (evitar conflitos): DB 3308 | API 3002 | Web 3102
+# Portas host: DB 3308 | API 3002 | Web HTTP 3102 | Web HTTPS 3443
 name: vitalink
 
 services:
@@ -55,9 +55,16 @@ services:
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-vitalink-2026}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3102}
+      # * libera qualquer origem (acesso por IP do servidor); liste hosts se preferir restringir
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
     ports:
       - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3333/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - vitalink-net
 
@@ -71,9 +78,11 @@ services:
     container_name: vitalink-frontend
     restart: unless-stopped
     depends_on:
-      - vitalink-backend
+      vitalink-backend:
+        condition: service_healthy
     ports:
       - "${VITALINK_FRONTEND_HOST_PORT:-3102}:80"
+      - "${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}:443"
     networks:
       - vitalink-net
 

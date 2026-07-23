@@ -45,9 +45,10 @@ cmd_up() {
   echo "  Frontend host port: ${VITALINK_FRONTEND_HOST_PORT:-3102}"
   compose up -d --build
   echo "[deploy] OK."
-  echo "  Frontend: http://localhost:${VITALINK_FRONTEND_HOST_PORT:-3102}"
-  echo "  API:      http://localhost:${VITALINK_BACKEND_HOST_PORT:-3002}/health"
-  echo "  MySQL:    localhost:${VITALINK_DB_HOST_PORT:-3308}"
+  echo "  Frontend HTTP:  http://localhost:${VITALINK_FRONTEND_HOST_PORT:-3102}"
+  echo "  Frontend HTTPS: https://localhost:${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}"
+  echo "  API:            http://localhost:${VITALINK_BACKEND_HOST_PORT:-3002}/health"
+  echo "  MySQL:          localhost:${VITALINK_DB_HOST_PORT:-3308}"
 }
 
 cmd_down() {

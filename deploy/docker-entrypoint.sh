@@ -15,7 +15,7 @@ RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
 MYSQL_OPTS=( -h"$DB_HOST" -P"$DB_PORT" -uroot "-p${DB_ROOT_PASSWORD}" --protocol=TCP )
 
 wait_for_mysql() {
-  local retries=60
+  local retries=90
   log "Aguardando MySQL em ${DB_HOST}:${DB_PORT}..."
   for ((i=1; i<=retries; i++)); do
     if mysqladmin ping "${MYSQL_OPTS[@]}" --silent 2>/dev/null; then
@@ -44,12 +44,26 @@ agenda_exists() {
 
 run_sql_file() {
   local file="$1"
-  if [[ -f "$file" ]]; then
-    log "Aplicando $(basename "$file")..."
-    mysql "${MYSQL_OPTS[@]}" --default-character-set=utf8mb4 < "$file"
-  else
+  if [[ ! -f "$file" ]]; then
     log "AVISO: arquivo SQL não encontrado: $file"
+    return 0
   fi
+  log "Aplicando $(basename "$file")..."
+  # Não aborta o container se o patch já tiver sido aplicado (ex.: ALTER duplicado)
+  if ! mysql "${MYSQL_OPTS[@]}" --default-character-set=utf8mb4 < "$file"; then
+    log "AVISO: falha ao aplicar $(basename "$file") — seguindo (pode já estar migrado)."
+  fi
+}
+
+ensure_grants() {
+  # Garante que o usuário da API acessa o schema a partir da rede Docker
+  mysql "${MYSQL_OPTS[@]}" -e \
+    "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+     CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+     ALTER USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+     GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
+     FLUSH PRIVILEGES;" 2>/dev/null \
+    || log "AVISO: não foi possível ajustar grants (seguindo)."
 }
 
 apply_migrations() {
@@ -58,8 +72,8 @@ apply_migrations() {
     return 0
   fi
 
-  # Volume MySQL já inicializa via /docker-entrypoint-initdb.d na 1ª subida.
-  # Este bloco cobre restarts / volumes pré-existentes incompletos.
+  ensure_grants
+
   if ! table_exists; then
     log "Schema base ausente — aplicando schema + patches..."
     run_sql_file /app/database/schema.sql
