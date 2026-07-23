@@ -7,6 +7,18 @@ VitaLink - Anotações.docx
 Linha da vida.docx
 Prompts.docx
 
+# Dependências e build
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+frontend/dist/
+package-lock.json
+
+# Segredos locais
+.env
+backend/.env
+frontend/.env
+
 # Arquivos temporários e pacotes gerados
 tmp_docx_render/
 *.zip
