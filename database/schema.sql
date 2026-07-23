@@ -188,18 +188,20 @@ INSERT INTO perfis (id, nome, descricao) VALUES
 
 INSERT INTO menus (id, titulo, rota, icone, ordem, menu_pai_id) VALUES
   (1, 'Dashboard', '/dashboard', 'layout-dashboard', 10, NULL),
-  (2, 'Usuários', '/usuarios', 'users', 20, NULL),
-  (3, 'Perfis e Permissões', '/perfis', 'shield', 30, NULL),
-  (4, 'Médicos', '/medicos', 'stethoscope', 40, NULL),
-  (5, 'Remédios', '/remedios', 'pill', 50, NULL),
-  (6, 'Auditoria', '/auditoria', 'scroll-text', 60, NULL);
+  (10, 'Administração', NULL, 'building', 20, NULL),
+  (11, 'Usuários', '/usuarios', 'users', 21, 10),
+  (12, 'Perfis', '/perfis', 'masks', 22, 10),
+  (13, 'Acessos', '/acessos', 'key', 23, 10),
+  (14, 'Auditoria', '/auditoria', 'scroll-text', 24, 10),
+  (20, 'Médicos', '/medicos', 'stethoscope', 40, NULL),
+  (21, 'Remédios', '/remedios', 'pill', 50, NULL);
 
 INSERT INTO usuarios (id, nome, email, senha_hash, status, perfil_id) VALUES
   (
     1,
     'Administrador VitaLink',
     'admin@vitalink.local',
-    '$2b$10$yzHG6qG1agOXP2CycdHoOeSqq6kn5KnPCYxxTVlUXuZKMGWy/2jta',
+    '$2a$10$Mn5Qa0Jg8J.tmBH1PlO8lOGX2RRO2SQ0kQYk/JDTUqsVvXRhEZ.J.',
     'ativo',
     1
   );
@@ -208,14 +210,14 @@ INSERT INTO usuarios (id, nome, email, senha_hash, status, perfil_id) VALUES
 INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)
 SELECT 1, id, 1, 1, 1, 1 FROM menus;
 
--- Médico: leitura/escrita em clínicos; sem usuários/perfis/auditoria write
+-- Médico: leitura/escrita em clínicos
 INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar) VALUES
   (2, 1, 1, 0, 0, 0),
-  (2, 4, 1, 1, 1, 0),
-  (2, 5, 1, 1, 1, 0);
+  (2, 20, 1, 1, 1, 0),
+  (2, 21, 1, 1, 1, 0);
 
 -- Atendente: leitura operacional
 INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar) VALUES
   (3, 1, 1, 0, 0, 0),
-  (3, 4, 1, 0, 0, 0),
-  (3, 5, 1, 0, 0, 0);
+  (3, 20, 1, 0, 0, 0),
+  (3, 21, 1, 0, 0, 0);

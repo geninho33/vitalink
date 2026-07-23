@@ -123,14 +123,14 @@ async function deleteUsuario(req, res, next) {
     if (Number(id) === req.user.id) {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Não é permitido excluir o próprio usuário.',
+        message: 'Não é permitido inativar o próprio usuário.',
       });
     }
 
-    await query(`DELETE FROM usuarios WHERE id = :id`, { id });
+    await query(`UPDATE usuarios SET status = 'inativo' WHERE id = :id`, { id });
     await writeAudit({
       usuarioId: req.user.id,
-      acao: 'deletar',
+      acao: 'inativar',
       recurso: 'usuarios',
       recursoId: id,
       ...clientMeta(req),
@@ -141,9 +141,38 @@ async function deleteUsuario(req, res, next) {
   }
 }
 
+async function resetSenha(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { senha } = req.body || {};
+    if (!senha || String(senha).length < 6) {
+      return res.status(400).json({
+        error: 'validation_error',
+        message: 'Informe uma nova senha com ao menos 6 caracteres.',
+      });
+    }
+    const senha_hash = await hashPassword(senha);
+    await query(`UPDATE usuarios SET senha_hash = :senha_hash WHERE id = :id`, {
+      id,
+      senha_hash,
+    });
+    await writeAudit({
+      usuarioId: req.user.id,
+      acao: 'reset_senha',
+      recurso: 'usuarios',
+      recursoId: id,
+      ...clientMeta(req),
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   listUsuarios,
   createUsuario,
   updateUsuario,
   deleteUsuario,
+  resetSenha,
 };

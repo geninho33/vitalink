@@ -1,0 +1,117 @@
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Icon from '../Icon';
+import { getInitials } from '../../utils/menuTree';
+import { useAuth } from '../../context/AuthContext';
+
+export default function Header({ onOpenMobile, usuario }) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  const nome = usuario?.nome || 'Usuário';
+  const perfil = usuario?.perfil?.nome || 'Sem perfil';
+  const initials = getInitials(nome);
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (!menuRef.current?.contains(e.target)) setOpen(false);
+    }
+    function onEsc(e) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, []);
+
+  function handleLogout() {
+    setOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  }
+
+  return (
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-[#d7e8e7] bg-white/90 px-4 backdrop-blur-md sm:px-6">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenMobile}
+          className="grid h-10 w-10 place-items-center rounded-xl border border-[#d7e8e7] text-aqua-deep transition hover:bg-aqua-soft lg:hidden"
+          aria-label="Abrir menu"
+        >
+          <Icon name="menu" className="h-5 w-5" />
+        </button>
+        <div className="hidden sm:block">
+          <p className="text-xs font-bold uppercase tracking-wider text-aqua">Painel</p>
+          <p className="text-sm text-slate-health">Gestão de saúde e acessos</p>
+        </div>
+      </div>
+
+      <div className="relative" ref={menuRef}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex max-w-full items-center gap-3 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] py-1.5 pl-1.5 pr-3 transition hover:border-aqua/40 hover:bg-aqua-soft/60"
+          aria-expanded={open}
+          aria-haspopup="menu"
+        >
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-aqua text-sm font-bold text-white">
+            {initials}
+          </span>
+          <span className="hidden min-w-0 text-left md:block">
+            <span className="block truncate text-sm font-semibold text-ink">{nome}</span>
+            <span className="block truncate text-xs text-slate-health">{perfil}</span>
+          </span>
+          <Icon
+            name="chevron"
+            className={`h-4 w-4 text-slate-health transition-transform duration-200 ${
+              open ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+
+        <div
+          className={`absolute right-0 mt-2 w-64 origin-top-right overflow-hidden rounded-2xl border border-[#d7e8e7] bg-white shadow-panel transition-all duration-200 ${
+            open
+              ? 'pointer-events-auto scale-100 opacity-100'
+              : 'pointer-events-none scale-95 opacity-0'
+          }`}
+          role="menu"
+        >
+          <div className="border-b border-[#e8f1f0] px-4 py-3">
+            <p className="truncate text-sm font-semibold text-ink">{nome}</p>
+            <p className="truncate text-xs text-slate-health">{perfil}</p>
+          </div>
+          <div className="p-1.5">
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-ink transition hover:bg-aqua-soft"
+              onClick={() => {
+                setOpen(false);
+                navigate('/meus-dados');
+              }}
+            >
+              <Icon name="user" className="h-4 w-4 text-aqua" />
+              Meus Dados
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-red-700 transition hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <Icon name="logout" className="h-4 w-4" />
+              Sair
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}

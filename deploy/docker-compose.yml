@@ -1,0 +1,87 @@
+# VitaLink — orquestração Docker
+# Portas host (evitar conflitos): DB 3308 | API 3002 | Web 3102
+name: vitalink
+
+services:
+  vitalink-db:
+    image: mysql:8.0
+    container_name: vitalink-db
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-masterkey}
+      MYSQL_DATABASE: ${DB_NAME:-vitalink}
+      MYSQL_USER: ${DB_USER:-vitalink}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
+    ports:
+      - "${VITALINK_DB_HOST_PORT:-3308}:3306"
+    volumes:
+      - vitalink_mysql_data:/var/lib/mysql
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../database/patch_saude_modulos.sql:/docker-entrypoint-initdb.d/02-patch_saude.sql:ro
+      - ../database/patch_atividades_anamnese.sql:/docker-entrypoint-initdb.d/03-patch_atividades.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks:
+      - vitalink-net
+
+  vitalink-backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    image: vitalink-backend:latest
+    container_name: vitalink-backend
+    restart: unless-stopped
+    depends_on:
+      vitalink-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${BACKEND_PORT:-3333}
+      API_PREFIX: ${API_PREFIX:-/api/v1}
+      DB_HOST: vitalink-db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-vitalink}
+      DB_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
+      DB_NAME: ${DB_NAME:-vitalink}
+      DB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-masterkey}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-vitalink-2026}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3102}
+    ports:
+      - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
+    networks:
+      - vitalink-net
+
+  vitalink-frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+    image: vitalink-frontend:latest
+    container_name: vitalink-frontend
+    restart: unless-stopped
+    depends_on:
+      - vitalink-backend
+    ports:
+      - "${VITALINK_FRONTEND_HOST_PORT:-3102}:80"
+    networks:
+      - vitalink-net
+
+volumes:
+  vitalink_mysql_data:
+    name: vitalink_mysql_data
+
+networks:
+  vitalink-net:
+    name: vitalink-net
+    driver: bridge

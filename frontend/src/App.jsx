@@ -1,50 +1,68 @@
-import { useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import AppShell from './components/layout/AppShell';
 import Login from './pages/Login';
+import DashboardPage from './pages/DashboardPage';
+import MeusDadosPage from './pages/MeusDadosPage';
+import { HospitaisPage, FarmaciasPage } from './pages/saude/EstabelecimentosPages';
+import { CuidadoresPage, ResponsaveisPage } from './pages/saude/PessoasPages';
+import { MedicosPage, PacientesPage, RemediosPage } from './pages/saude/ClinicosPages';
+import {
+  UsuariosPage,
+  PerfisPage,
+  AcessosPage,
+  AuditoriaPage,
+} from './pages/admin/AdminPages';
+import {
+  AgendaPage,
+  ConsultasPage,
+  RotinaPage,
+  TimelinePage,
+} from './pages/atividades/AtividadesPages';
+
+function PublicOnly({ children }) {
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  return children;
+}
 
 export default function App() {
-  const [session, setSession] = useState(null);
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <PublicOnly>
+            <Login />
+          </PublicOnly>
+        }
+      />
 
-  if (session) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-3xl border border-[#d7e8e7] bg-white p-8 shadow-panel">
-          <p className="text-xs font-bold uppercase tracking-wider text-aqua">
-            Sessão autenticada
-          </p>
-          <h1 className="mt-2 font-display text-2xl font-bold text-ink">
-            Olá, {session.usuario?.nome}
-          </h1>
-          <p className="mt-2 text-sm text-slate-health">
-            Perfil: {session.usuario?.perfil?.nome}. Menus liberados:{' '}
-            {(session.menus || []).length}.
-          </p>
-          <ul className="mt-5 grid gap-2">
-            {(session.menus || []).map((menu) => (
-              <li
-                key={menu.id}
-                className="rounded-xl border border-[#e2eeee] bg-[#f8fcfc] px-3 py-2 text-sm"
-              >
-                {menu.titulo}
-                <span className="ml-2 text-xs text-slate-health">{menu.rota}</span>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            className="mt-6 rounded-xl border border-aqua px-4 py-2 text-sm font-semibold text-aqua hover:bg-aqua-soft"
-            onClick={() => {
-              localStorage.removeItem('vitalink.token');
-              localStorage.removeItem('vitalink.usuario');
-              localStorage.removeItem('vitalink.menus');
-              setSession(null);
-            }}
-          >
-            Sair
-          </button>
-        </div>
-      </main>
-    );
-  }
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/pacientes" element={<PacientesPage />} />
+          <Route path="/medicos" element={<MedicosPage />} />
+          <Route path="/remedios" element={<RemediosPage />} />
+          <Route path="/hospitais" element={<HospitaisPage />} />
+          <Route path="/farmacias" element={<FarmaciasPage />} />
+          <Route path="/cuidadores" element={<CuidadoresPage />} />
+          <Route path="/responsaveis" element={<ResponsaveisPage />} />
+          <Route path="/agenda" element={<AgendaPage />} />
+          <Route path="/consultas" element={<ConsultasPage />} />
+          <Route path="/rotina" element={<RotinaPage />} />
+          <Route path="/timeline" element={<TimelinePage />} />
+          <Route path="/usuarios" element={<UsuariosPage />} />
+          <Route path="/perfis" element={<PerfisPage />} />
+          <Route path="/acessos" element={<AcessosPage />} />
+          <Route path="/auditoria" element={<AuditoriaPage />} />
+          <Route path="/meus-dados" element={<MeusDadosPage />} />
+        </Route>
+      </Route>
 
-  return <Login onSuccess={setSession} />;
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
 }

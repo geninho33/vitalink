@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { loginRequest, persistSession } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -64,7 +65,9 @@ function IconShield({ className }) {
   );
 }
 
-export default function Login({ onSuccess }) {
+export default function Login() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [touched, setTouched] = useState({ email: false, senha: false });
@@ -90,12 +93,11 @@ export default function Login({ onSuccess }) {
 
     setLoading(true);
     try {
-      const data = await loginRequest({
+      await login({
         email: email.trim(),
         senha,
       });
-      persistSession(data);
-      onSuccess?.(data);
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setAuthError(err.message || 'Falha na autenticação.');
     } finally {

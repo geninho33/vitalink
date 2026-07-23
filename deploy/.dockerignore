@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+frontend/dist
+frontend/.env
+backend/.env
+deploy/.env
+.git
+.agents
+.codex
+*.log
+*.zip
+tmp_docx_render
+uploads
+Prompts
+public-prototype
+*.md
+!README.md
