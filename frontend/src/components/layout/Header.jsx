@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Icon from '../Icon';
 import { getInitials } from '../../utils/menuTree';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Header({ onOpenMobile, usuario }) {
   const { logout } = useAuth();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -32,7 +30,6 @@ export default function Header({ onOpenMobile, usuario }) {
   function handleLogout() {
     setOpen(false);
     logout();
-    navigate('/login', { replace: true });
   }
 
   return (

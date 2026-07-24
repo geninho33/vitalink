@@ -86,9 +86,24 @@ async function updatePermissoes(req, res, next) {
       );
     }
 
-    if (Array.isArray(permissoes)) {
+    // Só substitui a matriz se o cliente enviar o campo "permissoes".
+    // Evita apagar todas as permissões quando o CRUD de perfil manda permissoes: [].
+    const shouldReplacePermissions = Object.prototype.hasOwnProperty.call(
+      req.body || {},
+      'permissoes'
+    );
+
+    if (shouldReplacePermissions) {
+      if (!Array.isArray(permissoes)) {
+        return res.status(400).json({
+          error: 'validation_error',
+          message: 'O campo permissoes deve ser um array.',
+        });
+      }
+
       await query(`DELETE FROM permissoes_acesso WHERE perfil_id = :id`, { id });
       for (const p of permissoes) {
+        if (p?.menu_id == null) continue;
         await query(
           `INSERT INTO permissoes_acesso
             (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)
@@ -115,7 +130,12 @@ async function updatePermissoes(req, res, next) {
       userAgent: req.get('user-agent'),
     });
 
-    return res.json({ ok: true });
+    // JWT do usuário logado NÃO é invalidado; permissões passam a valer na próxima checagem RBAC
+    return res.json({
+      ok: true,
+      sessionHint:
+        'Perfil atualizado. O token JWT atual permanece válido; permissões são reavaliadas a cada requisição.',
+    });
   } catch (err) {
     return next(err);
   }

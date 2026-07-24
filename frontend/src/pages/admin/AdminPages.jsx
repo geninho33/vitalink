@@ -3,9 +3,11 @@ import EntityCrudPage from '../../components/EntityCrudPage';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import { Field, TextInput, TextSelect, TextTextarea } from '../../components/forms/FormControls';
 import { apiRequest } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export function UsuariosPage() {
   const [perfis, setPerfis] = useState([]);
+  const { usuario, refreshSession } = useAuth();
   useEffect(() => {
     apiRequest('/perfis').then((r) => setPerfis(r.data || [])).catch(() => setPerfis([]));
   }, []);
@@ -40,6 +42,16 @@ export function UsuariosPage() {
       ]}
       emptyForm={empty}
       mapRow={(row) => ({ ...empty(), ...row, senha: '' })}
+      onAfterSave={async ({ editing }) => {
+        // Se editou o próprio usuário, atualiza AuthContext sem perder o token
+        if (editing?.id != null && usuario?.id != null && Number(editing.id) === Number(usuario.id)) {
+          try {
+            await refreshSession();
+          } catch {
+            /* interceptor 401 cuida se necessário */
+          }
+        }
+      }}
       renderForm={(form, setForm, { editing }) => (
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Nome" required>
@@ -83,28 +95,12 @@ export function UsuariosPage() {
 }
 
 export function PerfisPage() {
-  const [menus, setMenus] = useState([]);
-  useEffect(() => {
-    // menus vêm do login; para admin listamos via perfil payload
-    apiRequest('/perfis').then((r) => {
-      const unique = [];
-      const seen = new Set();
-      (r.permissoes || []).forEach((p) => {
-        if (!seen.has(p.menu_id)) {
-          seen.add(p.menu_id);
-          unique.push({ id: p.menu_id, titulo: p.menu_titulo, rota: p.rota });
-        }
-      });
-      setMenus(unique);
-    }).catch(() => setMenus([]));
-  }, []);
-
-  const empty = () => ({ nome: '', descricao: '', permissoes: [] });
+  const empty = () => ({ nome: '', descricao: '' });
 
   return (
     <EntityCrudPage
       title="Perfis"
-      description="Papéis do sistema e menus associados."
+      description="Papéis do sistema. Permissões de menu são gerenciadas em Acessos (RBAC)."
       endpoint="/perfis"
       statusFilter={false}
       columns={[
@@ -112,7 +108,12 @@ export function PerfisPage() {
         { key: 'descricao', label: 'Descrição' },
       ]}
       emptyForm={empty}
-      mapRow={(row) => ({ ...empty(), ...row, permissoes: [] })}
+      mapRow={(row) => ({ nome: row.nome || '', descricao: row.descricao || '' })}
+      toPayload={(form) => ({
+        nome: form.nome,
+        descricao: form.descricao || null,
+        // NÃO envia "permissoes" — evita apagar a matriz RBAC ao renomear o perfil
+      })}
       renderForm={(form, setForm) => (
         <div className="grid gap-3">
           <Field label="Nome" required>
@@ -121,34 +122,9 @@ export function PerfisPage() {
           <Field label="Descrição">
             <TextTextarea rows={2} value={form.descricao || ''} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
           </Field>
-          {menus.length ? (
-            <div>
-              <p className="mb-2 text-sm font-bold text-ink">Menus iniciais (leitura)</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {menus.map((m) => {
-                  const checked = (form.permissoes || []).some((p) => p.menu_id === m.id);
-                  return (
-                    <label key={m.id} className="flex items-center gap-2 rounded-xl border border-[#d7e8e7] px-3 py-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          const list = form.permissoes || [];
-                          setForm({
-                            ...form,
-                            permissoes: e.target.checked
-                              ? [...list, { menu_id: m.id, pode_ler: 1, pode_criar: 0, pode_editar: 0, pode_deletar: 0 }]
-                              : list.filter((p) => p.menu_id !== m.id),
-                          });
-                        }}
-                      />
-                      {m.titulo}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+          <p className="text-sm text-slate-health">
+            Para alterar menus e permissões deste perfil, use a tela <strong>Acessos</strong>.
+          </p>
         </div>
       )}
     />
@@ -162,6 +138,7 @@ export function AcessosPage() {
   const [matrix, setMatrix] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const { refreshSession } = useAuth();
 
   async function load() {
     const res = await apiRequest('/perfis');
@@ -218,6 +195,12 @@ export function AcessosPage() {
       });
       setMsg('Permissões salvas.');
       await load();
+      // Atualiza menus do usuário logado sem invalidar o JWT
+      try {
+        await refreshSession();
+      } catch {
+        /* ignore */
+      }
     } catch (err) {
       setMsg(err.message || 'Falha ao salvar.');
     } finally {

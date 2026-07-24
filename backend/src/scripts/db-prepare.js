@@ -126,10 +126,28 @@ async function applySchema(client) {
   }
 }
 
+async function ensureAdminPermissions(client) {
+  const count = await client.query(
+    `SELECT COUNT(*)::int AS c FROM permissoes_acesso WHERE perfil_id = 1`
+  );
+  if (Number(count.rows[0]?.c || 0) > 0) return;
+
+  const menus = await client.query(`SELECT COUNT(*)::int AS c FROM menus`);
+  if (Number(menus.rows[0]?.c || 0) === 0) return;
+
+  log('Restaurando permissões do perfil Administrador (matriz vazia detectada)...');
+  await client.query(
+    `INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)
+     SELECT 1, id, TRUE, TRUE, TRUE, TRUE FROM menus
+     ON CONFLICT (perfil_id, menu_id) DO NOTHING`
+  );
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
     await applySchema(client);
+    await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});
   }

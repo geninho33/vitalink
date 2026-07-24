@@ -66,9 +66,19 @@ async function updateUsuario(req, res, next) {
   try {
     const { id } = req.params;
     const { nome, email, senha, status, perfil_id } = req.body || {};
+    const targetId = Number(id);
+    const isSelf = targetId === Number(req.user.id);
+
+    // Não invalidar a própria sessão: impede auto-inativação / auto-bloqueio
+    if (isSelf && status != null && String(status).toLowerCase() !== 'ativo') {
+      return res.status(400).json({
+        error: 'validation_error',
+        message: 'Não é permitido inativar ou bloquear o próprio usuário.',
+      });
+    }
 
     const fields = [];
-    const params = { id };
+    const params = { id: targetId };
 
     if (nome != null) {
       fields.push('nome = :nome');
@@ -84,9 +94,10 @@ async function updateUsuario(req, res, next) {
     }
     if (perfil_id != null) {
       fields.push('perfil_id = :perfil_id');
-      params.perfil_id = perfil_id;
+      params.perfil_id = Number(perfil_id);
     }
-    if (senha) {
+    // Senha só muda se enviada com conteúdo — não regenera hash vazio
+    if (senha != null && String(senha).trim() !== '') {
       fields.push('senha_hash = :senha_hash');
       params.senha_hash = await hashPassword(senha);
     }
@@ -111,7 +122,13 @@ async function updateUsuario(req, res, next) {
       ...clientMeta(req),
     });
 
-    return res.json({ ok: true });
+    // Token JWT permanece válido; cliente pode atualizar menus/dados via /menus/me
+    return res.json({
+      ok: true,
+      sessionHint: isSelf
+        ? 'Dados do usuário logado atualizados. O token atual permanece válido.'
+        : undefined,
+    });
   } catch (err) {
     return next(err);
   }

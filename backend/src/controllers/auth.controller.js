@@ -29,7 +29,18 @@ async function login(req, res, next) {
 async function menusMe(req, res, next) {
   try {
     const menus = await getMenusByPerfil(req.user.perfilId);
-    return res.json({ menus });
+    return res.json({
+      menus,
+      usuario: {
+        id: req.user.id,
+        nome: req.user.nome,
+        email: req.user.email,
+        perfil: {
+          id: req.user.perfilId,
+          nome: req.user.perfilNome,
+        },
+      },
+    });
   } catch (err) {
     return next(err);
   }

@@ -2,7 +2,12 @@ const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 
 function signToken(payload) {
-  return jwt.sign(payload, env.jwt.secret, { expiresIn: env.jwt.expiresIn });
+  // RFC 7519: "sub" deve ser string
+  const body = {
+    ...payload,
+    sub: String(payload.sub),
+  };
+  return jwt.sign(body, env.jwt.secret, { expiresIn: env.jwt.expiresIn });
 }
 
 function verifyToken(token) {
