@@ -42,7 +42,21 @@ docker volume rm vitalink_mysql_data 2>/dev/null || true
 ./deploy.sh rebuild
 ```
 
-## Diagnóstico
+## Massa de dados (seed sintético)
+
+```bash
+./deploy.sh seed
+```
+
+Gera hospitais, farmácias, remédios, médicos, cuidadores, responsáveis, pacientes,
+anamneses, consultas, rotinas e `agenda_eventos` com dados fictícios (LGPD).
+
+- Script: `backend/src/seeds/runSeeds.js`
+- Placeholder initdb: `deploy/initdb/04-seed_massa_dados.sql`
+- Senha dos usuários seed: `Seed@Vitalink1`
+- Exemplo: `medico01@seed.vitalink.local`
+
+Idempotente: pode rodar várias vezes (remove a massa anterior marcada como seed).
 
 ```bash
 ./deploy.sh doctor

@@ -8,6 +8,7 @@
 #   ./deploy.sh logs        # logs em follow
 #   ./deploy.sh ps          # status
 #   ./deploy.sh migrate     # reaplica SQL via backend entrypoint/restart
+#   ./deploy.sh seed        # popula massa sintética (LGPD / Faker)
 #   ./deploy.sh doctor      # status + logs + health (útil para 502)
 #   ./deploy.sh git-status  # status do repositório
 #   ./deploy.sh git-push    # push da branch configurada (GIT_BRANCH)
@@ -96,6 +97,30 @@ cmd_doctor() {
   echo "Host ports: DB ${VITALINK_DB_HOST_PORT:-5433} | API ${VITALINK_BACKEND_HOST_PORT:-3002} | HTTP ${VITALINK_FRONTEND_HOST_PORT:-3102} | HTTPS ${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}"
 }
 
+cmd_seed() {
+  echo "[deploy] Populando massa de dados sintéticos (LGPD)..."
+  compose up -d vitalink-db vitalink-backend
+  # Aguarda backend healthy (API + DB)
+  local tries=36
+  local i=1
+  while (( i <= tries )); do
+    if compose exec -T vitalink-backend curl -fsS http://127.0.0.1:3333/health >/dev/null 2>&1; then
+      break
+    fi
+    echo "  Aguardando backend... (${i}/${tries})"
+    sleep 5
+    (( ++i ))
+  done
+  if (( i > tries )); then
+    echo "[deploy] ERRO: backend não ficou saudável a tempo."
+    exit 1
+  fi
+  compose exec -T vitalink-backend node src/seeds/runSeeds.js
+  echo "[deploy] Seed concluído."
+  echo "  Senha usuários seed: Seed@Vitalink1"
+  echo "  Ex.: medico01@seed.vitalink.local"
+}
+
 cmd_git_status() {
   git -C "$ROOT_DIR" status -sb
   git -C "$ROOT_DIR" remote -v
@@ -118,6 +143,7 @@ case "${1:-help}" in
   logs) cmd_logs ;;
   ps) cmd_ps ;;
   migrate) cmd_migrate ;;
+  seed) cmd_seed ;;
   doctor) cmd_doctor ;;
   git-status) cmd_git_status ;;
   git-push) cmd_git_push ;;
