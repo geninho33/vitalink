@@ -24,6 +24,12 @@ chmod +x deploy.sh docker-entrypoint.sh
 - Health API direta: `http://SEU_IP:3002/health` (pode estar bloqueada no firewall)
 - Login seed: `admin@vitalink.local` / `Admin@Vitalink1`
 
+## Ordem de subida (anti-502)
+
+1. `vitalink-db` — healthcheck: `mysqladmin ping -h localhost -u root -pmasterkey`
+2. `vitalink-backend` — só inicia com `depends_on: condition: service_healthy` no DB; o entrypoint confirma o MySQL via **mysql2** e então sobe a API na `:3333`
+3. `vitalink-frontend` — só inicia com backend healthy; Nginx faz proxy de `/api/` → `vitalink-backend:3333`
+
 ## Diagnóstico de 502 no login
 
 O 502 significa que o **Nginx não alcança o backend**. Quase sempre o container `vitalink-backend` está em crash-loop ou unhealthy.

@@ -24,12 +24,12 @@ services:
       - ../database/patch_saude_modulos.sql:/docker-entrypoint-initdb.d/02-patch_saude.sql:ro
       - ../database/patch_atividades_anamnese.sql:/docker-entrypoint-initdb.d/03-patch_atividades.sql:ro
     healthcheck:
-      # Script oficial da imagem MySQL 8 (não depende de senha na CLI)
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
+      # Conforme SDD: mysqladmin ping com root (senha padrão masterkey — deve bater com MYSQL_ROOT_PASSWORD)
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -pmasterkey || exit 1"]
+      interval: 5s
       timeout: 5s
       retries: 30
-      start_period: 60s
+      start_period: 45s
     networks:
       - vitalink-net
 

@@ -33,8 +33,6 @@ async function tryConnect({ user, password, database }) {
     database: database || undefined,
     multipleStatements: true,
     connectTimeout: 5000,
-    // MySQL 8 / rede Docker: evita falha de SSL do cliente
-    ssl: false,
   });
   await conn.query('SELECT 1');
   return conn;
