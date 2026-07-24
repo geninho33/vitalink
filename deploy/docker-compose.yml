@@ -61,10 +61,10 @@ services:
       - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3333/health"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 40s
+      retries: 18
+      start_period: 90s
     networks:
       - vitalink-net
 

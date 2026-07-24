@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # VitaLink backend entrypoint — aguarda MySQL, aplica migrações se necessário, sobe a API
-set -euo pipefail
+# Importante: falhas de migração/grants NÃO derrubam o container (evita crash-loop → 502).
+set -uo pipefail
 
 log() { echo "[vitalink-entrypoint] $*"; }
 
@@ -12,14 +13,26 @@ DB_NAME="${DB_NAME:-vitalink}"
 DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-masterkey}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
 
-MYSQL_OPTS=( -h"$DB_HOST" -P"$DB_PORT" -uroot "-p${DB_ROOT_PASSWORD}" --protocol=TCP )
+ROOT_OPTS=( -h"$DB_HOST" -P"$DB_PORT" -uroot "-p${DB_ROOT_PASSWORD}" --protocol=TCP )
+APP_OPTS=( -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" "-p${DB_PASSWORD}" --protocol=TCP )
+
+MYSQL_OPTS=( "${ROOT_OPTS[@]}" )
+USE_ROOT=1
 
 wait_for_mysql() {
   local retries=90
   log "Aguardando MySQL em ${DB_HOST}:${DB_PORT}..."
   for ((i=1; i<=retries; i++)); do
-    if mysqladmin ping "${MYSQL_OPTS[@]}" --silent 2>/dev/null; then
-      log "MySQL disponível."
+    if mysqladmin ping "${ROOT_OPTS[@]}" --silent 2>/dev/null; then
+      log "MySQL disponível (root)."
+      MYSQL_OPTS=( "${ROOT_OPTS[@]}" )
+      USE_ROOT=1
+      return 0
+    fi
+    if mysqladmin ping "${APP_OPTS[@]}" --silent 2>/dev/null; then
+      log "MySQL disponível (usuário app). Grants/migrações via root podem ser pulados."
+      MYSQL_OPTS=( "${APP_OPTS[@]}" )
+      USE_ROOT=0
       return 0
     fi
     sleep 2
@@ -32,14 +45,14 @@ table_exists() {
   local count
   count="$(mysql "${MYSQL_OPTS[@]}" -N -e \
     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='usuarios';" 2>/dev/null || echo 0)"
-  [[ "$count" != "0" ]]
+  [[ "${count//[[:space:]]/}" != "0" ]]
 }
 
 agenda_exists() {
   local count
   count="$(mysql "${MYSQL_OPTS[@]}" -N -e \
     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}' AND table_name='agenda_eventos';" 2>/dev/null || echo 0)"
-  [[ "$count" != "0" ]]
+  [[ "${count//[[:space:]]/}" != "0" ]]
 }
 
 run_sql_file() {
@@ -49,15 +62,23 @@ run_sql_file() {
     return 0
   fi
   log "Aplicando $(basename "$file")..."
-  # Não aborta o container se o patch já tiver sido aplicado (ex.: ALTER duplicado)
-  if ! mysql "${MYSQL_OPTS[@]}" --default-character-set=utf8mb4 < "$file"; then
-    log "AVISO: falha ao aplicar $(basename "$file") — seguindo (pode já estar migrado)."
+  if ! mysql "${MYSQL_OPTS[@]}" --default-character-set=utf8mb4 "$DB_NAME" < "$file" 2>/tmp/vitalink-sql.err; then
+    # schema.sql contém CREATE DATABASE/USE — tentar sem forçar DB
+    if ! mysql "${MYSQL_OPTS[@]}" --default-character-set=utf8mb4 < "$file" 2>/tmp/vitalink-sql.err; then
+      log "AVISO: falha ao aplicar $(basename "$file") — seguindo (pode já estar migrado)."
+      if [[ -s /tmp/vitalink-sql.err ]]; then
+        log "Detalhe SQL: $(head -c 400 /tmp/vitalink-sql.err | tr '\n' ' ')"
+      fi
+    fi
   fi
 }
 
 ensure_grants() {
-  # Garante que o usuário da API acessa o schema a partir da rede Docker
-  mysql "${MYSQL_OPTS[@]}" -e \
+  if [[ "$USE_ROOT" != "1" ]]; then
+    log "Sem acesso root — pulando ajuste de grants."
+    return 0
+  fi
+  mysql "${ROOT_OPTS[@]}" -e \
     "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
      CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
      ALTER USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
@@ -89,7 +110,7 @@ apply_migrations() {
 }
 
 wait_for_mysql
-apply_migrations
+apply_migrations || log "AVISO: apply_migrations retornou erro — iniciando API mesmo assim."
 
 log "Iniciando API: $*"
 exec "$@"

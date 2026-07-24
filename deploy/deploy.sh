@@ -8,6 +8,7 @@
 #   ./deploy.sh logs        # logs em follow
 #   ./deploy.sh ps          # status
 #   ./deploy.sh migrate     # reaplica SQL via backend entrypoint/restart
+#   ./deploy.sh doctor      # status + logs + health (útil para 502)
 #   ./deploy.sh git-status  # status do repositório
 #   ./deploy.sh git-push    # push da branch configurada (GIT_BRANCH)
 # =============================================================================
@@ -77,6 +78,24 @@ cmd_migrate() {
   compose logs --tail=80 vitalink-backend
 }
 
+cmd_doctor() {
+  echo "[deploy] Diagnóstico VitaLink"
+  compose ps || true
+  echo
+  echo "--- backend logs (últimas 80 linhas) ---"
+  compose logs --tail=80 vitalink-backend || true
+  echo
+  echo "--- healthchecks ---"
+  echo -n "backend container /health: "
+  compose exec -T vitalink-backend curl -fsS http://127.0.0.1:3333/health 2>/dev/null || echo "FALHOU"
+  echo -n "frontend /healthz: "
+  compose exec -T vitalink-frontend wget -qO- http://127.0.0.1/healthz 2>/dev/null || echo "FALHOU"
+  echo -n "frontend /api-health (proxy→API): "
+  compose exec -T vitalink-frontend wget -qO- http://127.0.0.1/api-health 2>/dev/null || echo "FALHOU"
+  echo
+  echo "Host ports: DB ${VITALINK_DB_HOST_PORT:-3308} | API ${VITALINK_BACKEND_HOST_PORT:-3002} | HTTP ${VITALINK_FRONTEND_HOST_PORT:-3102} | HTTPS ${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}"
+}
+
 cmd_git_status() {
   git -C "$ROOT_DIR" status -sb
   git -C "$ROOT_DIR" remote -v
@@ -99,6 +118,7 @@ case "${1:-help}" in
   logs) cmd_logs ;;
   ps) cmd_ps ;;
   migrate) cmd_migrate ;;
+  doctor) cmd_doctor ;;
   git-status) cmd_git_status ;;
   git-push) cmd_git_push ;;
   help|-h|--help) cmd_help ;;
