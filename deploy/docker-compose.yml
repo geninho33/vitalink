@@ -1,36 +1,27 @@
 # VitaLink — orquestração Docker
-# Portas host: DB 3308 | API 3002 | Web HTTP 3102 | Web HTTPS 3443
+# Portas host: DB 5433 | API 3002 | Web HTTP 3102 | Web HTTPS 3443
 name: vitalink
 
 services:
   vitalink-db:
-    # MySQL 8.0 (série 8.0.x — não usar mysql:latest / 9.x)
-    image: ${VITALINK_MYSQL_IMAGE:-mysql:8.0}
+    image: ${VITALINK_PG_IMAGE:-postgres:16-alpine}
     container_name: vitalink-db
     restart: unless-stopped
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-masterkey}
-      MYSQL_DATABASE: ${DB_NAME:-vitalink}
-      MYSQL_USER: ${DB_USER:-vitalink}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
+      POSTGRES_DB: ${DB_NAME:-vitalink}
+      POSTGRES_USER: ${DB_USER:-vitalink}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
     ports:
-      - "${VITALINK_DB_HOST_PORT:-3308}:3306"
+      - "${VITALINK_DB_HOST_PORT:-5433}:5432"
     volumes:
-      - vitalink_mysql_data:/var/lib/mysql
-      - ../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ../database/patch_saude_modulos.sql:/docker-entrypoint-initdb.d/02-patch_saude.sql:ro
-      - ../database/patch_atividades_anamnese.sql:/docker-entrypoint-initdb.d/03-patch_atividades.sql:ro
+      - vitalink_pg_data:/var/lib/postgresql/data
+      - ../database/schema.postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      # Conforme SDD: mysqladmin ping com root (senha padrão masterkey — deve bater com MYSQL_ROOT_PASSWORD)
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -pmasterkey || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 30
-      start_period: 45s
+      start_period: 20s
     networks:
       vitalink-net:
         aliases:
@@ -51,15 +42,13 @@ services:
       PORT: ${BACKEND_PORT:-3333}
       API_PREFIX: ${API_PREFIX:-/api/v1}
       DB_HOST: vitalink-db
-      DB_PORT: 3306
+      DB_PORT: 5432
       DB_USER: ${DB_USER:-vitalink}
       DB_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
       DB_NAME: ${DB_NAME:-vitalink}
-      DB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-masterkey}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-vitalink-2026}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
-      # * libera qualquer origem (acesso por IP do servidor); liste hosts se preferir restringir
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     ports:
       - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
@@ -95,8 +84,8 @@ services:
           - vitalink-frontend
 
 volumes:
-  vitalink_mysql_data:
-    name: vitalink_mysql_data
+  vitalink_pg_data:
+    name: vitalink_pg_data
 
 networks:
   vitalink-net:

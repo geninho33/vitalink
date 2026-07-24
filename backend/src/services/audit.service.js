@@ -18,7 +18,7 @@ async function writeAudit({ usuarioId, acao, recurso, recursoId, ip, userAgent, 
         recursoId: recursoId != null ? String(recursoId) : null,
         ip: ip || null,
         userAgent: userAgent ? String(userAgent).slice(0, 255) : null,
-        metadados: metadados ? JSON.stringify(logger.sanitize(metadados)) : null,
+        metadados: metadados ? logger.sanitize(metadados) : null,
       }
     );
   } catch (err) {

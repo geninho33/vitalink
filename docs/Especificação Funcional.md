@@ -81,7 +81,7 @@ Escopo desta especificação (SDD v1): módulos de **Segurança e Acesso**, **Cl
 
 ## 5. Critérios de aceite (SDD)
 
-- [ ] Schema MySQL aplicável em `database/schema.sql`
+- [ ] Schema PostgreSQL aplicável em `database/schema.postgres.sql`
 - [ ] `POST /api/v1/auth/login` retorna token + menus
 - [ ] `GET /api/v1/menus/me` exige Bearer e filtra por perfil
 - [ ] CRUDs de remédios, médicos, usuários e perfis protegidos

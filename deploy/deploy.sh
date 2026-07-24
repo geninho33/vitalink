@@ -41,7 +41,7 @@ compose() {
 
 cmd_up() {
   echo "[deploy] Build e subida da stack VitaLink..."
-  echo "  DB host port:       ${VITALINK_DB_HOST_PORT:-3308}"
+  echo "  DB host port:       ${VITALINK_DB_HOST_PORT:-5433}"
   echo "  Backend host port:  ${VITALINK_BACKEND_HOST_PORT:-3002}"
   echo "  Frontend host port: ${VITALINK_FRONTEND_HOST_PORT:-3102}"
   compose up -d --build
@@ -49,7 +49,7 @@ cmd_up() {
   echo "  Frontend HTTP:  http://localhost:${VITALINK_FRONTEND_HOST_PORT:-3102}"
   echo "  Frontend HTTPS: https://localhost:${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}"
   echo "  API:            http://localhost:${VITALINK_BACKEND_HOST_PORT:-3002}/health"
-  echo "  MySQL:          localhost:${VITALINK_DB_HOST_PORT:-3308}"
+  echo "  PostgreSQL:     localhost:${VITALINK_DB_HOST_PORT:-5433}"
 }
 
 cmd_down() {
@@ -93,7 +93,7 @@ cmd_doctor() {
   echo -n "frontend /api-health (proxy→API): "
   compose exec -T vitalink-frontend wget -qO- http://127.0.0.1/api-health 2>/dev/null || echo "FALHOU"
   echo
-  echo "Host ports: DB ${VITALINK_DB_HOST_PORT:-3308} | API ${VITALINK_BACKEND_HOST_PORT:-3002} | HTTP ${VITALINK_FRONTEND_HOST_PORT:-3102} | HTTPS ${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}"
+  echo "Host ports: DB ${VITALINK_DB_HOST_PORT:-5433} | API ${VITALINK_BACKEND_HOST_PORT:-3002} | HTTP ${VITALINK_FRONTEND_HOST_PORT:-3102} | HTTPS ${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}"
 }
 
 cmd_git_status() {

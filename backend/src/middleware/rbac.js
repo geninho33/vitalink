@@ -25,7 +25,7 @@ function requirePermission(menuRota, action = 'ler') {
          INNER JOIN menus m ON m.id = pa.menu_id
          WHERE pa.perfil_id = :perfilId
            AND m.rota = :rota
-           AND m.ativo = 1
+           AND m.ativo = TRUE
          LIMIT 1`,
         { perfilId: req.user.perfilId, rota: menuRota }
       );

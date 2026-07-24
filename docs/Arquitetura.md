@@ -8,16 +8,16 @@ Arquitetura em três camadas para a v1 SDD:
 flowchart TB
   frontend[Frontend React Vite Tailwind]
   api[Backend Express JWT RBAC]
-  mysql[(MySQL vitalink)]
+  postgres[(PostgreSQL vitalink)]
   frontend -->|Bearer Token HTTPS| api
-  api --> mysql
+  api --> postgres
 ```
 
 | Camada | Tecnologia | Pasta |
 |--------|------------|-------|
 | Frontend | React 18 + Vite + TailwindCSS | `frontend/` |
-| Backend | Node.js + Express + mysql2 + JWT | `backend/` |
-| Banco | MySQL 8 (utf8mb4) | `database/schema.sql` |
+| Backend | Node.js + Express + pg + JWT | `backend/` |
+| Banco | PostgreSQL 16 (UTF8) | `database/schema.postgres.sql` |
 
 O protótipo estático legado (`index.html`, `script.js`) permanece na raiz e **não** faz parte do fluxo autenticado.
 
@@ -26,8 +26,9 @@ O protótipo estático legado (`index.html`, `script.js`) permanece na raiz e **
 ## Módulos
 
 1. **Segurança e Acesso** — auth JWT, usuários, perfis, menus, permissões
-2. **Clínico & Prescrição** — médicos, remédios
-3. **Auditoria** — `auditoria_logs` + logger sanitizado
+2. **Saúde** — pacientes, médicos, remédios, hospitais, farmácias, cuidadores, responsáveis
+3. **Atividades** — agenda, consultas, rotina, anamnese, timeline
+4. **Auditoria** — `auditoria_logs` + logger sanitizado
 
 ---
 
@@ -52,6 +53,8 @@ O protótipo estático legado (`index.html`, `script.js`) permanece na raiz e **
 
 ## Deploy local (dev)
 
-1. Criar DB: `mysql ... < database/schema.sql`
+1. Criar DB: `psql ... -f database/schema.postgres.sql`
 2. Backend: `cd backend && cp .env.example .env && npm i && npm run dev`
 3. Frontend: `cd frontend && cp .env.example .env && npm i && npm run dev`
+
+Ou stack completa: `cd deploy && ./deploy.sh up`

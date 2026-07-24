@@ -16,7 +16,7 @@ Repositório: [github.com/geninho33/vitalink](https://github.com/geninho33/vital
 flowchart LR
   web[Frontend React Vite Tailwind]
   api[Backend Node.js Express JWT]
-  db[(MySQL vitalink)]
+  db[(PostgreSQL vitalink)]
   web -->|HTTPS Bearer Token| api
   api --> db
 ```
@@ -24,8 +24,8 @@ flowchart LR
 | Camada | Tecnologia | Pasta |
 |--------|------------|-------|
 | Frontend | React 18 + Vite + TailwindCSS | `frontend/` |
-| Backend | Node.js + Express + mysql2 + JWT + RBAC | `backend/` |
-| Banco | MySQL 5.7+/8 (`utf8mb4`) | `database/schema.sql` |
+| Backend | Node.js + Express + pg + JWT + RBAC | `backend/` |
+| Banco | PostgreSQL 16 (UTF8) | `database/schema.postgres.sql` |
 | Documentação SDD | Spec funcional + contratos OpenAPI | `docs/` |
 
 Há ainda um protótipo legado mobile-first na raiz (`index.html` / `script.js` / `localStorage`), separado do fluxo autenticado da API.
@@ -48,8 +48,8 @@ Há ainda um protótipo legado mobile-first na raiz (`index.html` / `script.js` 
 ### Pré-requisitos
 
 - Node.js 18+
-- MySQL em execução (serviço local)
-- Credenciais de desenvolvimento: usuário `root` / senha `masterkey`
+- PostgreSQL 16 em execução (serviço local ou Docker)
+- Credenciais de desenvolvimento: usuário `vitalink` / senha `vitalink_secret`
 
 ### 1. Clonar e entrar no projeto
 
@@ -61,26 +61,25 @@ git checkout dev
 
 ### 2. Criar o banco e aplicar o schema
 
-No Windows (PowerShell), com o cliente MySQL no PATH ou caminho completo:
-
-```powershell
-Get-Content -Raw .\database\schema.sql |
-  & "C:\Program Files\MySQL\MySQL Server 5.7\bin\mysql.exe" -h localhost -u root -pmasterkey --default-character-set=utf8mb4
+```bash
+createdb -U vitalink vitalink
+psql -h localhost -U vitalink -d vitalink -f database/schema.postgres.sql
 ```
 
-Ou, em bash:
+Ou via Docker Compose (`deploy/`):
 
 ```bash
-mysql -h localhost -u root -pmasterkey --default-character-set=utf8mb4 < database/schema.sql
+cd deploy && cp .env.example .env && ./deploy.sh up
 ```
 
-Parâmetros:
+Parâmetros locais típicos:
 
 | Parâmetro | Valor |
 |-----------|-------|
 | Host | `localhost` |
-| Usuário | `root` |
-| Senha | `masterkey` |
+| Porta | `5432` (host Docker: `5433`) |
+| Usuário | `vitalink` |
+| Senha | `vitalink_secret` |
 | Database | `vitalink` |
 
 ### 3. Subir a API

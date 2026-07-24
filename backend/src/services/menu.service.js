@@ -7,8 +7,8 @@ async function getMenusByPerfil(perfilId) {
      FROM permissoes_acesso pa
      INNER JOIN menus m ON m.id = pa.menu_id
      WHERE pa.perfil_id = :perfilId
-       AND pa.pode_ler = 1
-       AND m.ativo = 1
+       AND pa.pode_ler = TRUE
+       AND m.ativo = TRUE
      ORDER BY m.ordem ASC, m.id ASC`,
     { perfilId }
   );
@@ -21,9 +21,9 @@ async function getMenusByPerfil(perfilId) {
   for (const parentId of missingParents) {
     const parents = await query(
       `SELECT m.id, m.titulo, m.rota, m.icone, m.ordem, m.menu_pai_id,
-              1 AS pode_ler, 0 AS pode_criar, 0 AS pode_editar, 0 AS pode_deletar
+              TRUE AS pode_ler, FALSE AS pode_criar, FALSE AS pode_editar, FALSE AS pode_deletar
        FROM menus m
-       WHERE m.id = :id AND m.ativo = 1
+       WHERE m.id = :id AND m.ativo = TRUE
        LIMIT 1`,
       { id: parentId }
     );

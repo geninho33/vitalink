@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit } = require('../services/audit.service');
 
 async function listPerfis(req, res, next) {
@@ -44,10 +44,10 @@ async function createPerfil(req, res, next) {
         {
           perfil_id: perfilId,
           menu_id: p.menu_id,
-          pode_ler: p.pode_ler ? 1 : 0,
-          pode_criar: p.pode_criar ? 1 : 0,
-          pode_editar: p.pode_editar ? 1 : 0,
-          pode_deletar: p.pode_deletar ? 1 : 0,
+          pode_ler: !!p.pode_ler,
+          pode_criar: !!p.pode_criar,
+          pode_editar: !!p.pode_editar,
+          pode_deletar: !!p.pode_deletar,
         }
       );
     }
@@ -63,7 +63,7 @@ async function createPerfil(req, res, next) {
 
     return res.status(201).json({ id: perfilId });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
+    if (isDuplicateKey(err)) {
       err.status = 409;
       err.message = 'Perfil já existe.';
     }
@@ -97,10 +97,10 @@ async function updatePermissoes(req, res, next) {
           {
             perfil_id: id,
             menu_id: p.menu_id,
-            pode_ler: p.pode_ler ? 1 : 0,
-            pode_criar: p.pode_criar ? 1 : 0,
-            pode_editar: p.pode_editar ? 1 : 0,
-            pode_deletar: p.pode_deletar ? 1 : 0,
+            pode_ler: !!p.pode_ler,
+            pode_criar: !!p.pode_criar,
+            pode_editar: !!p.pode_editar,
+            pode_deletar: !!p.pode_deletar,
           }
         );
       }

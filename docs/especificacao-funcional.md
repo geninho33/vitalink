@@ -221,7 +221,7 @@ Oferecer ao médico visão consolidada de adesão e eventos, com exportação de
 |----|-----------|
 | RNF-01 | API REST versionada em `/api/v1` |
 | RNF-02 | Autenticação Bearer JWT |
-| RNF-03 | MySQL com charset `utf8mb4` |
+| RNF-03 | PostgreSQL 16 com encoding UTF8 |
 | RNF-04 | Logs de aplicação sanitizados (LGPD) |
 | RNF-05 | Interface responsiva (desktop + mobile) |
 | RNF-06 | Tempo de resposta p95 das rotas de leitura &lt; 500 ms em ambiente local de referência |
@@ -246,7 +246,7 @@ Detalhamento técnico: ver `README.md` (política LGPD) e `docs/api-contracts.md
 |----------|---------|
 | Esta especificação | `docs/especificacao-funcional.md` |
 | Contratos de API | `docs/api-contracts.md` |
-| Schema MySQL | `database/schema.sql` |
+| Schema PostgreSQL | `database/schema.postgres.sql` |
 | README do repositório | `README.md` |
 | Login (branding) | `frontend/src/pages/Login.jsx` |
 

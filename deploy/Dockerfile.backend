@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # VitaLink API — multi-stage Node.js
-# Wait de MySQL: Node net puro no entrypoint (sem nc/mysqladmin).
+# Wait de PostgreSQL: Node net puro no entrypoint (sem nc/psql admin).
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY backend/package.json ./

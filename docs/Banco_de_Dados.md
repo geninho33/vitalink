@@ -5,16 +5,18 @@
 | Parâmetro | Valor |
 |-----------|-------|
 | Host | `localhost` |
-| Porta | `3306` |
-| Usuário | `root` |
-| Senha | `masterkey` |
+| Porta | `5432` (Docker host: `5433`) |
+| Usuário | `vitalink` |
+| Senha | `vitalink_secret` |
 | Database | `vitalink` |
 
-Script canônico: [`database/schema.sql`](../database/schema.sql)
+Script canônico: [`database/schema.postgres.sql`](../database/schema.postgres.sql)
 
 ```bash
-mysql -h localhost -u root -pmasterkey < database/schema.sql
+psql -h localhost -U vitalink -d vitalink -f database/schema.postgres.sql
 ```
+
+Os arquivos `schema.sql` / `patch_*.sql` MySQL permanecem apenas como legado histórico.
 
 ---
 
@@ -44,7 +46,7 @@ erDiagram
     int id PK
     varchar email UK
     varchar senha_hash
-    enum status
+    text status
     int perfil_id FK
   }
   permissoes_acesso {
@@ -79,21 +81,11 @@ erDiagram
 
 ## Tabelas
 
-| Tabela | Módulo |
-|--------|--------|
-| `perfis` | RBAC |
-| `menus` | RBAC |
-| `usuarios` | RBAC |
-| `permissoes_acesso` | RBAC |
-| `medicos` | Clínico |
-| `remedios` | Prescrição |
-| `auditoria_logs` | Conformidade |
+17 tabelas no schema consolidado: RBAC (`perfis`, `menus`, `usuarios`, `permissoes_acesso`), saúde (`hospitais_clinicas`, `farmacias`, `cuidadores`, `responsaveis`, `medicos`, `pacientes`, `remedios`), atividades (`paciente_anamnese`, `consultas`, `atendimentos_rotina`, `atendimento_execucoes`, `agenda_eventos`) e `auditoria_logs`.
 
----
+## Seed admin
 
-## Seeds
-
-- Perfis: Administrador, Médico, Atendente
-- Menus: Dashboard, Usuários, Perfis, Médicos, Remédios, Auditoria
-- Usuário admin: `admin@vitalink.local` / `Admin@Vitalink1`
-- **Sem** seeds de pacientes, prontuários ou dados clínicos reais
+| Campo | Valor |
+|-------|-------|
+| E-mail | `admin@vitalink.local` |
+| Senha | `Admin@Vitalink1` |

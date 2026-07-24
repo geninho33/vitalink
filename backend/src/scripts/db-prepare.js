@@ -1,25 +1,24 @@
 /**
- * Após o TCP já estar aberto (entrypoint), autentica e aplica migrações via mysql2.
- * Sem binários de SO (nc/mysqladmin).
+ * Aguarda PostgreSQL e aplica schema via pg (sem binários de SO).
  */
 const fs = require('fs');
 const path = require('path');
 const net = require('net');
-const mysql = require('mysql2/promise');
+const { Client } = require('pg');
 
 const cfg = {
   host: process.env.DB_HOST || 'vitalink-db',
-  port: Number(process.env.DB_PORT || 3306),
+  port: Number(process.env.DB_PORT || 5432),
   user: process.env.DB_USER || 'vitalink',
   password: process.env.DB_PASSWORD || 'vitalink_secret',
   database: process.env.DB_NAME || 'vitalink',
-  rootPassword: process.env.DB_ROOT_PASSWORD || process.env.MYSQL_ROOT_PASSWORD || 'masterkey',
   runMigrations: (process.env.RUN_MIGRATIONS || 'true') === 'true',
   retries: Number(process.env.DB_WAIT_RETRIES || 60),
   delayMs: Number(process.env.DB_WAIT_DELAY_MS || 2000),
 };
 
 const SQL_DIR = process.env.SQL_DIR || path.join(__dirname, '../../database');
+const SCHEMA_FILE = path.join(SQL_DIR, 'schema.postgres.sql');
 
 function log(msg) {
   console.log(`[vitalink-db-prepare] ${msg}`);
@@ -39,22 +38,22 @@ function waitTcp(host, port, timeoutMs = 3000) {
   });
 }
 
-async function tryConnect({ user, password, database }) {
-  const conn = await mysql.createConnection({
+async function connectApp() {
+  const client = new Client({
     host: cfg.host,
     port: cfg.port,
-    user,
-    password,
-    database: database || undefined,
-    multipleStatements: true,
-    connectTimeout: 8000,
+    user: cfg.user,
+    password: cfg.password,
+    database: cfg.database,
+    connectionTimeoutMillis: 8000,
   });
-  await conn.query('SELECT 1');
-  return conn;
+  await client.connect();
+  await client.query('SELECT 1');
+  return client;
 }
 
-async function waitForMysqlAuth() {
-  log(`Autenticando em ${cfg.host}:${cfg.port}...`);
+async function waitForAuth() {
+  log(`Autenticando em ${cfg.host}:${cfg.port}/${cfg.database}...`);
   let lastErr = null;
 
   for (let i = 1; i <= cfg.retries; i += 1) {
@@ -70,133 +69,69 @@ async function waitForMysqlAuth() {
     }
 
     try {
-      const conn = await tryConnect({
-        user: cfg.user,
-        password: cfg.password,
-        database: cfg.database,
-      });
-      log(`MySQL OK via usuário app (${cfg.user}) na tentativa ${i}.`);
-      return { conn, asRoot: false };
+      const client = await connectApp();
+      log(`PostgreSQL OK via usuário app (${cfg.user}) na tentativa ${i}.`);
+      return client;
     } catch (err) {
       lastErr = err;
+      if (i === 1 || i % 10 === 0) {
+        log(`Auth pendente (${i}/${cfg.retries}): ${err.code || ''} ${err.message}`);
+      }
+      await new Promise((r) => setTimeout(r, cfg.delayMs));
     }
-
-    try {
-      const conn = await tryConnect({
-        user: 'root',
-        password: cfg.rootPassword,
-      });
-      log(`MySQL OK via root na tentativa ${i}.`);
-      return { conn, asRoot: true };
-    } catch (err) {
-      lastErr = err;
-    }
-
-    if (i === 1 || i % 10 === 0) {
-      log(
-        `Auth pendente (${i}/${cfg.retries}): ${lastErr?.code || ''} ${lastErr?.message || lastErr}`
-      );
-    }
-    await new Promise((r) => setTimeout(r, cfg.delayMs));
   }
 
   throw new Error(
-    `MySQL auth falhou: ${lastErr?.code || ''} ${lastErr?.message || lastErr}`
+    `PostgreSQL auth falhou: ${lastErr?.code || ''} ${lastErr?.message || lastErr}`
   );
 }
 
-async function tableExists(conn, tableName) {
-  const [rows] = await conn.query(
-    `SELECT COUNT(*) AS c
+async function tableExists(client, tableName) {
+  const res = await client.query(
+    `SELECT COUNT(*)::int AS c
      FROM information_schema.tables
-     WHERE table_schema = ? AND table_name = ?`,
-    [cfg.database, tableName]
+     WHERE table_schema = 'public' AND table_name = $1`,
+    [tableName]
   );
-  return Number(rows[0]?.c || 0) > 0;
+  return Number(res.rows[0]?.c || 0) > 0;
 }
 
-async function ensureGrants(conn) {
-  log('Ajustando grants do usuário app...');
-  const pwd = cfg.password.replace(/\\/g, '\\\\').replace(/'/g, "''");
-  const user = cfg.user.replace(/'/g, "''");
-  await conn.query(
-    `CREATE DATABASE IF NOT EXISTS \`${cfg.database}\`
-     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
-  );
-  await conn.query(
-    `CREATE USER IF NOT EXISTS '${user}'@'%' IDENTIFIED WITH mysql_native_password BY '${pwd}'`
-  );
-  await conn.query(
-    `ALTER USER '${user}'@'%' IDENTIFIED WITH mysql_native_password BY '${pwd}'`
-  );
-  await conn.query(
-    `GRANT ALL PRIVILEGES ON \`${cfg.database}\`.* TO '${user}'@'%'`
-  );
-  await conn.query('FLUSH PRIVILEGES');
-}
-
-async function runSqlFile(conn, filePath) {
-  if (!fs.existsSync(filePath)) {
-    log(`AVISO: SQL não encontrado: ${filePath}`);
-    return;
-  }
-  const name = path.basename(filePath);
-  log(`Aplicando ${name}...`);
-  const sql = fs.readFileSync(filePath, 'utf8');
-  try {
-    await conn.query(sql);
-    log(`${name} OK.`);
-  } catch (err) {
-    log(`AVISO: falha ao aplicar ${name}: ${err.code || ''} ${err.message}`);
-  }
-}
-
-async function applyMigrations(conn, asRoot) {
+async function applySchema(client) {
   if (!cfg.runMigrations) {
     log('RUN_MIGRATIONS=false — pulando migrações.');
     return;
   }
 
-  if (asRoot) {
-    try {
-      await ensureGrants(conn);
-    } catch (err) {
-      log(`AVISO: grants: ${err.message}`);
-    }
-  } else {
-    log('Conectado como app user — pulando grants root.');
+  const hasUsuarios = await tableExists(client, 'usuarios');
+  const hasAgenda = await tableExists(client, 'agenda_eventos');
+
+  if (hasUsuarios && hasAgenda) {
+    log('Banco já migrado (usuarios + agenda_eventos).');
+    return;
   }
 
-  await conn.query(`CREATE DATABASE IF NOT EXISTS \`${cfg.database}\``).catch(() => {});
-  await conn.changeUser({ database: cfg.database }).catch(() => {});
+  if (!fs.existsSync(SCHEMA_FILE)) {
+    log(`AVISO: schema não encontrado: ${SCHEMA_FILE}`);
+    return;
+  }
 
-  const hasUsuarios = await tableExists(conn, 'usuarios');
-  const hasAgenda = await tableExists(conn, 'agenda_eventos');
-
-  const schema = path.join(SQL_DIR, 'schema.sql');
-  const patchSaude = path.join(SQL_DIR, 'patch_saude_modulos.sql');
-  const patchAtiv = path.join(SQL_DIR, 'patch_atividades_anamnese.sql');
-
-  if (!hasUsuarios) {
-    log('Schema base ausente — aplicando schema + patches...');
-    await runSqlFile(conn, schema);
-    await runSqlFile(conn, patchSaude);
-    await runSqlFile(conn, patchAtiv);
-  } else if (!hasAgenda) {
-    log('Patches de atividades ausentes — aplicando...');
-    await runSqlFile(conn, patchSaude);
-    await runSqlFile(conn, patchAtiv);
-  } else {
-    log('Banco já migrado (usuarios + agenda_eventos).');
+  log(`Aplicando ${path.basename(SCHEMA_FILE)}...`);
+  const sql = fs.readFileSync(SCHEMA_FILE, 'utf8');
+  try {
+    await client.query(sql);
+    log('Schema PostgreSQL OK.');
+  } catch (err) {
+    // Em reexecução parcial, alguns objetos podem já existir
+    log(`AVISO ao aplicar schema: ${err.code || ''} ${err.message}`);
   }
 }
 
 async function main() {
-  const { conn, asRoot } = await waitForMysqlAuth();
+  const client = await waitForAuth();
   try {
-    await applyMigrations(conn, asRoot);
+    await applySchema(client);
   } finally {
-    await conn.end().catch(() => {});
+    await client.end().catch(() => {});
   }
   log('Prepare concluído.');
 }

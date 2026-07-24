@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit } = require('../services/audit.service');
 
 async function listMedicos(req, res, next) {
@@ -54,7 +54,7 @@ async function createMedico(req, res, next) {
 
     return res.status(201).json({ id: result.insertId });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
+    if (isDuplicateKey(err)) {
       err.status = 409;
       err.message = 'CRM/UF já cadastrado.';
     }

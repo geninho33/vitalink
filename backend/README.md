@@ -1,6 +1,6 @@
 # VitaLink API
 
-API Node.js (Express) com JWT Bearer, RBAC e MySQL.
+API Node.js (Express) com JWT Bearer, RBAC e PostgreSQL.
 
 ## Setup rápido
 
@@ -13,7 +13,7 @@ npm install
 Aplicar schema:
 
 ```bash
-mysql -h localhost -u root -pmasterkey < ../database/schema.sql
+psql -h localhost -U vitalink -d vitalink -f ../database/schema.postgres.sql
 ```
 
 Subir:

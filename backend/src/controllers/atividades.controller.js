@@ -3,7 +3,7 @@ const { writeAudit } = require('../services/audit.service');
 const {
   upsertAgendaEvento,
   removeAgendaEvento,
-  toMysqlDatetime,
+  toSqlTimestamp,
 } = require('../services/agenda.service');
 
 function clientMeta(req) {
@@ -29,11 +29,11 @@ async function listAgenda(req, res, next) {
     }
     if (de) {
       where.push('a.data_hora_inicio >= :de');
-      params.de = toMysqlDatetime(de);
+      params.de = toSqlTimestamp(de);
     }
     if (ate) {
       where.push('a.data_hora_inicio <= :ate');
-      params.ate = toMysqlDatetime(ate);
+      params.ate = toSqlTimestamp(ate);
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const rows = await query(
@@ -100,7 +100,7 @@ async function createConsulta(req, res, next) {
         message: 'Campos obrigatórios: paciente_id, profissional_nome, especialidade, data_hora.',
       });
     }
-    const dataHora = toMysqlDatetime(b.data_hora);
+    const dataHora = toSqlTimestamp(b.data_hora);
     const result = await query(
       `INSERT INTO consultas
         (paciente_id, medico_id, profissional_nome, especialidade, local_tipo,
@@ -155,7 +155,7 @@ async function updateConsulta(req, res, next) {
   try {
     const id = req.params.id;
     const b = req.body || {};
-    const dataHora = b.data_hora ? toMysqlDatetime(b.data_hora) : null;
+    const dataHora = b.data_hora ? toSqlTimestamp(b.data_hora) : null;
     await query(
       `UPDATE consultas SET
          paciente_id = COALESCE(:paciente_id, paciente_id),
@@ -198,7 +198,7 @@ async function updateConsulta(req, res, next) {
         origemId: c.id,
         titulo: `Consulta: ${c.especialidade} — ${c.profissional_nome}`,
         descricao: c.observacoes,
-        dataHoraInicio: toMysqlDatetime(c.data_hora),
+        dataHoraInicio: toSqlTimestamp(c.data_hora),
         status: c.status,
       });
     }

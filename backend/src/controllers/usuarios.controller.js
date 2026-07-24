@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, isDuplicateKey } = require('../config/database');
 const { hashPassword } = require('../utils/password');
 const { writeAudit } = require('../services/audit.service');
 
@@ -54,7 +54,7 @@ async function createUsuario(req, res, next) {
 
     return res.status(201).json({ id: result.insertId });
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
+    if (isDuplicateKey(err)) {
       err.status = 409;
       err.message = 'E-mail já cadastrado.';
     }

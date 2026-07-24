@@ -21,14 +21,14 @@ async function upsertAgendaEvento({
      VALUES
       (:pacienteId, :tipo, :origemTabela, :origemId, :titulo, :descricao,
        :dataHoraInicio, :dataHoraFim, :status)
-     ON DUPLICATE KEY UPDATE
-       paciente_id = VALUES(paciente_id),
-       tipo = VALUES(tipo),
-       titulo = VALUES(titulo),
-       descricao = VALUES(descricao),
-       data_hora_inicio = VALUES(data_hora_inicio),
-       data_hora_fim = VALUES(data_hora_fim),
-       status = VALUES(status)`,
+     ON CONFLICT (origem_tabela, origem_id) DO UPDATE SET
+       paciente_id = EXCLUDED.paciente_id,
+       tipo = EXCLUDED.tipo,
+       titulo = EXCLUDED.titulo,
+       descricao = EXCLUDED.descricao,
+       data_hora_inicio = EXCLUDED.data_hora_inicio,
+       data_hora_fim = EXCLUDED.data_hora_fim,
+       status = EXCLUDED.status`,
     {
       pacienteId,
       tipo,
@@ -50,16 +50,21 @@ async function removeAgendaEvento(origemTabela, origemId) {
   );
 }
 
-function toMysqlDatetime(value) {
+/** Formata Date/string para timestamp SQL (YYYY-MM-DD HH:mm:ss). */
+function toSqlTimestamp(value) {
   if (!value) return null;
-  const d = new Date(value);
+  const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return String(value).replace('T', ' ').slice(0, 19);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+/** @deprecated use toSqlTimestamp */
+const toMysqlDatetime = toSqlTimestamp;
+
 module.exports = {
   upsertAgendaEvento,
   removeAgendaEvento,
+  toSqlTimestamp,
   toMysqlDatetime,
 };

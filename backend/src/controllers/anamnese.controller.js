@@ -49,21 +49,21 @@ async function upsertAnamnese(req, res, next) {
          :sono, :alimentacao, :mobilidade, :autonomia, :medicamentos_contraindicados,
          :alergias_alimentares, :limitacoes_fisicas_cognitivas, :instrucoes_cuidadores,
          :episodios_confusao, :contato_emergencia_nome, :contato_emergencia_telefone)
-       ON DUPLICATE KEY UPDATE
-         doencas_preexistentes = VALUES(doencas_preexistentes),
-         historico_familiar = VALUES(historico_familiar),
-         cirurgias_anteriores = VALUES(cirurgias_anteriores),
-         sono = VALUES(sono),
-         alimentacao = VALUES(alimentacao),
-         mobilidade = VALUES(mobilidade),
-         autonomia = VALUES(autonomia),
-         medicamentos_contraindicados = VALUES(medicamentos_contraindicados),
-         alergias_alimentares = VALUES(alergias_alimentares),
-         limitacoes_fisicas_cognitivas = VALUES(limitacoes_fisicas_cognitivas),
-         instrucoes_cuidadores = VALUES(instrucoes_cuidadores),
-         episodios_confusao = VALUES(episodios_confusao),
-         contato_emergencia_nome = VALUES(contato_emergencia_nome),
-         contato_emergencia_telefone = VALUES(contato_emergencia_telefone)`,
+       ON CONFLICT (paciente_id) DO UPDATE SET
+         doencas_preexistentes = EXCLUDED.doencas_preexistentes,
+         historico_familiar = EXCLUDED.historico_familiar,
+         cirurgias_anteriores = EXCLUDED.cirurgias_anteriores,
+         sono = EXCLUDED.sono,
+         alimentacao = EXCLUDED.alimentacao,
+         mobilidade = EXCLUDED.mobilidade,
+         autonomia = EXCLUDED.autonomia,
+         medicamentos_contraindicados = EXCLUDED.medicamentos_contraindicados,
+         alergias_alimentares = EXCLUDED.alergias_alimentares,
+         limitacoes_fisicas_cognitivas = EXCLUDED.limitacoes_fisicas_cognitivas,
+         instrucoes_cuidadores = EXCLUDED.instrucoes_cuidadores,
+         episodios_confusao = EXCLUDED.episodios_confusao,
+         contato_emergencia_nome = EXCLUDED.contato_emergencia_nome,
+         contato_emergencia_telefone = EXCLUDED.contato_emergencia_telefone`,
       payload
     );
 

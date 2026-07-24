@@ -1,4 +1,4 @@
-const { query } = require('../config/database');
+const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit } = require('../services/audit.service');
 
 function onlyDigits(value) {
@@ -56,7 +56,7 @@ function createCrudController({
       if (q && searchable.length) {
         const parts = searchable.map((col, i) => {
           params[`q${i}`] = `%${q}%`;
-          return `${col} LIKE :q${i}`;
+          return `${col} ILIKE :q${i}`;
         });
         where.push(`(${parts.join(' OR ')})`);
       }
@@ -128,7 +128,7 @@ function createCrudController({
 
       return res.status(201).json({ id: result.insertId });
     } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateKey(err)) {
         err.status = 409;
         err.message = 'Registro duplicado.';
       }
@@ -165,7 +165,7 @@ function createCrudController({
 
       return res.json({ ok: true });
     } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
+      if (isDuplicateKey(err)) {
         err.status = 409;
         err.message = 'Registro duplicado.';
       }

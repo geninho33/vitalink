@@ -3,7 +3,7 @@ const { writeAudit } = require('../services/audit.service');
 const {
   upsertAgendaEvento,
   removeAgendaEvento,
-  toMysqlDatetime,
+  toSqlTimestamp,
 } = require('../services/agenda.service');
 
 function clientMeta(req) {
@@ -62,7 +62,6 @@ async function createRotina(req, res, next) {
       }
     );
 
-    // Gera ocorrências dos próximos 7 dias (e agenda)
     const start = new Date(`${b.data_inicio}T00:00:00`);
     for (let i = 0; i < 7; i += 1) {
       const day = new Date(start);
@@ -73,9 +72,11 @@ async function createRotina(req, res, next) {
       const dateStr = day.toISOString().slice(0, 10);
       const prevista = combineDateTime(dateStr, b.horario);
       const exec = await query(
-        `INSERT IGNORE INTO atendimento_execucoes
+        `INSERT INTO atendimento_execucoes
           (atendimento_rotina_id, paciente_id, data_hora_prevista, status)
-         VALUES (:rotinaId, :pacienteId, :prevista, 'pendente')`,
+         VALUES (:rotinaId, :pacienteId, :prevista, 'pendente')
+         ON CONFLICT (atendimento_rotina_id, data_hora_prevista) DO NOTHING
+         RETURNING id`,
         { rotinaId: result.insertId, pacienteId: b.paciente_id, prevista }
       );
       if (exec.insertId) {
@@ -163,7 +164,7 @@ async function deleteRotina(req, res, next) {
 async function listExecucoesHoje(req, res, next) {
   try {
     const pacienteId = req.query.paciente_id;
-    const where = ["DATE(e.data_hora_prevista) = CURDATE()"];
+    const where = ['(e.data_hora_prevista::date) = CURRENT_DATE'];
     const params = {};
     if (pacienteId) {
       where.push('e.paciente_id = :pacienteId');
@@ -188,12 +189,12 @@ async function confirmarExecucao(req, res, next) {
   try {
     const { status = 'concluido', motivo_nao_realizacao } = req.body || {};
     const id = req.params.id;
-    const now = toMysqlDatetime(new Date());
+    const now = toSqlTimestamp(new Date());
     await query(
       `UPDATE atendimento_execucoes SET
          status = :status,
          motivo_nao_realizacao = :motivo,
-         data_hora_realizada = IF(:status = 'concluido', :now, data_hora_realizada),
+         data_hora_realizada = CASE WHEN :status = 'concluido' THEN :now ELSE data_hora_realizada END,
          executado_por = :userId
        WHERE id = :id`,
       {
@@ -217,7 +218,7 @@ async function confirmarExecucao(req, res, next) {
         origemId: e.id,
         titulo: rotina[0]?.titulo || 'Atendimento',
         descricao: e.motivo_nao_realizacao,
-        dataHoraInicio: toMysqlDatetime(e.data_hora_prevista),
+        dataHoraInicio: toSqlTimestamp(e.data_hora_prevista),
         status: status === 'nao_realizado' ? 'nao_realizado' : status,
       });
     }
