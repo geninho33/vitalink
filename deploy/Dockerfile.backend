@@ -8,7 +8,7 @@ RUN npm install --omit=dev
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache mysql-client bash curl su-exec \
+RUN apk add --no-cache bash curl su-exec \
   && addgroup -S vitalink && adduser -S vitalink -G vitalink
 
 COPY --from=deps /app/node_modules ./node_modules
