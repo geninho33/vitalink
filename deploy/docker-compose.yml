@@ -32,7 +32,9 @@ services:
       retries: 30
       start_period: 45s
     networks:
-      - vitalink-net
+      vitalink-net:
+        aliases:
+          - vitalink-db
 
   vitalink-backend:
     build:
@@ -68,7 +70,9 @@ services:
       retries: 18
       start_period: 90s
     networks:
-      - vitalink-net
+      vitalink-net:
+        aliases:
+          - vitalink-backend
 
   vitalink-frontend:
     build:
@@ -86,7 +90,9 @@ services:
       - "${VITALINK_FRONTEND_HOST_PORT:-3102}:80"
       - "${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}:443"
     networks:
-      - vitalink-net
+      vitalink-net:
+        aliases:
+          - vitalink-frontend
 
 volumes:
   vitalink_mysql_data:

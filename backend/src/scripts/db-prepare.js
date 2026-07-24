@@ -1,9 +1,10 @@
 /**
- * Aguarda MySQL e aplica migrações usando mysql2 (mesmo driver da API).
- * Evita falhas do mysqladmin/cliente Alpine contra MySQL 8 (causa do 502).
+ * Após o TCP já estar aberto (entrypoint), autentica e aplica migrações via mysql2.
+ * Sem binários de SO (nc/mysqladmin).
  */
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
 const mysql = require('mysql2/promise');
 
 const cfg = {
@@ -14,7 +15,7 @@ const cfg = {
   database: process.env.DB_NAME || 'vitalink',
   rootPassword: process.env.DB_ROOT_PASSWORD || process.env.MYSQL_ROOT_PASSWORD || 'masterkey',
   runMigrations: (process.env.RUN_MIGRATIONS || 'true') === 'true',
-  retries: Number(process.env.DB_WAIT_RETRIES || 90),
+  retries: Number(process.env.DB_WAIT_RETRIES || 60),
   delayMs: Number(process.env.DB_WAIT_DELAY_MS || 2000),
 };
 
@@ -22,6 +23,20 @@ const SQL_DIR = process.env.SQL_DIR || path.join(__dirname, '../../database');
 
 function log(msg) {
   console.log(`[vitalink-db-prepare] ${msg}`);
+}
+
+function waitTcp(host, port, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    const socket = net.connect({ host, port }, () => {
+      socket.end();
+      resolve();
+    });
+    socket.setTimeout(timeoutMs, () => {
+      socket.destroy();
+      reject(new Error(`timeout TCP ${host}:${port}`));
+    });
+    socket.on('error', reject);
+  });
 }
 
 async function tryConnect({ user, password, database }) {
@@ -32,18 +47,28 @@ async function tryConnect({ user, password, database }) {
     password,
     database: database || undefined,
     multipleStatements: true,
-    connectTimeout: 5000,
+    connectTimeout: 8000,
   });
   await conn.query('SELECT 1');
   return conn;
 }
 
-async function waitForMysql() {
-  log(`Aguardando MySQL em ${cfg.host}:${cfg.port}...`);
+async function waitForMysqlAuth() {
+  log(`Autenticando em ${cfg.host}:${cfg.port}...`);
   let lastErr = null;
 
   for (let i = 1; i <= cfg.retries; i += 1) {
-    // 1) usuário da aplicação (criado pelo entrypoint oficial do MySQL com host %)
+    try {
+      await waitTcp(cfg.host, cfg.port);
+    } catch (err) {
+      lastErr = err;
+      if (i === 1 || i % 10 === 0) {
+        log(`TCP ainda fechado (${i}/${cfg.retries}): ${err.message}`);
+      }
+      await new Promise((r) => setTimeout(r, cfg.delayMs));
+      continue;
+    }
+
     try {
       const conn = await tryConnect({
         user: cfg.user,
@@ -56,7 +81,6 @@ async function waitForMysql() {
       lastErr = err;
     }
 
-    // 2) root via TCP
     try {
       const conn = await tryConnect({
         user: 'root',
@@ -70,14 +94,14 @@ async function waitForMysql() {
 
     if (i === 1 || i % 10 === 0) {
       log(
-        `Ainda aguardando (tentativa ${i}/${cfg.retries}): ${lastErr?.code || ''} ${lastErr?.message || lastErr}`
+        `Auth pendente (${i}/${cfg.retries}): ${lastErr?.code || ''} ${lastErr?.message || lastErr}`
       );
     }
     await new Promise((r) => setTimeout(r, cfg.delayMs));
   }
 
   throw new Error(
-    `MySQL não ficou disponível a tempo: ${lastErr?.code || ''} ${lastErr?.message || lastErr}`
+    `MySQL auth falhou: ${lastErr?.code || ''} ${lastErr?.message || lastErr}`
   );
 }
 
@@ -143,7 +167,6 @@ async function applyMigrations(conn, asRoot) {
     log('Conectado como app user — pulando grants root.');
   }
 
-  // Garante USE no schema alvo
   await conn.query(`CREATE DATABASE IF NOT EXISTS \`${cfg.database}\``).catch(() => {});
   await conn.changeUser({ database: cfg.database }).catch(() => {});
 
@@ -169,16 +192,16 @@ async function applyMigrations(conn, asRoot) {
 }
 
 async function main() {
-  const { conn, asRoot } = await waitForMysql();
+  const { conn, asRoot } = await waitForMysqlAuth();
   try {
     await applyMigrations(conn, asRoot);
   } finally {
     await conn.end().catch(() => {});
   }
-  log('Prepare concluído — iniciando API.');
+  log('Prepare concluído.');
 }
 
 main().catch((err) => {
-  console.error(`[vitalink-db-prepare] ERRO FATAL: ${err.message}`);
+  console.error(`[vitalink-db-prepare] ERRO: ${err.message}`);
   process.exit(1);
 });

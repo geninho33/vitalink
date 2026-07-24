@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
 # VitaLink API — multi-stage Node.js
+# Wait de MySQL: Node net puro no entrypoint (sem nc/mysqladmin).
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY backend/package.json ./
@@ -21,7 +22,6 @@ RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
   && chmod +x /usr/local/bin/docker-entrypoint.sh \
   && chown -R vitalink:vitalink /app
 
-# Entrypoint como root (mysql admin); API com usuário vitalink via su-exec
 USER root
 EXPOSE 3333
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

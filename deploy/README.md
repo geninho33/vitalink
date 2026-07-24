@@ -27,8 +27,10 @@ chmod +x deploy.sh docker-entrypoint.sh
 ## Ordem de subida (anti-502)
 
 1. `vitalink-db` — healthcheck: `mysqladmin ping -h localhost -u root -pmasterkey`
-2. `vitalink-backend` — só inicia com `depends_on: condition: service_healthy` no DB; o entrypoint confirma o MySQL via **mysql2** e então sobe a API na `:3333`
+2. `vitalink-backend` — só inicia com DB healthy; o entrypoint espera TCP com **Node `net`** (sem nc/mysqladmin), roda migrações via mysql2 e sobe a API na `:3333`
 3. `vitalink-frontend` — só inicia com backend healthy; Nginx faz proxy de `/api/` → `vitalink-backend:3333`
+
+Todos os serviços usam a rede bridge `vitalink-net` (aliases explícitos).
 
 ## Diagnóstico de 502 no login
 
