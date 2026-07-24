@@ -18,23 +18,47 @@ chmod +x deploy.sh docker-entrypoint.sh
 ./deploy.sh rebuild
 ```
 
-- HTTP:  `http://SEU_IP:3102`
-- HTTPS: `https://SEU_IP:3443` (certificado autoassinado — aceite o aviso do navegador)
-- Health API direta: `http://SEU_IP:3002/health`
+- Preferencial (login sem alerta de senha): `https://SEU_IP:3443/login`
+- HTTP: `http://SEU_IP:3102`
+- Health via Nginx (proxy): `http://SEU_IP:3102/api-health`
+- Health API direta: `http://SEU_IP:3002/health` (pode estar bloqueada no firewall)
 - Login seed: `admin@vitalink.local` / `Admin@Vitalink1`
 
 ## Diagnóstico de 502 no login
 
+O 502 significa que o **Nginx não alcança o backend**. Quase sempre o container `vitalink-backend` está em crash-loop ou unhealthy.
+
+```bash
+cd deploy
+git pull
+./deploy.sh rebuild
+./deploy.sh doctor
+```
+
+Manual:
+
 ```bash
 docker compose -f docker-compose.yml ps
-docker compose -f docker-compose.yml logs --tail=100 vitalink-backend
-curl -s http://127.0.0.1:3002/health
+docker compose -f docker-compose.yml logs --tail=150 vitalink-backend
+curl -s http://127.0.0.1:3102/api-health
 curl -s -X POST http://127.0.0.1:3102/api/v1/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin@vitalink.local","senha":"Admin@Vitalink1"}'
 ```
 
+Se o backend não sobe por senha root do MySQL divergente do volume antigo:
+
+```bash
+# Confira MYSQL_ROOT_PASSWORD em deploy/.env (mesma da 1ª criação do volume)
+# Ou recrie o volume (APAGA DADOS):
+docker compose -f docker-compose.yml down
+docker volume rm vitalink_mysql_data
+./deploy.sh rebuild
+```
+
+Libere no firewall, se necessário: `3102`, `3443` (e opcionalmente `3002`).
+
 ## Observações
 
-- Aviso de “senha em página HTTP”: use a porta **3443 (HTTPS)** ou coloque um proxy com certificado válido na frente.
-- Avisos de `-webkit-text-size-adjust` / `-moz-osx-font-smoothing` vêm do CSS do Tailwind e são inofensivos no Firefox.
+- Aviso de “senha em página HTTP”: use a porta **3443 (HTTPS)** e aceite o certificado autoassinado.
+- “Layout foi forçado…” / avisos de `-webkit-text-size-adjust` são inofensivos no Firefox.
