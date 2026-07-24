@@ -4,7 +4,8 @@ name: vitalink
 
 services:
   vitalink-db:
-    image: mysql:8.0
+    # MySQL 8.0 (série 8.0.x — não usar mysql:latest / 9.x)
+    image: ${VITALINK_MYSQL_IMAGE:-mysql:8.0}
     container_name: vitalink-db
     restart: unless-stopped
     command:

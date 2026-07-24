@@ -4,7 +4,7 @@
 
 | Serviço | Host | Container |
 |---------|------|-----------|
-| MySQL `vitalink-db` | **3308** | 3306 |
+| MySQL `vitalink-db` | **3308** | 3306 | imagem `mysql:8.0` |
 | Backend `vitalink-backend` | **3002** | 3333 |
 | Frontend HTTP | **3102** | 80 |
 | Frontend HTTPS | **3443** | 443 |
