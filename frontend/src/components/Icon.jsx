@@ -152,6 +152,26 @@ function Icon({ name, className = 'h-5 w-5' }) {
           <circle cx="12" cy="7" r="3" />
         </svg>
       );
+    case 'plus':
+      return (
+        <svg {...common}>
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      );
+    case 'body':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="5" r="2.5" />
+          <path d="M12 8v5M9 21l3-8 3 8M8 12h8" />
+        </svg>
+      );
+    case 'file-text':
+      return (
+        <svg {...common}>
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+          <path d="M14 3v5h5M9 13h6M9 17h4" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>

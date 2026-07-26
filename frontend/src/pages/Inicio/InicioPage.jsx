@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
+import QuickNavMenu from '../../components/inicio/QuickNavMenu';
 import { Modal, Field, TextInput, TextSelect, TextTextarea } from '../../components/forms/FormControls';
 import { apiRequest } from '../../services/api';
 
@@ -67,8 +69,10 @@ function isInCurrentWeek(iso) {
 }
 
 export default function InicioPage() {
-  const { usuario } = useAuth();
+  const { usuario, menus } = useAuth();
+  const navigate = useNavigate();
   const firstName = usuario?.nome?.split(' ')[0] || 'Usuário';
+  const recordsRef = useRef(null);
 
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
@@ -85,6 +89,13 @@ export default function InicioPage() {
   const [quickText, setQuickText] = useState('');
   const [quickSaving, setQuickSaving] = useState(false);
   const [summaryRows, setSummaryRows] = useState([]);
+  const [quickNavActive, setQuickNavActive] = useState('inicio');
+  const [infoModal, setInfoModal] = useState(null);
+
+  const canOpenPacientes = useMemo(
+    () => (menus || []).some((m) => m.rota === '/pacientes'),
+    [menus]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,10 +150,56 @@ export default function InicioPage() {
     [summaryRows]
   );
 
-  function openCreate() {
+  function openCreate(preset = {}) {
     setEditing(null);
-    setForm(emptyForm());
+    setForm({ ...emptyForm(), ...preset });
     setModalOpen(true);
+  }
+
+  function scrollToRecords() {
+    recordsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function handleQuickNavAction(item) {
+    setQuickNavActive(item.id);
+
+    switch (item.action) {
+      case 'focus-inicio':
+        setTipoFiltro('');
+        setStatus('ativo');
+        setPagination((p) => ({ ...p, page: 1 }));
+        scrollToRecords();
+        break;
+      case 'open-eventos':
+        setTipoFiltro('saude');
+        setStatus('ativo');
+        setPagination((p) => ({ ...p, page: 1 }));
+        openCreate({ tipo: 'saude' });
+        scrollToRecords();
+        break;
+      case 'open-corpo':
+        setInfoModal({
+          id: 'corpo',
+          title: 'Mapa corporal',
+          body: 'No app legado, o mapa corporal refletia as especialidades do perfil do paciente. No VitaLink, acompanhe o vínculo clínico pelo cadastro de pacientes e pela linha do tempo.',
+          ctaLabel: canOpenPacientes ? 'Ir para Pacientes' : null,
+          ctaTo: '/pacientes',
+        });
+        break;
+      case 'open-docs':
+        setInfoModal({
+          id: 'docs',
+          title: 'Biblioteca médica',
+          body: 'A área de documentos do app legado (exames, laudos e receitas) ainda não possui módulo dedicado no VitaLink. Use os registros do Início ou a linha do tempo para organizar o histórico clínico.',
+          ctaLabel: (menus || []).some((m) => m.rota === '/timeline')
+            ? 'Abrir linha do tempo'
+            : null,
+          ctaTo: '/timeline',
+        });
+        break;
+      default:
+        break;
+    }
   }
 
   function openEdit(row) {
@@ -233,7 +290,7 @@ export default function InicioPage() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-4">
         <p className="text-sm text-slate-health">
           Olá, <span className="font-semibold text-ink">{firstName}</span>
         </p>
@@ -244,6 +301,12 @@ export default function InicioPage() {
           Registre sintomas, avisos e destaques do dia. Os dados ficam disponíveis para consulta e gestão.
         </p>
       </div>
+
+      <QuickNavMenu
+        className="mb-6"
+        activeId={quickNavActive}
+        onLocalAction={handleQuickNavAction}
+      />
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <PlaceholderCard>
@@ -302,10 +365,12 @@ export default function InicioPage() {
         </div>
       </div>
 
-      <PageHeader
-        title="Registros do Início"
-        description="Gerencie destaques, avisos e eventos com busca, paginação e CRUD completo."
-      />
+      <div ref={recordsRef}>
+        <PageHeader
+          title="Registros do Início"
+          description="Gerencie destaques, avisos e eventos com busca, paginação e CRUD completo."
+        />
+      </div>
 
       <PlaceholderCard>
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -607,6 +672,36 @@ export default function InicioPage() {
           >
             Confirmar exclusão
           </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(infoModal)}
+        title={infoModal?.title || 'Informação'}
+        onClose={() => setInfoModal(null)}
+      >
+        <p className="text-sm text-slate-health">{infoModal?.body}</p>
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={() => setInfoModal(null)}
+            className="min-h-12 rounded-xl border border-[#d7e8e7] px-4 text-sm font-semibold text-ink"
+          >
+            Fechar
+          </button>
+          {infoModal?.ctaLabel && infoModal?.ctaTo ? (
+            <button
+              type="button"
+              onClick={() => {
+                const to = infoModal.ctaTo;
+                setInfoModal(null);
+                navigate(to);
+              }}
+              className="min-h-12 rounded-xl bg-aqua px-4 text-sm font-semibold text-white hover:bg-aqua-deep"
+            >
+              {infoModal.ctaLabel}
+            </button>
+          ) : null}
         </div>
       </Modal>
     </div>
