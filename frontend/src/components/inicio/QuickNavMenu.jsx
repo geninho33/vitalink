@@ -1,10 +1,8 @@
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../Icon';
-import { useAuth } from '../../context/AuthContext';
 
 /**
- * Itens extraídos do bottom-nav do index.html legado.
+ * Itens do bottom-nav do index.html legado.
  * kind: 'route' navega; 'local' dispara ação na página Início.
  */
 export const QUICK_NAV_ITEMS = [
@@ -19,7 +17,7 @@ export const QUICK_NAV_ITEMS = [
   {
     id: 'perfil',
     label: 'Perfil',
-    icon: 'user',
+    icon: 'circle-user',
     kind: 'route',
     to: '/meus-dados',
     description: 'Dados pessoais e ficha',
@@ -35,16 +33,15 @@ export const QUICK_NAV_ITEMS = [
   {
     id: 'agenda',
     label: 'Agenda',
-    icon: 'calendar',
+    icon: 'agenda-square',
     kind: 'route',
     to: '/agenda',
-    requireMenu: '/agenda',
     description: 'Compromissos e consultas',
   },
   {
     id: 'corpo',
     label: 'Corpo',
-    icon: 'body',
+    icon: 'target',
     kind: 'local',
     action: 'open-corpo',
     description: 'Mapa corporal e especialidades',
@@ -52,43 +49,31 @@ export const QUICK_NAV_ITEMS = [
   {
     id: 'timeline',
     label: 'Linha',
-    icon: 'scroll-text',
+    icon: 'arrow-up-right',
     kind: 'route',
     to: '/timeline',
-    requireMenu: '/timeline',
     description: 'Linha do tempo clínica',
   },
   {
     id: 'medicamentos',
     label: 'Meds',
-    icon: 'pill',
+    icon: 'sparkle',
     kind: 'route',
     to: '/rotina',
-    requireMenu: '/rotina',
     description: 'Medicamentos e rotina',
   },
   {
     id: 'documentos',
     label: 'Docs',
-    icon: 'file-text',
+    icon: 'file-list',
     kind: 'local',
     action: 'open-docs',
     description: 'Biblioteca de documentos',
   },
 ];
 
-function canAccessRoute(menus, requireMenu, to) {
-  if (!requireMenu && !to) return true;
-  if (!requireMenu) return true;
-  const routes = new Set(
-    (menus || []).map((m) => m.rota).filter(Boolean)
-  );
-  return routes.has(requireMenu);
-}
-
 /**
- * Painel de acesso rápido (bottom-nav do index.html → sub-header na Início).
- * Mobile: scroll horizontal; desktop: faixa completa.
+ * Footer fixo de navegação (bottom-nav do index.html).
  */
 export default function QuickNavMenu({
   activeId = 'inicio',
@@ -96,16 +81,6 @@ export default function QuickNavMenu({
   className = '',
 }) {
   const navigate = useNavigate();
-  const { menus } = useAuth();
-
-  const items = useMemo(
-    () =>
-      QUICK_NAV_ITEMS.filter((item) => {
-        if (item.kind === 'local') return true;
-        return canAccessRoute(menus, item.requireMenu, item.to);
-      }),
-    [menus]
-  );
 
   function handleSelect(item) {
     if (item.kind === 'route' && item.to) {
@@ -117,48 +92,13 @@ export default function QuickNavMenu({
     }
   }
 
-  function handleSelectChange(e) {
-    const item = items.find((i) => i.id === e.target.value);
-    if (item) handleSelect(item);
-  }
-
   return (
-    <section
-      className={`rounded-2xl border border-[#d7e8e7] bg-white p-3 shadow-sm sm:p-4 ${className}`}
-      aria-label="Acesso rápido"
+    <footer
+      className={`fixed inset-x-0 bottom-0 z-40 border-t border-[#d8e4e4] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(24,59,66,0.06)] ${className}`}
+      aria-label="Navegação principal"
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-aqua">Acesso rápido</p>
-          <p className="text-sm text-slate-health">
-            Atalhos do app legado — módulos e ações da página Início
-          </p>
-        </div>
-
-        {/* Mobile: dropdown complementar ao carrossel */}
-        <label className="grid gap-1 text-xs font-semibold text-ink sm:hidden">
-          <span className="sr-only">Ir para</span>
-          <select
-            className="min-h-11 min-w-[9.5rem] rounded-xl border border-[#cfe0df] bg-[#f8fcfc] px-3 text-sm outline-none focus:border-aqua focus:ring-2 focus:ring-aqua/20"
-            value={activeId}
-            onChange={handleSelectChange}
-            aria-label="Navegação rápida"
-          >
-            {items.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {/* Carrossel horizontal (mobile-first) / faixa em telas maiores */}
-      <nav
-        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 snap-x snap-mandatory scrollbar-thin"
-        aria-label="Menu rápido do Início"
-      >
-        {items.map((item) => {
+      <nav className="mx-auto flex w-full max-w-3xl items-stretch justify-between px-1 pt-1.5 pb-1.5 sm:px-2">
+        {QUICK_NAV_ITEMS.map((item) => {
           const selected = item.id === activeId;
           return (
             <button
@@ -166,23 +106,24 @@ export default function QuickNavMenu({
               type="button"
               title={item.description}
               onClick={() => handleSelect(item)}
-              className={`snap-start flex min-h-[4.25rem] min-w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition
-                sm:min-w-[5.5rem]
-                ${
-                  selected
-                    ? 'bg-aqua text-white shadow-sm'
-                    : 'bg-[#f4fbfa] text-ink hover:bg-aqua-soft hover:text-aqua-deep'
-                }`}
+              className={`flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-1 transition
+                ${selected ? 'text-aqua-deep' : 'text-[#8a9aa0] hover:text-aqua'}`}
             >
               <Icon
                 name={item.icon}
-                className={`h-5 w-5 ${selected ? 'text-white' : 'text-aqua-deep'}`}
+                className={`h-[1.35rem] w-[1.35rem] ${selected ? 'text-aqua-deep' : 'text-[#8a9aa0]'}`}
               />
-              <span>{item.label}</span>
+              <span
+                className={`text-[10px] leading-tight sm:text-[11px] ${
+                  selected ? 'font-semibold' : 'font-medium'
+                }`}
+              >
+                {item.label}
+              </span>
             </button>
           );
         })}
       </nav>
-    </section>
+    </footer>
   );
 }

@@ -289,8 +289,8 @@ export default function InicioPage() {
   const totalPages = Math.max(1, Math.ceil((pagination.total || 0) / pagination.pageSize));
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="pb-20">
+      <div className="mb-6">
         <p className="text-sm text-slate-health">
           Olá, <span className="font-semibold text-ink">{firstName}</span>
         </p>
@@ -301,12 +301,6 @@ export default function InicioPage() {
           Registre sintomas, avisos e destaques do dia. Os dados ficam disponíveis para consulta e gestão.
         </p>
       </div>
-
-      <QuickNavMenu
-        className="mb-6"
-        activeId={quickNavActive}
-        onLocalAction={handleQuickNavAction}
-      />
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <PlaceholderCard>
@@ -704,6 +698,11 @@ export default function InicioPage() {
           ) : null}
         </div>
       </Modal>
+
+      <QuickNavMenu
+        activeId={quickNavActive}
+        onLocalAction={handleQuickNavAction}
+      />
     </div>
   );
 }
