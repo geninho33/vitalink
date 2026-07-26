@@ -21,6 +21,9 @@ function getBodyArea(specialty) {
 export default function CorpoView() {
   const profile = storageGet('profile', {});
   const male = profile.gender === 'Masculino';
+  const bodySrc = male
+    ? `${import.meta.env.BASE_URL}Sexo%20Masculino.png`
+    : `${import.meta.env.BASE_URL}Sexo%20Feminino.png`;
   const specialties = Array.isArray(profile.specialties) ? profile.specialties : [];
 
   const mapped = useMemo(
@@ -39,14 +42,18 @@ export default function CorpoView() {
       />
 
       <Panel>
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
           <div className="flex flex-col items-center">
-            <div className="relative h-80 w-40 overflow-hidden rounded-[2.5rem] border border-[#cfe0df] bg-gradient-to-b from-[#eaf7f6] to-[#d7eceb]">
-              {/* Silhueta esquemática (substitui imagens Sexo Feminino/Masculino do legado) */}
-              <div className="absolute inset-x-0 top-4 mx-auto h-10 w-10 rounded-full bg-[#9eb8bb]" />
-              <div className="absolute inset-x-6 top-16 h-40 rounded-[2rem] bg-[#b7ced1]" />
-              <div className="absolute bottom-6 left-8 h-24 w-6 rounded-full bg-[#b7ced1]" />
-              <div className="absolute bottom-6 right-8 h-24 w-6 rounded-full bg-[#b7ced1]" />
+            <div className="relative w-full max-w-[220px] overflow-hidden rounded-2xl border border-[#cfe0df] bg-white">
+              <img
+                src={bodySrc}
+                alt={
+                  male
+                    ? 'Mapa frontal do corpo masculino'
+                    : 'Mapa frontal do corpo feminino'
+                }
+                className="mx-auto block h-auto w-full object-contain object-top"
+              />
               {mapped
                 .filter((item) => item.area)
                 .map((item, index) => (
