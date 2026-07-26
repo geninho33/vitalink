@@ -20,6 +20,13 @@ function Icon({ name, className = 'h-5 w-5' }) {
           <rect x="3" y="16" width="7" height="5" rx="1.5" />
         </svg>
       );
+    case 'home':
+      return (
+        <svg {...common}>
+          <path d="M3 10.5 12 3l9 7.5" />
+          <path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" />
+        </svg>
+      );
     case 'calendar':
       return (
         <svg {...common}>

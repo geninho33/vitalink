@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth.routes');
 const menusRoutes = require('./routes/menus.routes');
 const usuariosRoutes = require('./routes/usuarios.routes');
 const perfisRoutes = require('./routes/perfis.routes');
+const inicioRoutes = require('./routes/inicio.routes');
 const { mountCrud } = require('./routes/crud.routes');
 const { mountAtividadesRoutes } = require('./routes/atividades.routes');
 const { hospitais, farmacias } = require('./controllers/estabelecimentos.controller');
@@ -48,6 +49,7 @@ function createApp() {
   api.use('/menus', menusRoutes);
   api.use('/usuarios', usuariosRoutes);
   api.use('/perfis', perfisRoutes);
+  api.use('/inicio', inicioRoutes);
   api.use('/hospitais', mountCrud(hospitais));
   api.use('/farmacias', mountCrud(farmacias));
   api.use('/cuidadores', mountCrud(cuidadores));

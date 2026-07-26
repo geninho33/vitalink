@@ -143,10 +143,31 @@ async function ensureAdminPermissions(client) {
   );
 }
 
+async function applyPatchInicio(client) {
+  if (!cfg.runMigrations) return;
+
+  const patchFile = path.join(SQL_DIR, 'patch_inicio.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch Início não encontrado: ${patchFile}`);
+    return;
+  }
+
+  // Idempotente: cria tabela/menu/permissões se faltarem
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  const sql = fs.readFileSync(patchFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Patch Início OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch Início: ${err.code || ''} ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
     await applySchema(client);
+    await applyPatchInicio(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

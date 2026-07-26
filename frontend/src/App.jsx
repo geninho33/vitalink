@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 import Login from './pages/Login';
 import DashboardPage from './pages/DashboardPage';
+import InicioPage from './pages/Inicio/InicioPage';
 import MeusDadosPage from './pages/MeusDadosPage';
 import { HospitaisPage, FarmaciasPage } from './pages/saude/EstabelecimentosPages';
 import { CuidadoresPage, ResponsaveisPage } from './pages/saude/PessoasPages';
@@ -43,6 +44,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/inicio" element={<InicioPage />} />
           <Route path="/pacientes" element={<PacientesPage />} />
           <Route path="/medicos" element={<MedicosPage />} />
           <Route path="/remedios" element={<RemediosPage />} />
