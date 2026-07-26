@@ -4,7 +4,15 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 import Login from './pages/Login';
 import DashboardPage from './pages/DashboardPage';
-import InicioPage from './pages/Inicio/InicioPage';
+import InicioLayout from './pages/Inicio/InicioLayout';
+import VistaGeralView from './pages/Inicio/views/VistaGeralView';
+import PerfilView from './pages/Inicio/views/PerfilView';
+import EventosView from './pages/Inicio/views/EventosView';
+import AgendaView from './pages/Inicio/views/AgendaView';
+import CorpoView from './pages/Inicio/views/CorpoView';
+import LinhaView from './pages/Inicio/views/LinhaView';
+import MedsView from './pages/Inicio/views/MedsView';
+import DocsView from './pages/Inicio/views/DocsView';
 import MeusDadosPage from './pages/MeusDadosPage';
 import { HospitaisPage, FarmaciasPage } from './pages/saude/EstabelecimentosPages';
 import { CuidadoresPage, ResponsaveisPage } from './pages/saude/PessoasPages';
@@ -44,7 +52,18 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/inicio" element={<InicioPage />} />
+
+          <Route path="/inicio" element={<InicioLayout />}>
+            <Route index element={<VistaGeralView />} />
+            <Route path="perfil" element={<PerfilView />} />
+            <Route path="eventos" element={<EventosView />} />
+            <Route path="agenda" element={<AgendaView />} />
+            <Route path="corpo" element={<CorpoView />} />
+            <Route path="linha" element={<LinhaView />} />
+            <Route path="meds" element={<MedsView />} />
+            <Route path="docs" element={<DocsView />} />
+          </Route>
+
           <Route path="/pacientes" element={<PacientesPage />} />
           <Route path="/medicos" element={<MedicosPage />} />
           <Route path="/remedios" element={<RemediosPage />} />
