@@ -1,6 +1,14 @@
+import { useState } from 'react';
 import EntityCrudPage from '../../components/EntityCrudPage';
-import { AddressFields, Field, TextInput, TextSelect, TextTextarea } from '../../components/forms/FormControls';
-import { onlyDigits } from '../../hooks/useCep';
+import {
+  AddressFields,
+  Field,
+  FormTabs,
+  TextInput,
+  TextSelect,
+  TextTextarea,
+} from '../../components/forms/FormControls';
+import { maskPhone, onlyDigits } from '../../hooks/useCep';
 
 function toWhatsAppLink(value) {
   const digits = onlyDigits(value);
@@ -30,83 +38,105 @@ const empty = () => ({
 });
 
 function EstablishmentForm({ form, setForm }) {
+  const [tab, setTab] = useState('gerais');
+
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Nome Fantasia" required>
-          <TextInput
-            value={form.nome_fantasia}
-            onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })}
-          />
-        </Field>
-        <Field label="Razão Social" hint="Opcional">
-          <TextInput
-            value={form.razao_social || ''}
-            onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
-          />
-        </Field>
-        <Field label="Tipo documento">
-          <TextSelect
-            value={form.tipo_documento || 'cnpj'}
-            onChange={(e) => setForm({ ...form, tipo_documento: e.target.value })}
-          >
-            <option value="cnpj">CNPJ</option>
-            <option value="cpf">CPF</option>
-          </TextSelect>
-        </Field>
-        <Field label="CNPJ/CPF" hint="Opcional">
-          <TextInput
-            value={form.documento || ''}
-            onChange={(e) => setForm({ ...form, documento: onlyDigits(e.target.value) })}
-          />
-        </Field>
-        <Field label="Telefone principal" required>
-          <TextInput
-            value={form.telefone_principal}
-            onChange={(e) => setForm({ ...form, telefone_principal: e.target.value })}
-          />
-        </Field>
-        <Field label="WhatsApp" hint="Link wa.me automático">
-          <TextInput
-            value={form.whatsapp || form.telefone_secundario || ''}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                whatsapp: e.target.value,
-                telefone_secundario: e.target.value,
-              })
-            }
-            placeholder="(11) 99999-9999"
-          />
-        </Field>
-        <Field label="E-mail">
-          <TextInput
-            type="email"
-            value={form.email || ''}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-        </Field>
-        <Field label="Status">
-          <TextSelect
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value })}
-          >
-            <option value="ativo">Ativo</option>
-            <option value="inativo">Inativo</option>
-          </TextSelect>
-        </Field>
-      </div>
-      <div>
-        <p className="mb-2 text-sm font-bold text-ink">Endereço</p>
+      <FormTabs
+        tabs={[
+          { id: 'gerais', label: 'Dados Gerais' },
+          { id: 'endereco', label: 'Endereço' },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
+      {tab === 'gerais' ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Nome Fantasia" required>
+            <TextInput
+              value={form.nome_fantasia}
+              onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })}
+            />
+          </Field>
+          <Field label="Razão Social" hint="Opcional">
+            <TextInput
+              value={form.razao_social || ''}
+              onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
+            />
+          </Field>
+          <Field label="Tipo documento">
+            <TextSelect
+              value={form.tipo_documento || 'cnpj'}
+              onChange={(e) => setForm({ ...form, tipo_documento: e.target.value })}
+            >
+              <option value="cnpj">CNPJ</option>
+              <option value="cpf">CPF</option>
+            </TextSelect>
+          </Field>
+          <Field label="CNPJ/CPF" hint="Opcional">
+            <TextInput
+              value={form.documento || ''}
+              onChange={(e) => setForm({ ...form, documento: onlyDigits(e.target.value) })}
+            />
+          </Field>
+          <Field label="Telefone principal" required>
+            <TextInput
+              value={maskPhone(form.telefone_principal)}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  telefone_principal: onlyDigits(e.target.value).slice(0, 11),
+                })
+              }
+              placeholder="(00) 00000-0000"
+              inputMode="tel"
+            />
+          </Field>
+          <Field label="WhatsApp" hint="Link wa.me automático">
+            <TextInput
+              value={maskPhone(form.whatsapp || form.telefone_secundario || '')}
+              onChange={(e) => {
+                const digits = onlyDigits(e.target.value).slice(0, 11);
+                setForm({
+                  ...form,
+                  whatsapp: digits,
+                  telefone_secundario: digits,
+                });
+              }}
+              placeholder="(11) 99999-9999"
+              inputMode="tel"
+            />
+          </Field>
+          <Field label="E-mail">
+            <TextInput
+              type="email"
+              value={form.email || ''}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </Field>
+          <Field label="Status">
+            <TextSelect
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              <option value="ativo">Ativo</option>
+              <option value="inativo">Inativo</option>
+            </TextSelect>
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Observações">
+              <TextTextarea
+                rows={3}
+                value={form.observacoes || ''}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              />
+            </Field>
+          </div>
+        </div>
+      ) : (
         <AddressFields values={form} onChange={setForm} required />
-      </div>
-      <Field label="Observações">
-        <TextTextarea
-          rows={3}
-          value={form.observacoes || ''}
-          onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-        />
-      </Field>
+      )}
     </>
   );
 }
@@ -114,7 +144,11 @@ function EstablishmentForm({ form, setForm }) {
 const columns = [
   { key: 'nome_fantasia', label: 'Nome fantasia' },
   { key: 'documento', label: 'Documento', render: (r) => r.documento || '—' },
-  { key: 'telefone_principal', label: 'Telefone' },
+  {
+    key: 'telefone_principal',
+    label: 'Telefone',
+    render: (r) => maskPhone(r.telefone_principal),
+  },
   {
     key: 'whatsapp',
     label: 'WhatsApp',
@@ -129,7 +163,7 @@ const columns = [
           rel="noopener noreferrer"
           className="font-semibold text-aqua hover:underline"
         >
-          {wa}
+          {maskPhone(wa)}
         </a>
       );
     },
@@ -170,6 +204,7 @@ function makePage(title, description, endpoint) {
           documento: form.documento ? onlyDigits(form.documento) : null,
           razao_social: form.razao_social || null,
           whatsapp: form.whatsapp || null,
+          telefone_principal: onlyDigits(form.telefone_principal),
           telefone_secundario: form.whatsapp || form.telefone_secundario || null,
           cep: onlyDigits(form.cep),
         })}

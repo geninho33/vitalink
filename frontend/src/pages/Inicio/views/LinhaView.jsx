@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import TimelineRail from '../../../components/TimelineRail';
 import { formatDateBr, storageGet } from '../localStore';
 import { EmptyState, PageTitle, Panel } from '../ui';
 
@@ -24,6 +25,7 @@ export default function LinhaView() {
         doctor: item.doctor,
         diagnosis: item.diagnosis,
         exams: item.exams,
+        status: 'concluido',
         detail: 'Evento registrado no prontuário.',
       });
     });
@@ -35,6 +37,7 @@ export default function LinhaView() {
         type: 'Agenda',
         title: item.title,
         time: item.time,
+        status: 'pendente',
         detail: item.time ? `Horário: ${item.time}` : 'Horário a definir.',
       });
     });
@@ -44,6 +47,16 @@ export default function LinhaView() {
   const visible = events.filter((item) => filter === 'all' || item.source === filter);
   const activeId = selectedId || visible[visible.length - 1]?.id;
   const active = visible.find((e) => e.id === activeId);
+
+  const railItems = visible.map((item) => ({
+    id: item.id,
+    title: item.title,
+    category: item.type,
+    status: item.status,
+    subtitle: formatDateBr(item.date, item.time),
+    selected: item.id === activeId,
+    onClick: () => setSelectedId(item.id),
+  }));
 
   return (
     <div>
@@ -83,44 +96,10 @@ export default function LinhaView() {
         </EmptyState>
       ) : (
         <>
-          <div className="relative mb-5 space-y-4 border-l-2 border-[#b9dedb] pl-6">
-            {visible.map((item) => {
-              const selected = item.id === activeId;
-              return (
-                <article key={item.id} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(item.id)}
-                    className={`absolute -left-[2.05rem] top-1 grid h-6 w-6 place-items-center rounded-full border-[3px] border-white shadow ${
-                      selected ? 'bg-aqua-deep' : 'bg-aqua'
-                    }`}
-                    aria-pressed={selected}
-                    aria-label={`Abrir ${item.title}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(item.id)}
-                    className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-                      selected
-                        ? 'border-aqua bg-aqua-soft'
-                        : 'border-[#e2eeee] bg-white hover:bg-[#f8fcfc]'
-                    }`}
-                  >
-                    <span className="text-xs font-bold uppercase tracking-wide text-aqua">
-                      {item.type}
-                    </span>
-                    <strong className="mt-1 block text-ink">{item.title}</strong>
-                    <small className="text-slate-health">
-                      {formatDateBr(item.date, item.time)}
-                    </small>
-                  </button>
-                </article>
-              );
-            })}
-          </div>
+          <TimelineRail items={railItems} />
 
           {active ? (
-            <Panel>
+            <Panel className="mt-5">
               <p className="text-xs font-bold uppercase tracking-wider text-aqua">{active.type}</p>
               <h2 className="font-display text-xl font-bold text-ink">{active.title}</h2>
               <p className="mt-1 text-sm text-slate-health">

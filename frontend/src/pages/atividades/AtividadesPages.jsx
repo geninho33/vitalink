@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
+import MonthCalendar from '../../components/MonthCalendar';
+import TimelineRail from '../../components/TimelineRail';
 import { Field, TextInput, TextSelect, TextTextarea, Modal } from '../../components/forms/FormControls';
 import { apiRequest } from '../../services/api';
 
@@ -8,6 +10,11 @@ function statusColor(status) {
   if (status === 'atrasado' || status === 'nao_realizado') return 'bg-red-100 text-red-800 border-red-200';
   if (status === 'cancelado') return 'bg-slate-100 text-slate-600 border-slate-200';
   return 'bg-amber-100 text-amber-900 border-amber-200';
+}
+
+function statusChip(status) {
+  const base = 'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide';
+  return `${base} ${statusColor(status)}`;
 }
 
 function usePacientes() {
@@ -26,7 +33,6 @@ export function AgendaPage() {
   const [pacienteId, setPacienteId] = useState('');
   const [status, setStatus] = useState('');
   const [tipo, setTipo] = useState('');
-  const [view, setView] = useState('lista');
 
   async function load() {
     const res = await apiRequest('/agenda', {
@@ -43,29 +49,21 @@ export function AgendaPage() {
     load().catch(() => setEvents([]));
   }, [pacienteId, status, tipo]);
 
-  const byDay = useMemo(() => {
-    const map = new Map();
-    events.forEach((e) => {
-      const day = String(e.data_hora_inicio).slice(0, 10);
-      if (!map.has(day)) map.set(day, []);
-      map.get(day).push(e);
-    });
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [events]);
-
   return (
     <div>
       <PageHeader
         title="Agenda do Paciente"
-        description="Consolida consultas, doses e cuidados com data/hora."
+        description="Calendário mensal com consultas, doses e cuidados."
       />
       <PlaceholderCard>
-        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-4 grid gap-3 sm:grid-cols-3">
           <Field label="Paciente">
             <TextSelect value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
               <option value="">Todos</option>
               {pacientes.map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
               ))}
             </TextSelect>
           </Field>
@@ -86,61 +84,9 @@ export function AgendaPage() {
               <option value="cuidado">Cuidado</option>
             </TextSelect>
           </Field>
-          <Field label="Visão">
-            <TextSelect value={view} onChange={(e) => setView(e.target.value)}>
-              <option value="lista">Lista</option>
-              <option value="dia">Por dia</option>
-            </TextSelect>
-          </Field>
         </div>
 
-        {view === 'lista' ? (
-          <div className="grid gap-3">
-            {events.map((e) => (
-              <article key={e.id} className={`rounded-2xl border p-4 ${statusColor(e.status)}`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-bold uppercase">{e.tipo}</p>
-                    <h3 className="font-semibold">{e.titulo}</h3>
-                    <p className="text-sm opacity-80">{e.paciente_nome}</p>
-                  </div>
-                  <span className="text-xs font-bold">
-                    {e.data_hora_inicio ? new Date(e.data_hora_inicio).toLocaleString('pt-BR') : ''}
-                  </span>
-                </div>
-              </article>
-            ))}
-            {!events.length ? <p className="text-sm text-slate-health">Nenhum evento na agenda.</p> : null}
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {byDay.map(([day, items]) => (
-              <section key={day}>
-                <h3 className="mb-2 font-display text-lg font-bold text-ink">
-                  {new Date(`${day}T12:00:00`).toLocaleDateString('pt-BR', {
-                    weekday: 'long',
-                    day: '2-digit',
-                    month: 'long',
-                  })}
-                </h3>
-                <div className="grid gap-2">
-                  {items.map((e) => (
-                    <div key={e.id} className={`rounded-xl border px-3 py-3 ${statusColor(e.status)}`}>
-                      <strong>{e.titulo}</strong>
-                      <p className="text-xs">
-                        {new Date(e.data_hora_inicio).toLocaleTimeString('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}{' '}
-                        · {e.status}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
+        <MonthCalendar events={events} />
       </PlaceholderCard>
     </div>
   );
@@ -150,6 +96,7 @@ export function ConsultasPage() {
   const pacientes = usePacientes();
   const [rows, setRows] = useState([]);
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({
     paciente_id: '',
     profissional_nome: '',
@@ -188,51 +135,120 @@ export function ConsultasPage() {
     <div>
       <PageHeader title="Consultas e Sessões" description="Agendamento com profissionais de saúde." />
       <PlaceholderCard>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="mb-4 min-h-12 rounded-xl bg-aqua px-5 font-semibold text-white"
-        >
-          Nova consulta
-        </button>
-        <div className="grid gap-3">
-          {rows.map((r) => (
-            <article key={r.id} className="rounded-2xl border border-[#d7e8e7] p-4">
-              <div className="flex flex-wrap justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-ink">{r.especialidade} — {r.profissional_nome}</p>
-                  <p className="text-sm text-slate-health">{r.paciente_nome}</p>
-                </div>
-                <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${statusColor(r.status)}`}>
-                  {r.status}
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-health">
+            {rows.length} agendamento{rows.length === 1 ? '' : 's'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="min-h-10 rounded-xl bg-aqua px-4 text-sm font-semibold text-white"
+          >
+            Nova consulta
+          </button>
+        </div>
+
+        <div className="grid gap-1.5">
+          {rows.map((r) => {
+            const time = r.data_hora
+              ? new Date(r.data_hora).toLocaleString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '—';
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => setSelected(r)}
+                className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-[#e2eeee] bg-[#fbfefe] px-2.5 py-2 text-left transition hover:border-aqua/40 hover:bg-aqua-soft/40"
+              >
+                <span className="shrink-0 rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold text-sky-800">
+                  {time}
                 </span>
-              </div>
-              <p className="mt-2 text-sm">
-                {r.data_hora ? new Date(r.data_hora).toLocaleString('pt-BR') : ''} · {r.local_tipo}
-              </p>
-            </article>
-          ))}
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                  {r.profissional_nome}
+                  <span className="font-normal text-slate-health"> · {r.especialidade}</span>
+                </span>
+                <span className="truncate text-[11px] text-slate-health">{r.paciente_nome}</span>
+                <span className={statusChip(r.status)}>{r.status}</span>
+              </button>
+            );
+          })}
+          {!rows.length ? (
+            <p className="py-4 text-center text-sm text-slate-health">Nenhuma consulta cadastrada.</p>
+          ) : null}
         </div>
       </PlaceholderCard>
+
+      <Modal open={Boolean(selected)} title="Detalhe da consulta" onClose={() => setSelected(null)}>
+        {selected ? (
+          <dl className="grid gap-2 text-sm">
+            <div>
+              <dt className="text-xs font-bold uppercase text-slate-health">Profissional</dt>
+              <dd className="font-semibold">{selected.profissional_nome}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-bold uppercase text-slate-health">Especialidade</dt>
+              <dd className="font-semibold">{selected.especialidade}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-bold uppercase text-slate-health">Paciente</dt>
+              <dd className="font-semibold">{selected.paciente_nome}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-bold uppercase text-slate-health">Quando</dt>
+              <dd className="font-semibold">
+                {selected.data_hora
+                  ? new Date(selected.data_hora).toLocaleString('pt-BR')
+                  : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-bold uppercase text-slate-health">Local / Status</dt>
+              <dd className="font-semibold capitalize">
+                {selected.local_tipo} · {selected.status}
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+      </Modal>
 
       <Modal open={open} title="Nova consulta/sessão" onClose={() => setOpen(false)} wide>
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={save}>
           <Field label="Paciente" required>
-            <TextSelect value={form.paciente_id} onChange={(e) => setForm({ ...form, paciente_id: e.target.value })}>
+            <TextSelect
+              value={form.paciente_id}
+              onChange={(e) => setForm({ ...form, paciente_id: e.target.value })}
+            >
               <option value="">Selecione</option>
               {pacientes.map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
               ))}
             </TextSelect>
           </Field>
           <Field label="Profissional" required>
-            <TextInput value={form.profissional_nome} onChange={(e) => setForm({ ...form, profissional_nome: e.target.value })} />
+            <TextInput
+              value={form.profissional_nome}
+              onChange={(e) => setForm({ ...form, profissional_nome: e.target.value })}
+            />
           </Field>
           <Field label="Especialidade" required>
-            <TextInput value={form.especialidade} onChange={(e) => setForm({ ...form, especialidade: e.target.value })} placeholder="Fisioterapia, Fono..." />
+            <TextInput
+              value={form.especialidade}
+              onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
+              placeholder="Fisioterapia, Fono..."
+            />
           </Field>
           <Field label="Local">
-            <TextSelect value={form.local_tipo} onChange={(e) => setForm({ ...form, local_tipo: e.target.value })}>
+            <TextSelect
+              value={form.local_tipo}
+              onChange={(e) => setForm({ ...form, local_tipo: e.target.value })}
+            >
               <option value="clinica">Clínica</option>
               <option value="hospital">Hospital</option>
               <option value="domiciliar">Domiciliar</option>
@@ -240,17 +256,32 @@ export function ConsultasPage() {
             </TextSelect>
           </Field>
           <Field label="Data/Hora" required>
-            <TextInput type="datetime-local" value={form.data_hora} onChange={(e) => setForm({ ...form, data_hora: e.target.value })} />
+            <TextInput
+              type="datetime-local"
+              value={form.data_hora}
+              onChange={(e) => setForm({ ...form, data_hora: e.target.value })}
+            />
           </Field>
           <Field label="Lembrete (min)">
-            <TextInput type="number" value={form.lembrete_minutos} onChange={(e) => setForm({ ...form, lembrete_minutos: e.target.value })} />
+            <TextInput
+              type="number"
+              value={form.lembrete_minutos}
+              onChange={(e) => setForm({ ...form, lembrete_minutos: e.target.value })}
+            />
           </Field>
           <div className="sm:col-span-2">
             <Field label="Observações">
-              <TextTextarea rows={3} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+              <TextTextarea
+                rows={3}
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              />
             </Field>
           </div>
-          <button type="submit" className="min-h-12 rounded-xl bg-aqua font-semibold text-white sm:col-span-2">
+          <button
+            type="submit"
+            className="min-h-12 rounded-xl bg-aqua font-semibold text-white sm:col-span-2"
+          >
             Salvar e enviar à agenda
           </button>
         </form>
@@ -306,77 +337,124 @@ export function RotinaPage() {
     await load();
   }
 
+  const pendentes = hoje.filter((i) => i.status === 'pendente' || i.status === 'atrasado').length;
+  const concluidos = hoje.filter((i) => i.status === 'concluido').length;
+
   return (
     <div>
       <PageHeader
         title="Medicamentos e Atendimento"
-        description="Rotina diária com checklist rápido para o cuidador."
+        description="Checklist denso para o cuidador marcar doses e cuidados."
       />
       <PlaceholderCard>
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <Field label="Filtrar paciente (checklist)">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <Field label="Filtrar paciente">
             <TextSelect value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
               <option value="">Todos</option>
               {pacientes.map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
               ))}
             </TextSelect>
           </Field>
-          <button type="button" onClick={() => setOpen(true)} className="min-h-12 rounded-xl bg-aqua px-5 font-semibold text-white">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="min-h-10 rounded-xl bg-aqua px-4 text-sm font-semibold text-white"
+          >
             Nova rotina
           </button>
         </div>
 
-        <h3 className="mb-3 font-display text-lg font-bold">Checklist de hoje</h3>
-        <div className="grid gap-3">
-          {hoje.map((item) => (
-            <article key={item.id} className="rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-ink">{item.titulo}</p>
-                  <p className="text-sm text-slate-health">
-                    {item.paciente_nome} ·{' '}
-                    {new Date(item.data_hora_prevista).toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-ink">Checklist de hoje</h3>
+          <p className="text-[11px] font-semibold text-slate-health">
+            {concluidos}/{hoje.length || 0} concluídos · {pendentes} pendente
+            {pendentes === 1 ? '' : 's'}
+          </p>
+        </div>
+
+        <div className="grid gap-1">
+          {hoje.map((item) => {
+            const done = item.status === 'concluido';
+            const failed = item.status === 'nao_realizado';
+            const actionable = item.status === 'pendente' || item.status === 'atrasado';
+            const time = new Date(item.data_hora_prevista).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+
+            return (
+              <article
+                key={item.id}
+                className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 ${
+                  done
+                    ? 'border-emerald-100 bg-emerald-50/60'
+                    : failed
+                      ? 'border-red-100 bg-red-50/50'
+                      : 'border-[#e2eeee] bg-[#fbfefe]'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 shrink-0 accent-emerald-600"
+                  checked={done}
+                  disabled={!actionable && !done}
+                  onChange={() => {
+                    if (actionable) confirmar(item.id, 'concluido');
+                  }}
+                  aria-label={`Marcar ${item.titulo} como concluído`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                    <span className="text-[11px] font-bold tabular-nums text-aqua-deep">{time}</span>
+                    <span
+                      className={`truncate text-sm font-semibold ${
+                        done ? 'text-slate-health line-through' : 'text-ink'
+                      }`}
+                    >
+                      {item.titulo}
+                    </span>
+                  </div>
+                  <p className="truncate text-[11px] text-slate-health">{item.paciente_nome}</p>
                 </div>
-                <span className={`rounded-full border px-2 py-0.5 text-xs font-bold ${statusColor(item.status)}`}>
-                  {item.status}
-                </span>
-              </div>
-              {item.status === 'pendente' || item.status === 'atrasado' ? (
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <span className={statusChip(item.status)}>{item.status}</span>
+                {actionable ? (
                   <button
                     type="button"
-                    className="min-h-14 rounded-xl bg-emerald-600 text-base font-bold text-white"
-                    onClick={() => confirmar(item.id, 'concluido')}
-                  >
-                    Confirmar
-                  </button>
-                  <button
-                    type="button"
-                    className="min-h-14 rounded-xl border border-red-300 text-base font-bold text-red-700"
+                    className="shrink-0 rounded-md border border-red-200 px-1.5 py-0.5 text-[10px] font-bold text-red-700 hover:bg-red-50"
                     onClick={() => {
                       const motivo = window.prompt('Motivo da não realização:');
                       if (motivo != null) confirmar(item.id, 'nao_realizado', motivo);
                     }}
                   >
-                    Não realizado
+                    Não
                   </button>
-                </div>
-              ) : null}
-            </article>
-          ))}
-          {!hoje.length ? <p className="text-sm text-slate-health">Nenhum atendimento previsto para hoje.</p> : null}
+                ) : null}
+              </article>
+            );
+          })}
+          {!hoje.length ? (
+            <p className="py-3 text-center text-sm text-slate-health">
+              Nenhum atendimento previsto para hoje.
+            </p>
+          ) : null}
         </div>
 
-        <h3 className="mb-3 mt-8 font-display text-lg font-bold">Rotinas programadas</h3>
-        <div className="grid gap-2">
+        <h3 className="mb-2 mt-5 text-sm font-bold text-ink">Rotinas programadas</h3>
+        <div className="grid gap-1">
           {rotinas.map((r) => (
-            <div key={r.id} className="rounded-xl border border-[#e2eeee] px-3 py-3 text-sm">
-              <strong>{r.titulo}</strong> · {r.paciente_nome} · {String(r.horario).slice(0, 5)} · {r.tipo}
+            <div
+              key={r.id}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-[#e8f1f0] px-2 py-1.5 text-xs"
+            >
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-800">
+                {String(r.horario).slice(0, 5)}
+              </span>
+              <strong className="text-ink">{r.titulo}</strong>
+              <span className="text-slate-health">{r.paciente_nome}</span>
+              <span className="ml-auto capitalize text-slate-health">{r.tipo}</span>
             </div>
           ))}
         </div>
@@ -385,15 +463,23 @@ export function RotinaPage() {
       <Modal open={open} title="Nova rotina" onClose={() => setOpen(false)} wide>
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={save}>
           <Field label="Paciente" required>
-            <TextSelect value={form.paciente_id} onChange={(e) => setForm({ ...form, paciente_id: e.target.value })}>
+            <TextSelect
+              value={form.paciente_id}
+              onChange={(e) => setForm({ ...form, paciente_id: e.target.value })}
+            >
               <option value="">Selecione</option>
               {pacientes.map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
               ))}
             </TextSelect>
           </Field>
           <Field label="Tipo">
-            <TextSelect value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+            <TextSelect
+              value={form.tipo}
+              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+            >
               <option value="medicamento">Medicamento</option>
               <option value="pressao">Pressão</option>
               <option value="glicemia">Glicemia</option>
@@ -403,20 +489,38 @@ export function RotinaPage() {
             </TextSelect>
           </Field>
           <Field label="Título" required>
-            <TextInput value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+            <TextInput
+              value={form.titulo}
+              onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+            />
           </Field>
           <Field label="Horário" required>
-            <TextInput type="time" value={form.horario} onChange={(e) => setForm({ ...form, horario: e.target.value })} />
+            <TextInput
+              type="time"
+              value={form.horario}
+              onChange={(e) => setForm({ ...form, horario: e.target.value })}
+            />
           </Field>
           <Field label="Início" required>
-            <TextInput type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} />
+            <TextInput
+              type="date"
+              value={form.data_inicio}
+              onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+            />
           </Field>
           <div className="sm:col-span-2">
             <Field label="Descrição">
-              <TextTextarea rows={2} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+              <TextTextarea
+                rows={2}
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              />
             </Field>
           </div>
-          <button type="submit" className="min-h-12 rounded-xl bg-aqua font-semibold text-white sm:col-span-2">
+          <button
+            type="submit"
+            className="min-h-12 rounded-xl bg-aqua font-semibold text-white sm:col-span-2"
+          >
             Salvar rotina
           </button>
         </form>
@@ -440,6 +544,16 @@ export function TimelinePage() {
       .catch(() => setEvents([]));
   }, [pacienteId]);
 
+  const items = events.map((e) => ({
+    id: e.id,
+    title: e.titulo,
+    category: e.tipo,
+    status: e.status || 'pendente',
+    subtitle: e.data_hora_inicio
+      ? new Date(e.data_hora_inicio).toLocaleString('pt-BR')
+      : '',
+  }));
+
   return (
     <div>
       <PageHeader
@@ -451,35 +565,21 @@ export function TimelinePage() {
           <TextSelect value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
             <option value="">Selecione</option>
             {pacientes.map((p) => (
-              <option key={p.id} value={p.id}>{p.nome}</option>
+              <option key={p.id} value={p.id}>
+                {p.nome}
+              </option>
             ))}
           </TextSelect>
         </Field>
 
-        <div className="relative mt-6 ml-3 border-l-2 border-[#b9dedb] pl-6">
-          {events.map((e) => (
-            <article key={e.id} className="relative mb-5">
-              <span
-                className={`absolute -left-[31px] top-1 h-4 w-4 rounded-full border-2 border-white ${
-                  e.status === 'concluido'
-                    ? 'bg-emerald-500'
-                    : e.status === 'atrasado' || e.status === 'nao_realizado'
-                      ? 'bg-red-500'
-                      : 'bg-amber-400'
-                }`}
-              />
-              <div className={`rounded-2xl border p-4 ${statusColor(e.status)}`}>
-                <p className="text-xs font-bold uppercase">{e.tipo} · {e.status}</p>
-                <h3 className="font-semibold">{e.titulo}</h3>
-                <p className="text-xs opacity-80">
-                  {e.data_hora_inicio ? new Date(e.data_hora_inicio).toLocaleString('pt-BR') : ''}
-                </p>
-              </div>
-            </article>
-          ))}
-          {pacienteId && !events.length ? (
-            <p className="text-sm text-slate-health">Sem eventos para este paciente.</p>
-          ) : null}
+        <div className="mt-6">
+          {pacienteId ? (
+            <TimelineRail items={items} emptyMessage="Sem eventos para este paciente." />
+          ) : (
+            <p className="py-6 text-center text-sm text-slate-health">
+              Selecione um paciente para ver a linha do tempo.
+            </p>
+          )}
         </div>
       </PlaceholderCard>
     </div>

@@ -5,6 +5,58 @@ const UF_OPTIONS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
 ];
 
+/** Abas padrão para formulários de cadastro (Dados Gerais / Endereço / …). */
+export function FormTabs({ tabs, active, onChange }) {
+  return (
+    <div className="mb-4 flex flex-wrap gap-2" role="tablist">
+      {tabs.map((tab) => {
+        const id = typeof tab === 'string' ? tab : tab.id;
+        const label = typeof tab === 'string' ? tab : tab.label;
+        const isActive = active === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(id)}
+            className={`min-h-10 flex-1 rounded-xl px-3 text-sm font-semibold transition sm:flex-none sm:px-4 ${
+              isActive
+                ? 'bg-aqua text-white shadow-sm'
+                : 'border border-[#d7e8e7] text-ink hover:bg-aqua-soft/60'
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Preview miniatura para URL de foto. */
+export function PhotoUrlField({ label = 'Foto (URL)', value, onChange }) {
+  const src = String(value || '').trim();
+  return (
+    <div className="grid gap-2 sm:col-span-2 sm:grid-cols-[1fr_auto] sm:items-end">
+      <Field label={label} hint="Cole a URL da imagem">
+        <TextInput
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://…"
+        />
+      </Field>
+      <div className="flex h-[4.75rem] w-[4.75rem] items-center justify-center overflow-hidden rounded-xl border border-[#d7e8e7] bg-[#f8fcfc]">
+        {src ? (
+          <img src={src} alt="Pré-visualização" className="h-full w-full object-cover" />
+        ) : (
+          <span className="px-1 text-center text-[10px] text-slate-health">Sem foto</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Field({ label, required, children, hint, error }) {
   return (
     <label className="grid gap-1 text-sm">
@@ -77,12 +129,26 @@ export function AddressFields({ values, onChange, required = true }) {
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="CEP" required={required} error={cepError} hint={loading ? 'Buscando endereço...' : 'ViaCEP / AwesomeAPI'}>
+      <Field
+        label="CEP"
+        required={required}
+        error={cepError}
+        hint={loading ? 'Buscando endereço…' : 'Máscara 00000-000 · ViaCEP'}
+      >
         <TextInput
           value={maskCep(values.cep || '')}
           onChange={(e) => onChange({ ...values, cep: onlyDigits(e.target.value).slice(0, 8) })}
           onBlur={handleCepBlur}
           placeholder="00000-000"
+          inputMode="numeric"
+          autoComplete="postal-code"
+        />
+      </Field>
+      <Field label="Logradouro" required={required}>
+        <TextInput
+          value={values.logradouro || ''}
+          onChange={(e) => onChange({ ...values, logradouro: e.target.value })}
+          autoComplete="street-address"
         />
       </Field>
       <Field label="Número" required={required}>
@@ -91,13 +157,7 @@ export function AddressFields({ values, onChange, required = true }) {
           onChange={(e) => onChange({ ...values, numero: e.target.value })}
         />
       </Field>
-      <Field label="Logradouro" required={required}>
-        <TextInput
-          value={values.logradouro || ''}
-          onChange={(e) => onChange({ ...values, logradouro: e.target.value })}
-        />
-      </Field>
-      <Field label="Complemento">
+      <Field label="Complemento" hint="Opcional">
         <TextInput
           value={values.complemento || ''}
           onChange={(e) => onChange({ ...values, complemento: e.target.value })}

@@ -8,9 +8,12 @@ const medicos = createCrudController({
   requiredCreate: ['hospital_clinica_id', 'nome', 'crm', 'uf_crm', 'telefone_principal'],
   optional: [
     'usuario_id',
+    'cpf',
     'especialidade',
+    'turno',
     'telefone_secundario',
     'email',
+    'foto_url',
     'cep',
     'logradouro',
     'numero',
@@ -98,12 +101,16 @@ const remedios = createCrudController({
     'forma_farmaceutica',
     'registro_anvisa',
     'instrucoes_uso',
+    'uso_continuo',
+    'periodo_horario',
     'status',
   ],
   normalize: (p) => {
     const n = { ...p };
     if (!n.status) n.status = 'ativo';
     if (!n.forma_farmaceutica) n.forma_farmaceutica = 'comprimido';
+    n.uso_continuo = n.uso_continuo === true || n.uso_continuo === 'true' || n.uso_continuo === 1;
+    if (!n.periodo_horario) n.periodo_horario = 'manha';
     return n;
   },
 });

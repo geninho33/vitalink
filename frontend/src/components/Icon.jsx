@@ -205,6 +205,32 @@ function Icon({ name, className = 'h-5 w-5' }) {
           <path d="M8 8h8M8 12h8M8 16h5" />
         </svg>
       );
+    case 'check':
+      return (
+        <svg {...common}>
+          <path d="m6 12 4 4 8-8" />
+        </svg>
+      );
+    case 'clock':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 8v5l3 2" />
+        </svg>
+      );
+    case 'alert':
+      return (
+        <svg {...common}>
+          <path d="M12 4 3.5 19h17L12 4Z" />
+          <path d="M12 10v4M12 16.5v.5" />
+        </svg>
+      );
+    case 'x':
+      return (
+        <svg {...common}>
+          <path d="M7 7l10 10M17 7 7 17" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>
