@@ -59,9 +59,20 @@ function createApp() {
   api.use('/hospitais', mountCrud(hospitais));
   api.use('/farmacias', mountCrud(farmacias));
   api.use('/cuidadores', mountCrud(cuidadores));
-  api.use('/responsaveis', mountCrud(responsaveis));
+  // Responsável (perfil 5): sem criar/excluir responsáveis
+  api.use(
+    '/responsaveis',
+    mountCrud(responsaveis, { denyCreatePerfilIds: [5], denyDeletePerfilIds: [5] })
+  );
   api.use('/medicos', mountCrud(medicos));
-  api.use('/pacientes', mountCrud(pacientes));
+  // Cuidador (4) e Responsável (5): sem criar/excluir pacientes
+  api.use(
+    '/pacientes',
+    mountCrud(pacientes, {
+      denyCreatePerfilIds: [4, 5],
+      denyDeletePerfilIds: [4, 5],
+    })
+  );
   api.use('/remedios', mountCrud(remedios));
   api.use(mountAtividadesRoutes());
 

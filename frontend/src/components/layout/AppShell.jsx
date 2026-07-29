@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AppShell() {
-  const { usuario, menus } = useAuth();
+  const { usuario, menus, refreshSession } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    refreshSession().catch(() => {});
+  }, [refreshSession]);
 
   return (
     <div className="min-h-screen bg-[#eef6f7]">

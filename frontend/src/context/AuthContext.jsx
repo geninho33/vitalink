@@ -12,6 +12,7 @@ import {
   loginRequest,
   onUnauthorized,
   refreshSessionRequest,
+  switchContextRequest,
 } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -54,11 +55,12 @@ export function AuthProvider({ children }) {
       token: data.token,
       usuario: data.usuario,
       menus: data.menus || [],
+      papeis: data.papeis || [],
     });
     return data;
   }, []);
 
-  /** Atualiza usuario/menus sem trocar o JWT. */
+  /** Atualiza usuario/menus/papéis sem trocar o JWT. */
   const refreshSession = useCallback(async () => {
     const data = await refreshSessionRequest();
     setSession((prev) => {
@@ -67,7 +69,21 @@ export function AuthProvider({ children }) {
         token: prev.token,
         usuario: data.usuario || prev.usuario,
         menus: data.menus || [],
+        papeis: data.papeis ?? prev.papeis ?? [],
       };
+    });
+    return data;
+  }, []);
+
+  /** Profile Switch: novo JWT + menus do papel escolhido. */
+  const switchContext = useCallback(async ({ papel_id, perfil_id, paciente_id } = {}) => {
+    const data = await switchContextRequest({ papel_id, perfil_id, paciente_id });
+    persistSession(data);
+    setSession({
+      token: data.token,
+      usuario: data.usuario,
+      menus: data.menus || [],
+      papeis: data.papeis || [],
     });
     return data;
   }, []);
@@ -78,11 +94,13 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(session?.token),
       usuario: session?.usuario || null,
       menus: session?.menus || [],
+      papeis: session?.papeis || [],
       login,
       logout,
       refreshSession,
+      switchContext,
     }),
-    [session, login, logout, refreshSession]
+    [session, login, logout, refreshSession, switchContext]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

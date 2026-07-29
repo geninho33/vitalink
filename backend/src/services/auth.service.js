@@ -3,6 +3,42 @@ const { comparePassword } = require('../utils/password');
 const { signToken } = require('../utils/jwt');
 const { getMenusByPerfil } = require('./menu.service');
 const { writeAudit } = require('./audit.service');
+const {
+  listPapeisByUsuario,
+  pickDefaultPapel,
+  resolvePapel,
+} = require('./papel.service');
+
+function buildSessionPayload(user, papel, menus) {
+  return {
+    token: signToken({
+      sub: user.id,
+      perfilId: papel.perfil_id,
+      pacienteId: papel.paciente_id || null,
+      papelId: papel.id || null,
+    }),
+    tokenType: 'Bearer',
+    expiresIn: process.env.JWT_EXPIRES_IN || '8h',
+    usuario: {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      perfil: {
+        id: papel.perfil_id,
+        nome: papel.perfil_nome,
+      },
+      paciente_ativo_id: papel.paciente_id || null,
+      papel_ativo: {
+        id: papel.id,
+        rotulo: papel.rotulo,
+        perfil_id: papel.perfil_id,
+        paciente_id: papel.paciente_id,
+      },
+    },
+    menus,
+    papeis: undefined, // preenchido pelo caller
+  };
+}
 
 async function login({ email, senha, ip, userAgent }) {
   const rows = await query(
@@ -44,12 +80,18 @@ async function login({ email, senha, ip, userAgent }) {
     throw err;
   }
 
-  const token = signToken({
-    sub: user.id,
-    perfilId: user.perfil_id,
-  });
+  const papeis = await listPapeisByUsuario(user.id);
+  const papel = pickDefaultPapel(papeis) || {
+    id: null,
+    perfil_id: Number(user.perfil_id),
+    paciente_id: null,
+    rotulo: user.perfil_nome,
+    perfil_nome: user.perfil_nome,
+  };
 
-  const menus = await getMenusByPerfil(user.perfil_id);
+  const menus = await getMenusByPerfil(papel.perfil_id);
+  const session = buildSessionPayload(user, papel, menus);
+  session.papeis = papeis;
 
   await writeAudit({
     usuarioId: user.id,
@@ -57,23 +99,60 @@ async function login({ email, senha, ip, userAgent }) {
     recurso: 'auth',
     ip,
     userAgent,
+    metadados: { perfil_id: papel.perfil_id, papel_id: papel.id },
   });
 
-  return {
-    token,
-    tokenType: 'Bearer',
-    expiresIn: process.env.JWT_EXPIRES_IN || '8h',
-    usuario: {
-      id: user.id,
-      nome: user.nome,
-      email: user.email,
-      perfil: {
-        id: user.perfil_id,
-        nome: user.perfil_nome,
-      },
-    },
-    menus,
-  };
+  return session;
 }
 
-module.exports = { login };
+async function switchContext({ usuarioId, papelId, perfilId, pacienteId, ip, userAgent }) {
+  const users = await query(
+    `SELECT u.id, u.nome, u.email, u.status, u.perfil_id
+     FROM usuarios u
+     WHERE u.id = :id AND u.status = 'ativo'
+     LIMIT 1`,
+    { id: usuarioId }
+  );
+  const user = users[0];
+  if (!user) {
+    const err = new Error('Usuário inválido.');
+    err.status = 401;
+    throw err;
+  }
+
+  const papel = await resolvePapel(usuarioId, { papelId, perfilId, pacienteId });
+  if (!papel) {
+    const err = new Error('Papel não disponível para este usuário.');
+    err.status = 403;
+    err.code = 'forbidden';
+    throw err;
+  }
+
+  // Mantém dual-read: sincroniza perfil_id legado com o contexto ativo
+  await query(`UPDATE usuarios SET perfil_id = :perfilId WHERE id = :id`, {
+    perfilId: papel.perfil_id,
+    id: usuarioId,
+  });
+
+  const menus = await getMenusByPerfil(papel.perfil_id);
+  const papeis = await listPapeisByUsuario(usuarioId);
+  const session = buildSessionPayload(user, papel, menus);
+  session.papeis = papeis;
+
+  await writeAudit({
+    usuarioId,
+    acao: 'troca_contexto',
+    recurso: 'auth',
+    ip,
+    userAgent,
+    metadados: {
+      perfil_id: papel.perfil_id,
+      papel_id: papel.id,
+      paciente_id: papel.paciente_id,
+    },
+  });
+
+  return session;
+}
+
+module.exports = { login, switchContext, listPapeisByUsuario };

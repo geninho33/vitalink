@@ -153,7 +153,7 @@ export async function loginRequest({ email, senha }) {
   });
 }
 
-/** Atualiza menus/usuário no storage mantendo o token atual. */
+/** Atualiza menus/usuário/papéis no storage mantendo o token atual. */
 export async function refreshSessionRequest() {
   const data = await apiRequest('/menus/me');
   const current = loadSession();
@@ -162,6 +162,23 @@ export async function refreshSessionRequest() {
     token: current.token,
     usuario: data.usuario || current.usuario,
     menus: data.menus || [],
+    papeis: data.papeis ?? current.papeis ?? [],
   });
   return data;
+}
+
+export async function listPapeisRequest() {
+  return apiRequest('/auth/papeis');
+}
+
+/** Troca o contexto ativo (Profile Switch) e emite novo JWT. */
+export async function switchContextRequest({ papel_id, perfil_id, paciente_id } = {}) {
+  return apiRequest('/auth/contexto', {
+    method: 'POST',
+    body: {
+      papel_id,
+      perfil_id,
+      paciente_id,
+    },
+  });
 }

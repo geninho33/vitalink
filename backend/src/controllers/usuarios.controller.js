@@ -1,6 +1,7 @@
 const { query, isDuplicateKey } = require('../config/database');
 const { hashPassword } = require('../utils/password');
 const { writeAudit } = require('../services/audit.service');
+const { syncUsuarioPerfilPadrao } = require('../services/papel.service');
 
 function clientMeta(req) {
   return { ip: req.ip, userAgent: req.get('user-agent') };
@@ -51,6 +52,8 @@ async function createUsuario(req, res, next) {
       recursoId: result.insertId,
       ...clientMeta(req),
     });
+
+    await syncUsuarioPerfilPadrao(result.insertId, Number(perfil_id));
 
     return res.status(201).json({ id: result.insertId });
   } catch (err) {
@@ -113,6 +116,10 @@ async function updateUsuario(req, res, next) {
       `UPDATE usuarios SET ${fields.join(', ')} WHERE id = :id`,
       params
     );
+
+    if (perfil_id != null) {
+      await syncUsuarioPerfilPadrao(targetId, Number(perfil_id));
+    }
 
     await writeAudit({
       usuarioId: req.user.id,

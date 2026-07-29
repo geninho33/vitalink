@@ -1,16 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../Icon';
 import { getInitials } from '../../utils/menuTree';
 import { useAuth } from '../../context/AuthContext';
 
+function labelPapel(papel) {
+  if (!papel) return 'Sem perfil';
+  const base = papel.rotulo || papel.perfil_nome || 'Perfil';
+  if (papel.paciente_nome) return `${base} · ${papel.paciente_nome}`;
+  return base;
+}
+
 export default function Header({ onOpenMobile, usuario }) {
-  const { logout } = useAuth();
+  const { logout, papeis, switchContext } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const menuRef = useRef(null);
 
   const nome = usuario?.nome || 'Usuário';
-  const perfil = usuario?.perfil?.nome || 'Sem perfil';
+  const perfilAtivo =
+    usuario?.papel_ativo?.rotulo ||
+    usuario?.perfil?.nome ||
+    'Sem perfil';
+  const papelAtivoId = usuario?.papel_ativo?.id ?? null;
+  const perfilAtivoId = usuario?.perfil?.id ?? null;
   const initials = getInitials(nome);
+  const multiPerfil = Array.isArray(papeis) && papeis.length > 1;
 
   useEffect(() => {
     function onDocClick(e) {
@@ -30,6 +46,34 @@ export default function Header({ onOpenMobile, usuario }) {
   function handleLogout() {
     setOpen(false);
     logout();
+  }
+
+  async function handleSwitch(papel) {
+    if (switching) return;
+    const alreadyActive =
+      (papel.id != null && Number(papel.id) === Number(papelAtivoId)) ||
+      (papel.id == null &&
+        Number(papel.perfil_id) === Number(perfilAtivoId) &&
+        !papel.paciente_id);
+    if (alreadyActive) {
+      setOpen(false);
+      return;
+    }
+
+    setSwitching(true);
+    try {
+      await switchContext({
+        papel_id: papel.id,
+        perfil_id: papel.perfil_id,
+        paciente_id: papel.paciente_id,
+      });
+      setOpen(false);
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      window.alert(err?.message || 'Não foi possível trocar o perfil.');
+    } finally {
+      setSwitching(false);
+    }
   }
 
   return (
@@ -62,7 +106,7 @@ export default function Header({ onOpenMobile, usuario }) {
           </span>
           <span className="hidden min-w-0 text-left md:block">
             <span className="block truncate text-sm font-semibold text-ink">{nome}</span>
-            <span className="block truncate text-xs text-slate-health">{perfil}</span>
+            <span className="block truncate text-xs text-slate-health">{perfilAtivo}</span>
           </span>
           <Icon
             name="chevron"
@@ -73,7 +117,7 @@ export default function Header({ onOpenMobile, usuario }) {
         </button>
 
         <div
-          className={`absolute right-0 mt-2 w-64 origin-top-right overflow-hidden rounded-2xl border border-[#d7e8e7] bg-white shadow-panel transition-all duration-200 ${
+          className={`absolute right-0 mt-2 w-72 origin-top-right overflow-hidden rounded-2xl border border-[#d7e8e7] bg-white shadow-panel transition-all duration-200 ${
             open
               ? 'pointer-events-auto scale-100 opacity-100'
               : 'pointer-events-none scale-95 opacity-0'
@@ -82,8 +126,46 @@ export default function Header({ onOpenMobile, usuario }) {
         >
           <div className="border-b border-[#e8f1f0] px-4 py-3">
             <p className="truncate text-sm font-semibold text-ink">{nome}</p>
-            <p className="truncate text-xs text-slate-health">{perfil}</p>
+            <p className="truncate text-xs text-slate-health">{perfilAtivo}</p>
           </div>
+
+          {multiPerfil ? (
+            <div className="border-b border-[#e8f1f0] p-1.5">
+              <p className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-health">
+                Trocar perfil
+              </p>
+              {papeis.map((papel) => {
+                const active =
+                  (papel.id != null && Number(papel.id) === Number(papelAtivoId)) ||
+                  (papel.id == null &&
+                    Number(papel.perfil_id) === Number(perfilAtivoId) &&
+                    !papel.paciente_id);
+                return (
+                  <button
+                    key={papel.id ?? `p-${papel.perfil_id}-${papel.paciente_id || 0}`}
+                    type="button"
+                    role="menuitem"
+                    disabled={switching}
+                    className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                      active
+                        ? 'bg-aqua-soft font-semibold text-aqua-deep'
+                        : 'text-ink hover:bg-aqua-soft'
+                    } disabled:opacity-60`}
+                    onClick={() => handleSwitch(papel)}
+                  >
+                    <Icon name="masks" className="h-4 w-4 shrink-0 text-aqua" />
+                    <span className="min-w-0 truncate">{labelPapel(papel)}</span>
+                    {active ? (
+                      <span className="ml-auto shrink-0 text-[10px] font-bold uppercase text-aqua">
+                        Ativo
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
           <div className="p-1.5">
             <button
               type="button"

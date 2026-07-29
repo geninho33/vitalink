@@ -1,6 +1,7 @@
 const { verifyToken } = require('../utils/jwt');
 const { query } = require('../config/database');
 const logger = require('../utils/logger');
+const { resolvePapel } = require('../services/papel.service');
 
 async function authenticate(req, res, next) {
   try {
@@ -25,7 +26,6 @@ async function authenticate(req, res, next) {
       });
     }
 
-    // JWT "sub" pode vir como string — normaliza para id numérico
     const userId = Number(decoded.sub);
     if (!Number.isFinite(userId) || userId <= 0) {
       return res.status(401).json({
@@ -45,7 +45,6 @@ async function authenticate(req, res, next) {
         { id: userId }
       );
     } catch (dbErr) {
-      // Erro de banco NÃO deve mascarar-se como 401 (causa "logout fantasma")
       logger.error('Falha ao validar usuário autenticado', {
         message: dbErr.message,
         code: dbErr.code,
@@ -71,13 +70,49 @@ async function authenticate(req, res, next) {
       });
     }
 
-    // Perfil/permissões são sempre lidos do banco (token não é invalidado ao editar perfil)
+    // Contexto ativo: JWT (Profile Switch) com fallback ao perfil legado
+    let perfilId = Number(decoded.perfilId) || Number(user.perfil_id);
+    let perfilNome = user.perfil_nome;
+    let pacienteId =
+      decoded.pacienteId != null && decoded.pacienteId !== ''
+        ? Number(decoded.pacienteId)
+        : null;
+    let papelId =
+      decoded.papelId != null && decoded.papelId !== ''
+        ? Number(decoded.papelId)
+        : null;
+
+    try {
+      const papel = await resolvePapel(userId, {
+        papelId,
+        perfilId,
+        pacienteId,
+      });
+      if (papel) {
+        perfilId = papel.perfil_id;
+        perfilNome = papel.perfil_nome;
+        pacienteId = papel.paciente_id;
+        papelId = papel.id;
+      } else {
+        // Confirma nome do perfil do token
+        const pRows = await query(
+          `SELECT nome FROM perfis WHERE id = :id LIMIT 1`,
+          { id: perfilId }
+        );
+        if (pRows[0]) perfilNome = pRows[0].nome;
+      }
+    } catch (err) {
+      logger.warn('Falha ao resolver papel ativo', { message: err.message });
+    }
+
     req.user = {
       id: Number(user.id),
       nome: user.nome,
       email: user.email,
-      perfilId: Number(user.perfil_id),
-      perfilNome: user.perfil_nome,
+      perfilId: Number(perfilId),
+      perfilNome,
+      pacienteId: pacienteId != null && Number.isFinite(pacienteId) ? pacienteId : null,
+      papelId: papelId != null && Number.isFinite(papelId) ? papelId : null,
     };
     req.auth = { token, decoded };
     return next();

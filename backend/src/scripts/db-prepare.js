@@ -181,12 +181,32 @@ async function applyPatchOnda0(client) {
   }
 }
 
+async function applyPatchOnda1(client) {
+  if (!cfg.runMigrations) return;
+
+  const patchFile = path.join(SQL_DIR, 'patch_onda1.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch Onda 1 não encontrado: ${patchFile}`);
+    return;
+  }
+
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  const sql = fs.readFileSync(patchFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Patch Onda 1 OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch Onda 1: ${err.code || ''} ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
     await applySchema(client);
     await applyPatchInicio(client);
     await applyPatchOnda0(client);
+    await applyPatchOnda1(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});
