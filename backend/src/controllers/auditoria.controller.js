@@ -31,7 +31,7 @@ async function listAuditoria(req, res, next) {
     );
     const rows = await query(
       `SELECT a.id, a.usuario_id, u.nome AS usuario_nome, a.acao, a.recurso, a.recurso_id,
-              a.ip, a.created_at
+              a.ip, a.user_agent, a.metadados_json, a.created_at
        FROM auditoria_logs a
        LEFT JOIN usuarios u ON u.id = a.usuario_id
        ${whereSql}

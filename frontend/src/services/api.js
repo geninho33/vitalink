@@ -97,6 +97,54 @@ export async function apiRequest(path, { method = 'GET', body, query, skipAuthRe
   return data;
 }
 
+/** Upload multipart (campo "file"). */
+export async function apiUpload(path, file, { skipAuthRedirect = false } = {}) {
+  const headers = { Accept: 'application/json' };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const form = new FormData();
+  form.append('file', file);
+
+  const response = await fetch(buildUrl(path), {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const message = data?.message || 'Falha no upload.';
+    if (response.status === 401 && !skipAuthRedirect) {
+      clearSession();
+      emitUnauthorized(message);
+    }
+    const err = new Error(message);
+    err.status = response.status;
+    err.code = data?.error;
+    throw err;
+  }
+
+  return data;
+}
+
+/** URL pública de arquivo servido em /uploads. */
+export function assetUrl(caminho) {
+  if (!caminho) return '';
+  if (/^https?:\/\//i.test(caminho) || caminho.startsWith('blob:')) return caminho;
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : '';
+  return `${origin}${caminho.startsWith('/') ? caminho : `/${caminho}`}`;
+}
+
 export async function loginRequest({ email, senha }) {
   return apiRequest('/auth/login', {
     method: 'POST',

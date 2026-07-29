@@ -1,5 +1,5 @@
 const { query, isDuplicateKey } = require('../config/database');
-const { writeAudit } = require('../services/audit.service');
+const { writeAudit, buildAuditDiff } = require('../services/audit.service');
 
 function onlyDigits(value) {
   return String(value || '').replace(/\D/g, '');
@@ -148,11 +148,19 @@ function createCrudController({
         });
       }
 
+      const beforeRows = await query(
+        `SELECT * FROM ${table} WHERE id = :id LIMIT 1`,
+        { id: req.params.id }
+      );
+      const before = beforeRows[0] || {};
+
       const sets = cols.map((c) => `${c} = :${c}`).join(', ');
       await query(`UPDATE ${table} SET ${sets} WHERE id = :id`, {
         ...payload,
         id: req.params.id,
       });
+
+      const diff = buildAuditDiff(before, { ...before, ...payload }, cols);
 
       await writeAudit({
         usuarioId: req.user.id,
@@ -161,6 +169,7 @@ function createCrudController({
         recursoId: req.params.id,
         ip: req.ip,
         userAgent: req.get('user-agent'),
+        metadados: diff ? { diff } : undefined,
       });
 
       return res.json({ ok: true });

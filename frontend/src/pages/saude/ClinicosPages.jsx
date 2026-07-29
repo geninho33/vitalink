@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import EntityCrudPage from '../../components/EntityCrudPage';
+import FileUploadField, { extractConvenioHints } from '../../components/FileUploadField';
 import { AddressFields, Field, TextInput, TextSelect, TextTextarea } from '../../components/forms/FormControls';
 import { apiRequest } from '../../services/api';
 import { onlyDigits } from '../../hooks/useCep';
@@ -205,9 +206,6 @@ function PacienteForm({ form, setForm, editing, responsaveis, cuidadores, medico
             <Field label="CPF" required>
               <TextInput value={form.cpf} onChange={(e) => setForm({ ...form, cpf: onlyDigits(e.target.value).slice(0, 11) })} />
             </Field>
-            <Field label="Diagnóstico principal" required>
-              <TextInput value={form.diagnostico_principal} onChange={(e) => setForm({ ...form, diagnostico_principal: e.target.value })} />
-            </Field>
             <Field label="Alergias">
               <TextInput value={form.alergias || ''} onChange={(e) => setForm({ ...form, alergias: e.target.value })} />
             </Field>
@@ -224,18 +222,87 @@ function PacienteForm({ form, setForm, editing, responsaveis, cuidadores, medico
             <Field label="E-mail">
               <TextInput type="email" value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </Field>
-            <Field label="Foto (URL)">
-              <TextInput value={form.foto_url || ''} onChange={(e) => setForm({ ...form, foto_url: e.target.value })} />
-            </Field>
+            <div className="sm:col-span-2">
+              <FileUploadField
+                label="Foto do paciente"
+                accept="image/*"
+                valueId={form.foto_arquivo_id}
+                valuePath={form.foto_caminho || form.foto_url}
+                onUploaded={({ id, caminho }) =>
+                  setForm({
+                    ...form,
+                    foto_arquivo_id: id,
+                    foto_caminho: caminho,
+                    foto_url: caminho,
+                  })
+                }
+                onCleared={() =>
+                  setForm({
+                    ...form,
+                    foto_arquivo_id: null,
+                    foto_caminho: '',
+                    foto_url: '',
+                  })
+                }
+              />
+            </div>
             <Field label="Convênio">
               <TextInput value={form.convenio_nome || ''} onChange={(e) => setForm({ ...form, convenio_nome: e.target.value })} />
             </Field>
-            <Field label="Nº convênio">
+            <Field label="Nº convênio" hint="Pode ser preenchido automaticamente após o upload">
               <TextInput value={form.convenio_numero || ''} onChange={(e) => setForm({ ...form, convenio_numero: e.target.value })} />
             </Field>
             <Field label="Validade convênio">
               <TextInput type="date" value={form.convenio_validade || ''} onChange={(e) => setForm({ ...form, convenio_validade: e.target.value })} />
             </Field>
+            <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+              <FileUploadField
+                label="Carteirinha — frente"
+                accept="image/*"
+                valueId={form.convenio_frente_arquivo_id}
+                valuePath={form.convenio_frente_caminho}
+                onUploaded={({ id, caminho, nome_original }) => {
+                  const hints = extractConvenioHints(nome_original || '');
+                  setForm({
+                    ...form,
+                    convenio_frente_arquivo_id: id,
+                    convenio_frente_caminho: caminho,
+                    convenio_numero: form.convenio_numero || hints.numero || form.convenio_numero,
+                    convenio_validade: form.convenio_validade || hints.validade || form.convenio_validade,
+                  });
+                }}
+                onCleared={() =>
+                  setForm({
+                    ...form,
+                    convenio_frente_arquivo_id: null,
+                    convenio_frente_caminho: '',
+                  })
+                }
+              />
+              <FileUploadField
+                label="Carteirinha — verso"
+                accept="image/*"
+                valueId={form.convenio_verso_arquivo_id}
+                valuePath={form.convenio_verso_caminho}
+                onUploaded={({ id, caminho, nome_original }) => {
+                  const hints = extractConvenioHints(nome_original || '');
+                  setForm({
+                    ...form,
+                    convenio_verso_arquivo_id: id,
+                    convenio_verso_caminho: caminho,
+                    convenio_numero: form.convenio_numero || hints.numero || form.convenio_numero,
+                    convenio_validade: form.convenio_validade || hints.validade || form.convenio_validade,
+                  });
+                }}
+                onCleared={() =>
+                  setForm({
+                    ...form,
+                    convenio_verso_arquivo_id: null,
+                    convenio_verso_caminho: '',
+                  })
+                }
+              />
+            </div>
             <Field label="Responsável legal">
               <TextSelect value={form.responsavel_id || ''} onChange={(e) => setForm({ ...form, responsavel_id: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">—</option>
@@ -289,15 +356,20 @@ export function PacientesPage() {
     nome: '',
     data_nascimento: '',
     cpf: '',
-    diagnostico_principal: '',
     alergias: '',
     tipo_sanguineo: 'NI',
     foto_url: '',
+    foto_arquivo_id: null,
+    foto_caminho: '',
     telefone_principal: '',
     email: '',
     convenio_nome: '',
     convenio_numero: '',
     convenio_validade: '',
+    convenio_frente_arquivo_id: null,
+    convenio_verso_arquivo_id: null,
+    convenio_frente_caminho: '',
+    convenio_verso_caminho: '',
     responsavel_id: '',
     cuidador_id: '',
     medico_id: '',
@@ -316,12 +388,12 @@ export function PacientesPage() {
   return (
     <EntityCrudPage
       title="Pacientes"
-      description="Perfil clínico, anamnese, vínculos de cuidado e convênio."
+      description="Perfil clínico, anamnese, vínculos de cuidado, foto e carteirinha do convênio."
       endpoint="/pacientes"
       columns={[
         { key: 'nome', label: 'Nome' },
         { key: 'cpf', label: 'CPF' },
-        { key: 'diagnostico_principal', label: 'Diagnóstico' },
+        { key: 'convenio_nome', label: 'Convênio' },
         { key: 'responsavel_nome', label: 'Responsável' },
         { key: 'cuidador_nome', label: 'Cuidador' },
         { key: 'medico_nome', label: 'Médico' },
@@ -341,6 +413,9 @@ export function PacientesPage() {
         ...row,
         data_nascimento: row.data_nascimento ? String(row.data_nascimento).slice(0, 10) : '',
         convenio_validade: row.convenio_validade ? String(row.convenio_validade).slice(0, 10) : '',
+        foto_caminho: row.foto_caminho || row.foto_url || '',
+        convenio_frente_caminho: row.convenio_frente_caminho || '',
+        convenio_verso_caminho: row.convenio_verso_caminho || '',
         anamnese: {},
       })}
       renderForm={(form, setForm, { editing }) => (
@@ -356,11 +431,17 @@ export function PacientesPage() {
       toPayload={(form) => ({
         ...form,
         anamnese: undefined,
+        foto_caminho: undefined,
+        convenio_frente_caminho: undefined,
+        convenio_verso_caminho: undefined,
         cpf: onlyDigits(form.cpf),
         cep: form.cep ? onlyDigits(form.cep) : null,
         responsavel_id: form.responsavel_id || null,
         cuidador_id: form.cuidador_id || null,
         medico_id: form.medico_id || null,
+        foto_arquivo_id: form.foto_arquivo_id || null,
+        convenio_frente_arquivo_id: form.convenio_frente_arquivo_id || null,
+        convenio_verso_arquivo_id: form.convenio_verso_arquivo_id || null,
         convenio_validade: form.convenio_validade || null,
       })}
       onAfterSave={async ({ form, editing, savedId }) => {

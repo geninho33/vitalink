@@ -47,11 +47,14 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
       DB_NAME: ${DB_NAME:-vitalink}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      UPLOAD_DIR: /app/uploads
       JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-vitalink-2026}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     ports:
       - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
+    volumes:
+      - vitalink_uploads:/app/uploads
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3333/health"]
       interval: 10s
@@ -86,6 +89,8 @@ services:
 volumes:
   vitalink_pg_data:
     name: vitalink_pg_data
+  vitalink_uploads:
+    name: vitalink_uploads
 
 networks:
   vitalink-net:

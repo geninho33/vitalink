@@ -152,7 +152,6 @@ async function applyPatchInicio(client) {
     return;
   }
 
-  // Idempotente: cria tabela/menu/permissões se faltarem
   log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
   const sql = fs.readFileSync(patchFile, 'utf8');
   try {
@@ -163,11 +162,31 @@ async function applyPatchInicio(client) {
   }
 }
 
+async function applyPatchOnda0(client) {
+  if (!cfg.runMigrations) return;
+
+  const patchFile = path.join(SQL_DIR, 'patch_onda0.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch Onda 0 não encontrado: ${patchFile}`);
+    return;
+  }
+
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  const sql = fs.readFileSync(patchFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Patch Onda 0 OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch Onda 0: ${err.code || ''} ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
     await applySchema(client);
     await applyPatchInicio(client);
+    await applyPatchOnda0(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

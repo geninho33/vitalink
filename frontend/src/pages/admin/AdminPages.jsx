@@ -304,29 +304,51 @@ export function AuditoriaPage() {
     <div>
       <PageHeader
         title="Auditoria"
-        description="Trilha sanitizada de ações (sem dados clínicos sensíveis)."
+        description="Log de rastreabilidade: ID, usuário, ação, data/hora e alteração (diff sanitizado — sem dados clínicos)."
       />
       <PlaceholderCard>
         <label className="mb-4 grid max-w-xs gap-1 text-sm">
           <span className="font-semibold">Filtrar ação</span>
-          <TextInput value={acao} onChange={(e) => setAcao(e.target.value)} placeholder="login_sucesso, criar..." />
+          <TextInput value={acao} onChange={(e) => setAcao(e.target.value)} placeholder="login_sucesso, criar, editar..." />
         </label>
         {loading ? <p className="text-sm text-slate-health">Carregando...</p> : null}
         <div className="grid gap-3">
-          {rows.map((r) => (
-            <article key={r.id} className="rounded-xl border border-[#d7e8e7] bg-[#f8fcfc] p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <strong className="text-ink">{r.acao}</strong>
-                <span className="text-xs text-slate-health">
-                  {r.created_at ? new Date(r.created_at).toLocaleString('pt-BR') : ''}
-                </span>
-              </div>
-              <p className="mt-1 text-slate-health">
-                {r.usuario_nome || 'sistema'} · {r.recurso}
-                {r.recurso_id ? ` #${r.recurso_id}` : ''} · IP {r.ip || '—'}
-              </p>
-            </article>
-          ))}
+          {rows.map((r) => {
+            const meta = r.metadados_json || r.metadados || null;
+            const diff = meta?.diff;
+            return (
+              <article key={r.id} className="rounded-xl border border-[#d7e8e7] bg-[#f8fcfc] p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <strong className="text-ink">
+                    #{r.id} · {r.acao}
+                  </strong>
+                  <span className="text-xs text-slate-health">
+                    {r.created_at ? new Date(r.created_at).toLocaleString('pt-BR') : ''}
+                  </span>
+                </div>
+                <p className="mt-1 text-slate-health">
+                  {r.usuario_nome || 'sistema'} · {r.recurso}
+                  {r.recurso_id ? ` #${r.recurso_id}` : ''} · IP {r.ip || '—'}
+                </p>
+                {diff ? (
+                  <div className="mt-2 grid gap-2 rounded-lg border border-[#e2eeee] bg-white p-2 text-xs sm:grid-cols-2">
+                    <div>
+                      <p className="font-bold text-slate-health">Antes</p>
+                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-ink">
+                        {JSON.stringify(diff.antes || {}, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-health">Depois</p>
+                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-ink">
+                        {JSON.stringify(diff.depois || {}, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
           {!loading && !rows.length ? (
             <p className="text-sm text-slate-health">Nenhum log encontrado.</p>
           ) : null}

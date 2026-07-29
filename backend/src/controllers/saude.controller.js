@@ -34,17 +34,21 @@ const pacientes = createCrudController({
   table: 'pacientes',
   recurso: 'pacientes',
   menuRota: '/pacientes',
-  searchable: ['pacientes.nome', 'pacientes.cpf', 'pacientes.diagnostico_principal'],
-  requiredCreate: ['nome', 'data_nascimento', 'cpf', 'diagnostico_principal'],
+  searchable: ['pacientes.nome', 'pacientes.cpf', 'pacientes.convenio_nome'],
+  requiredCreate: ['nome', 'data_nascimento', 'cpf'],
   optional: [
+    'diagnostico_principal',
     'alergias',
     'tipo_sanguineo',
     'foto_url',
+    'foto_arquivo_id',
     'telefone_principal',
     'email',
     'convenio_nome',
     'convenio_numero',
     'convenio_validade',
+    'convenio_frente_arquivo_id',
+    'convenio_verso_arquivo_id',
     'responsavel_id',
     'cuidador_id',
     'medico_id',
@@ -62,16 +66,25 @@ const pacientes = createCrudController({
     const n = addressNormalize({ ...p });
     if (!n.status) n.status = 'ativo';
     if (!n.tipo_sanguineo) n.tipo_sanguineo = 'NI';
+    if (n.diagnostico_principal != null && String(n.diagnostico_principal).trim() === '') {
+      n.diagnostico_principal = null;
+    }
     return n;
   },
   selectExtra: `,
     r.nome AS responsavel_nome,
     c.nome AS cuidador_nome,
-    m.nome AS medico_nome`,
+    m.nome AS medico_nome,
+    af.caminho AS foto_caminho,
+    acf.caminho AS convenio_frente_caminho,
+    acv.caminho AS convenio_verso_caminho`,
   joins: `
     LEFT JOIN responsaveis r ON r.id = pacientes.responsavel_id
     LEFT JOIN cuidadores c ON c.id = pacientes.cuidador_id
-    LEFT JOIN medicos m ON m.id = pacientes.medico_id`,
+    LEFT JOIN medicos m ON m.id = pacientes.medico_id
+    LEFT JOIN arquivos af ON af.id = pacientes.foto_arquivo_id
+    LEFT JOIN arquivos acf ON acf.id = pacientes.convenio_frente_arquivo_id
+    LEFT JOIN arquivos acv ON acv.id = pacientes.convenio_verso_arquivo_id`,
 });
 
 const remedios = createCrudController({

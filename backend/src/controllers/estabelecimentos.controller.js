@@ -17,6 +17,7 @@ const establishmentFields = [
   'documento',
   'telefone_principal',
   'telefone_secundario',
+  'whatsapp',
   'email',
   ...addressFields,
   'observacoes',
@@ -29,10 +30,9 @@ function makeEstablishment(table, recurso, menuRota) {
     recurso,
     menuRota,
     searchable: [`${table}.nome_fantasia`, `${table}.razao_social`, `${table}.documento`],
+    // Nome fantasia priorizado; CNPJ/Razão Social opcionais (SDD Onda 0)
     requiredCreate: [
-      'razao_social',
       'nome_fantasia',
-      'documento',
       'telefone_principal',
       'cep',
       'logradouro',
@@ -44,9 +44,7 @@ function makeEstablishment(table, recurso, menuRota) {
     optional: establishmentFields.filter(
       (f) =>
         ![
-          'razao_social',
           'nome_fantasia',
-          'documento',
           'telefone_principal',
           'cep',
           'logradouro',
@@ -60,6 +58,14 @@ function makeEstablishment(table, recurso, menuRota) {
       const n = addressNormalize({ ...p });
       if (!n.tipo_documento) n.tipo_documento = 'cnpj';
       if (!n.status) n.status = 'ativo';
+      // Evita UNIQUE/CHECK com string vazia
+      if (n.documento != null && String(n.documento).trim() === '') n.documento = null;
+      if (n.razao_social != null && String(n.razao_social).trim() === '') n.razao_social = null;
+      // WhatsApp: aceita campo dedicado ou legado telefone_secundario
+      if ((!n.whatsapp || String(n.whatsapp).trim() === '') && n.telefone_secundario) {
+        n.whatsapp = n.telefone_secundario;
+      }
+      if (n.whatsapp != null && String(n.whatsapp).trim() === '') n.whatsapp = null;
       return n;
     },
   });

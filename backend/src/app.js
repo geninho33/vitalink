@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,18 +10,19 @@ const menusRoutes = require('./routes/menus.routes');
 const usuariosRoutes = require('./routes/usuarios.routes');
 const perfisRoutes = require('./routes/perfis.routes');
 const inicioRoutes = require('./routes/inicio.routes');
+const arquivosRoutes = require('./routes/arquivos.routes');
 const { mountCrud } = require('./routes/crud.routes');
 const { mountAtividadesRoutes } = require('./routes/atividades.routes');
 const { hospitais, farmacias } = require('./controllers/estabelecimentos.controller');
 const { cuidadores, responsaveis } = require('./controllers/pessoas.controller');
 const { medicos, pacientes, remedios } = require('./controllers/saude.controller');
+const { ensureUploadDir, UPLOAD_ROOT } = require('./controllers/arquivos.controller');
 
 function createApp() {
   const app = express();
 
   app.set('trust proxy', 1);
   app.use(helmet({
-    // Permite o frontend (outra origem/IP) embutir/consumir a API
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   }));
 
@@ -40,6 +42,9 @@ function createApp() {
   );
   app.use(express.json({ limit: '2mb' }));
 
+  ensureUploadDir();
+  app.use('/uploads', express.static(UPLOAD_ROOT));
+
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'vitalink-api' });
   });
@@ -50,6 +55,7 @@ function createApp() {
   api.use('/usuarios', usuariosRoutes);
   api.use('/perfis', perfisRoutes);
   api.use('/inicio', inicioRoutes);
+  api.use('/arquivos', arquivosRoutes);
   api.use('/hospitais', mountCrud(hospitais));
   api.use('/farmacias', mountCrud(farmacias));
   api.use('/cuidadores', mountCrud(cuidadores));
