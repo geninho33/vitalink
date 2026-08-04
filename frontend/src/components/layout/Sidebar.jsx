@@ -119,19 +119,38 @@ export default function Sidebar({
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-gradient-to-b from-aqua-deep via-aqua to-[#1f7d82] text-white shadow-panel transition-all duration-300
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-brand-gradient text-white shadow-panel transition-all duration-300
           ${collapsed ? 'w-[78px]' : 'w-[272px]'}
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <div className={`flex h-16 items-center gap-3 border-b border-white/10 px-4 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 font-display text-sm font-bold">
-            VL
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="font-display text-base font-bold tracking-tight">VitaLink</p>
-              <p className="truncate text-[11px] text-white/70">Cuidado contínuo</p>
+        <div
+          className={`flex h-16 items-center gap-2 border-b border-white/10 px-3 ${
+            collapsed ? 'justify-center' : 'px-4'
+          }`}
+        >
+          {collapsed ? (
+            <img
+              src="/vitalink-logo.png"
+              alt="VitaLink"
+              className="h-9 w-9 rounded-lg bg-white/95 object-contain p-0.5"
+            />
+          ) : (
+            <div className="flex min-w-0 items-center gap-2">
+              <img
+                src="/vitalink-logo.png"
+                alt="VitaLink"
+                className="h-10 w-10 shrink-0 rounded-lg bg-white/95 object-contain p-0.5"
+              />
+              <div className="min-w-0">
+                <p className="font-display text-base font-bold tracking-tight leading-tight">
+                  <span className="text-white">Vita</span>
+                  <span className="text-link-bright">Link</span>
+                </p>
+                <p className="truncate text-[10px] uppercase tracking-wider text-white/75">
+                  Prontuário Eletrônico
+                </p>
+              </div>
             </div>
           )}
         </div>

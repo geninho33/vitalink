@@ -96,7 +96,7 @@ export default function LinhaView() {
         </EmptyState>
       ) : (
         <>
-          <TimelineRail items={railItems} />
+          <TimelineRail items={railItems} orientation="horizontal" />
 
           {active ? (
             <Panel className="mt-5">

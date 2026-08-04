@@ -47,7 +47,7 @@ function resolveStatus(status) {
 function resolveCategoryIcon(category) {
   const raw = String(category || '').toLowerCase();
   if (raw.includes('medic') || raw.includes('remed') || raw.includes('pill')) return 'pill';
-  if (raw.includes('consult') || raw.includes('médic') || raw.includes('medic')) return 'stethoscope';
+  if (raw.includes('consult') || raw.includes('médic')) return 'stethoscope';
   if (raw.includes('agenda') || raw.includes('appointment')) return 'calendar';
   if (raw.includes('saúde') || raw.includes('saude') || raw.includes('health') || raw.includes('rotina')) {
     return 'heart-pulse';
@@ -57,82 +57,22 @@ function resolveCategoryIcon(category) {
 }
 
 /**
- * Linha do tempo: eixo central, cards compactos alternados L/R, marcador de status.
- * items: [{ id, title, subtitle?, category?, type?, status?, onClick?, selected? }]
+ * orientation: 'horizontal' (padrão Onda 2) | 'vertical'
  */
-export default function TimelineRail({ items = [], emptyMessage = 'Sem eventos.' }) {
+export default function TimelineRail({
+  items = [],
+  emptyMessage = 'Sem eventos.',
+  orientation = 'horizontal',
+}) {
   if (!items.length) {
     return <p className="py-8 text-center text-sm text-slate-health">{emptyMessage}</p>;
   }
 
-  return (
-    <div className="relative mx-auto max-w-3xl py-1">
-      {/* Mobile: linha à esquerda */}
-      <div
-        className="pointer-events-none absolute bottom-3 left-[15px] top-3 w-0.5 bg-[#b9dedb] sm:hidden"
-        aria-hidden
-      />
-      {/* Desktop: eixo central */}
-      <div
-        className="pointer-events-none absolute bottom-3 left-1/2 top-3 hidden w-0.5 -translate-x-1/2 bg-gradient-to-b from-[#9ecfcb] via-[#b9dedb] to-[#9ecfcb] sm:block"
-        aria-hidden
-      />
+  if (orientation === 'horizontal') {
+    return <HorizontalRail items={items} />;
+  }
 
-      <ol className="relative space-y-4">
-        {items.map((item, index) => {
-          const left = index % 2 === 0;
-          const status = resolveStatus(item.status);
-          const catIcon = resolveCategoryIcon(item.category || item.type || item.tipo);
-          const markerIcon =
-            item.status === 'concluido' || item.status === 'realizado' ? status.icon : catIcon;
-          const selected = Boolean(item.selected);
-
-          return (
-            <li key={item.id} className="relative">
-              {/* Desktop alternado */}
-              <div className="hidden sm:grid sm:grid-cols-[1fr_2.5rem_1fr] sm:items-start sm:gap-0">
-                <div className={`pr-5 ${left ? '' : 'invisible pointer-events-none'}`}>
-                  {left ? (
-                    <TimelineCard item={item} status={status} selected={selected} align="right" />
-                  ) : null}
-                </div>
-
-                <div className="relative z-10 flex justify-center pt-1">
-                  <Marker
-                    item={item}
-                    status={status}
-                    icon={markerIcon}
-                    selected={selected}
-                  />
-                </div>
-
-                <div className={`pl-5 ${left ? 'invisible pointer-events-none' : ''}`}>
-                  {!left ? (
-                    <TimelineCard item={item} status={status} selected={selected} align="left" />
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Mobile: marcador à esquerda + card */}
-              <div className="flex items-start gap-3 sm:hidden">
-                <div className="relative z-10 shrink-0 pt-0.5">
-                  <Marker
-                    item={item}
-                    status={status}
-                    icon={markerIcon}
-                    selected={selected}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <TimelineCard item={item} status={status} selected={selected} align="left" />
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
+  return <VerticalRail items={items} />;
 }
 
 function Marker({ item, status, icon, selected }) {
@@ -145,7 +85,7 @@ function Marker({ item, status, icon, selected }) {
       className={`grid h-8 w-8 place-items-center rounded-full border-[3px] border-white shadow-md transition ${
         status.dot
       } ${item.onClick ? 'cursor-pointer hover:scale-105' : ''} ${
-        selected ? 'ring-2 ring-aqua ring-offset-2' : ''
+        selected ? 'ring-2 ring-vita ring-offset-2' : ''
       }`}
       aria-label={item.title}
     >
@@ -154,23 +94,17 @@ function Marker({ item, status, icon, selected }) {
   );
 }
 
-function TimelineCard({ item, status, selected, align }) {
+function TimelineCard({ item, status, selected }) {
   const Comp = item.onClick ? 'button' : 'div';
   return (
     <Comp
       type={item.onClick ? 'button' : undefined}
       onClick={item.onClick}
-      className={`w-full rounded-xl border px-3 py-2 text-left shadow-sm transition ${status.card} ${
-        selected ? 'ring-2 ring-aqua/35' : ''
-      } ${item.onClick ? 'hover:brightness-[0.98]' : ''} ${
-        align === 'right' ? 'sm:text-right' : ''
-      }`}
+      className={`w-full min-w-[10.5rem] max-w-[14rem] rounded-xl border px-3 py-2 text-left shadow-sm transition ${status.card} ${
+        selected ? 'ring-2 ring-vita/35' : ''
+      } ${item.onClick ? 'hover:brightness-[0.98]' : ''}`}
     >
-      <div
-        className={`flex flex-wrap items-center gap-1.5 ${
-          align === 'right' ? 'sm:justify-end' : ''
-        }`}
-      >
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[10px] font-bold uppercase tracking-wider opacity-75">
           {item.category || item.type || item.tipo || 'Evento'}
         </span>
@@ -183,5 +117,114 @@ function TimelineCard({ item, status, selected, align }) {
         <p className="mt-0.5 text-[11px] opacity-75">{item.subtitle || item.datetime}</p>
       ) : null}
     </Comp>
+  );
+}
+
+function HorizontalRail({ items }) {
+  return (
+    <div className="relative overflow-x-auto pb-2 pt-1">
+      <div className="relative mx-auto min-w-max px-4 py-6">
+        <div
+          className="pointer-events-none absolute left-4 right-4 top-1/2 h-0.5 -translate-y-1/2 bg-gradient-to-r from-[#0077B6] via-[#00B4D8] to-[#48CAE4]"
+          aria-hidden
+        />
+        <ol className="relative flex items-stretch gap-4">
+          {items.map((item, index) => {
+            const status = resolveStatus(item.status);
+            const catIcon = resolveCategoryIcon(item.category || item.type || item.tipo);
+            const markerIcon =
+              item.status === 'concluido' || item.status === 'realizado' ? status.icon : catIcon;
+            const above = index % 2 === 0;
+            return (
+              <li key={item.id} className="relative flex w-[12.5rem] flex-col items-center">
+                {above ? (
+                  <div className="mb-3 flex min-h-[5.5rem] items-end">
+                    <TimelineCard item={item} status={status} selected={item.selected} />
+                  </div>
+                ) : (
+                  <div className="mb-3 min-h-[5.5rem]" aria-hidden />
+                )}
+                <div className="relative z-10">
+                  <Marker
+                    item={item}
+                    status={status}
+                    icon={markerIcon}
+                    selected={item.selected}
+                  />
+                </div>
+                {!above ? (
+                  <div className="mt-3 flex min-h-[5.5rem] items-start">
+                    <TimelineCard item={item} status={status} selected={item.selected} />
+                  </div>
+                ) : (
+                  <div className="mt-3 min-h-[5.5rem]" aria-hidden />
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+function VerticalRail({ items }) {
+  return (
+    <div className="relative mx-auto max-w-3xl py-1">
+      <div
+        className="pointer-events-none absolute bottom-3 left-[15px] top-3 w-0.5 bg-[#b9dedb] sm:hidden"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute bottom-3 left-1/2 top-3 hidden w-0.5 -translate-x-1/2 bg-gradient-to-b from-[#0077B6] via-[#00B4D8] to-[#48CAE4] sm:block"
+        aria-hidden
+      />
+      <ol className="relative space-y-4">
+        {items.map((item, index) => {
+          const left = index % 2 === 0;
+          const status = resolveStatus(item.status);
+          const catIcon = resolveCategoryIcon(item.category || item.type || item.tipo);
+          const markerIcon =
+            item.status === 'concluido' || item.status === 'realizado' ? status.icon : catIcon;
+          return (
+            <li key={item.id} className="relative">
+              <div className="hidden sm:grid sm:grid-cols-[1fr_2.5rem_1fr] sm:items-start">
+                <div className={`pr-5 ${left ? '' : 'invisible pointer-events-none'}`}>
+                  {left ? (
+                    <TimelineCard item={item} status={status} selected={item.selected} />
+                  ) : null}
+                </div>
+                <div className="relative z-10 flex justify-center pt-1">
+                  <Marker
+                    item={item}
+                    status={status}
+                    icon={markerIcon}
+                    selected={item.selected}
+                  />
+                </div>
+                <div className={`pl-5 ${left ? 'invisible pointer-events-none' : ''}`}>
+                  {!left ? (
+                    <TimelineCard item={item} status={status} selected={item.selected} />
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex items-start gap-3 sm:hidden">
+                <div className="relative z-10 shrink-0 pt-0.5">
+                  <Marker
+                    item={item}
+                    status={status}
+                    icon={markerIcon}
+                    selected={item.selected}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <TimelineCard item={item} status={status} selected={item.selected} />
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

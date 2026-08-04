@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import EntityCrudPage from '../../components/EntityCrudPage';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import { Field, TextInput, TextSelect, TextTextarea } from '../../components/forms/FormControls';
@@ -11,6 +11,8 @@ export function UsuariosPage() {
   useEffect(() => {
     apiRequest('/perfis').then((r) => setPerfis(r.data || [])).catch(() => setPerfis([]));
   }, []);
+
+  const perfisAtivos = perfis.filter((p) => p.ativo !== false);
 
   const empty = () => ({
     nome: '',
@@ -66,7 +68,7 @@ export function UsuariosPage() {
           <Field label="Perfil" required>
             <TextSelect value={form.perfil_id || ''} onChange={(e) => setForm({ ...form, perfil_id: Number(e.target.value) })}>
               <option value="">Selecione</option>
-              {perfis.map((p) => (
+              {perfisAtivos.map((p) => (
                 <option key={p.id} value={p.id}>{p.nome}</option>
               ))}
             </TextSelect>
@@ -142,7 +144,7 @@ export function AcessosPage() {
 
   async function load() {
     const res = await apiRequest('/perfis');
-    setPerfis(res.data || []);
+    setPerfis((res.data || []).filter((p) => p.ativo !== false));
     setPermissoes(res.permissoes || []);
   }
 
@@ -290,6 +292,7 @@ export function AcessosPage() {
 export function AuditoriaPage() {
   const [rows, setRows] = useState([]);
   const [acao, setAcao] = useState('');
+  const [usuarioBusca, setUsuarioBusca] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -300,60 +303,143 @@ export function AuditoriaPage() {
       .finally(() => setLoading(false));
   }, [acao]);
 
+  const filtered = useMemo(() => {
+    const q = usuarioBusca.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => String(r.usuario_nome || '').toLowerCase().includes(q));
+  }, [rows, usuarioBusca]);
+
   return (
     <div>
       <PageHeader
         title="Auditoria"
-        description="Log de rastreabilidade: ID, usuário, ação, data/hora e alteração (diff sanitizado — sem dados clínicos)."
+        description="Trilha de rastreabilidade com diff sanitizado — sem dados clínicos sensíveis."
       />
       <PlaceholderCard>
-        <label className="mb-4 grid max-w-xs gap-1 text-sm">
-          <span className="font-semibold">Filtrar ação</span>
-          <TextInput value={acao} onChange={(e) => setAcao(e.target.value)} placeholder="login_sucesso, criar, editar..." />
-        </label>
+        <div className="mb-6 grid gap-3 sm:grid-cols-2">
+          <Field label="Filtrar ação">
+            <TextInput
+              value={acao}
+              onChange={(e) => setAcao(e.target.value)}
+              placeholder="login_sucesso, criar, editar…"
+            />
+          </Field>
+          <Field label="Buscar usuário">
+            <TextInput
+              value={usuarioBusca}
+              onChange={(e) => setUsuarioBusca(e.target.value)}
+              placeholder="Nome do usuário"
+            />
+          </Field>
+        </div>
+
         {loading ? <p className="text-sm text-slate-health">Carregando...</p> : null}
-        <div className="grid gap-3">
-          {rows.map((r) => {
-            const meta = r.metadados_json || r.metadados || null;
-            const diff = meta?.diff;
-            return (
-              <article key={r.id} className="rounded-xl border border-[#d7e8e7] bg-[#f8fcfc] p-3 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <strong className="text-ink">
-                    #{r.id} · {r.acao}
-                  </strong>
-                  <span className="text-xs text-slate-health">
-                    {r.created_at ? new Date(r.created_at).toLocaleString('pt-BR') : ''}
-                  </span>
-                </div>
-                <p className="mt-1 text-slate-health">
-                  {r.usuario_nome || 'sistema'} · {r.recurso}
-                  {r.recurso_id ? ` #${r.recurso_id}` : ''} · IP {r.ip || '—'}
-                </p>
-                {diff ? (
-                  <div className="mt-2 grid gap-2 rounded-lg border border-[#e2eeee] bg-white p-2 text-xs sm:grid-cols-2">
-                    <div>
-                      <p className="font-bold text-slate-health">Antes</p>
-                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-ink">
-                        {JSON.stringify(diff.antes || {}, null, 2)}
-                      </pre>
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-health">Depois</p>
-                      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-ink">
-                        {JSON.stringify(diff.depois || {}, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
-          {!loading && !rows.length ? (
+
+        <div className="relative mx-auto max-w-3xl py-2">
+          <div
+            className="pointer-events-none absolute bottom-0 left-[17px] top-0 w-0.5 bg-gradient-to-b from-[#0077B6] via-[#00B4D8] to-[#48CAE4]"
+            aria-hidden
+          />
+          <ol className="relative space-y-5">
+            {filtered.map((r) => (
+              <AuditoriaTimelineItem key={r.id} row={r} />
+            ))}
+          </ol>
+          {!loading && !filtered.length ? (
             <p className="text-sm text-slate-health">Nenhum log encontrado.</p>
           ) : null}
         </div>
       </PlaceholderCard>
     </div>
+  );
+}
+
+function acaoBadgeClass(acao) {
+  const a = String(acao || '').toLowerCase();
+  if (a.includes('login') || a.includes('logout')) return 'bg-sky-100 text-sky-900 border-sky-200';
+  if (a.includes('criar') || a.includes('create')) return 'bg-emerald-100 text-emerald-900 border-emerald-200';
+  if (a.includes('editar') || a.includes('update')) return 'bg-amber-100 text-amber-950 border-amber-200';
+  if (a.includes('delet') || a.includes('exclu')) return 'bg-red-100 text-red-900 border-red-200';
+  return 'bg-slate-100 text-slate-800 border-slate-200';
+}
+
+function formatDiffObject(obj) {
+  if (!obj || typeof obj !== 'object') return '—';
+  const entries = Object.entries(obj);
+  if (!entries.length) return '(vazio)';
+  return entries.map(([k, v]) => (
+    <div key={k} className="border-b border-[#eef4f3] py-1.5 last:border-0">
+      <span className="font-semibold text-aqua-deep">{k}</span>
+      <span className="text-slate-health">: </span>
+      <span className="text-ink">{v == null ? '—' : String(v)}</span>
+    </div>
+  ));
+}
+
+function AuditoriaTimelineItem({ row: r }) {
+  const [openDiff, setOpenDiff] = useState(false);
+  const meta = r.metadados_json || r.metadados || null;
+  const diff = meta?.diff;
+  const when = r.created_at ? new Date(r.created_at).toLocaleString('pt-BR') : '—';
+
+  return (
+    <li className="relative pl-10">
+      <span
+        className="absolute left-2 top-4 z-10 h-4 w-4 rounded-full border-[3px] border-white bg-aqua shadow-md"
+        aria-hidden
+      />
+      <article className="rounded-2xl border border-[#d7e8e7] bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-bold text-ink">{r.usuario_nome || 'sistema'}</p>
+            <p className="mt-0.5 text-xs text-slate-health">{when}</p>
+          </div>
+          <span
+            className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${acaoBadgeClass(r.acao)}`}
+          >
+            {r.acao}
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-ink">
+          <span className="font-semibold">{r.recurso}</span>
+          {r.recurso_id ? (
+            <span className="text-slate-health"> #{r.recurso_id}</span>
+          ) : null}
+        </p>
+        <p className="mt-1 text-xs text-slate-health">IP {r.ip || '—'}</p>
+
+        {diff ? (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setOpenDiff((v) => !v)}
+              className="flex w-full items-center justify-between rounded-xl border border-[#e2eeee] bg-[#f8fcfc] px-3 py-2 text-left text-sm font-semibold text-aqua-deep hover:bg-aqua-soft/30"
+              aria-expanded={openDiff}
+            >
+              Ver alteração
+              <span className="text-xs text-slate-health">{openDiff ? '▲' : '▼'}</span>
+            </button>
+            {openDiff ? (
+              <div className="mt-2 grid gap-3 rounded-xl border border-[#e2eeee] bg-white p-3 sm:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-health">
+                    Antes
+                  </p>
+                  <div className="rounded-lg bg-red-50/40 p-2 text-sm">{formatDiffObject(diff.antes)}</div>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-health">
+                    Depois
+                  </p>
+                  <div className="rounded-lg bg-emerald-50/40 p-2 text-sm">
+                    {formatDiffObject(diff.depois)}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </article>
+    </li>
   );
 }

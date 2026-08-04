@@ -145,6 +145,9 @@ export function assetUrl(caminho) {
   return `${origin}${caminho.startsWith('/') ? caminho : `/${caminho}`}`;
 }
 
+/** Alias para URLs de upload (preview de fotos/arquivos). */
+export const resolveUploadUrl = assetUrl;
+
 export async function loginRequest({ email, senha }) {
   return apiRequest('/auth/login', {
     method: 'POST',

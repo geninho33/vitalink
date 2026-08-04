@@ -14,6 +14,8 @@ export default function EntityCrudPage({
   mapRow,
   statusFilter = true,
   onAfterSave,
+  extraActions,
+  extraRowActions,
 }) {
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
@@ -147,13 +149,16 @@ export default function EntityCrudPage({
               </label>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-aqua px-5 text-sm font-semibold text-white transition hover:bg-aqua-deep"
-          >
-            Novo cadastro
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {extraActions}
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex min-h-12 items-center justify-center rounded-xl bg-aqua px-5 text-sm font-semibold text-white transition hover:bg-aqua-deep"
+            >
+              Novo cadastro
+            </button>
+          </div>
         </div>
 
         {error ? (
@@ -163,7 +168,7 @@ export default function EntityCrudPage({
         ) : null}
 
         {/* Desktop table */}
-        <div className="hidden overflow-x-auto rounded-xl border border-[#e2eeee] md:block">
+        <div id="entity-crud-print-table" className="hidden overflow-x-auto rounded-xl border border-[#e2eeee] md:block">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-[#eaf7f6] text-xs uppercase tracking-wide text-aqua-deep">
               <tr>
@@ -197,7 +202,8 @@ export default function EntityCrudPage({
                       </td>
                     ))}
                     <td className="px-3 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {extraRowActions ? extraRowActions(row, { reload: load }) : null}
                         <button
                           type="button"
                           className="min-h-10 rounded-lg border border-aqua px-3 text-xs font-semibold text-aqua hover:bg-aqua-soft"

@@ -4,7 +4,12 @@ const { writeAudit } = require('../services/audit.service');
 async function listPerfis(req, res, next) {
   try {
     const perfis = await query(
-      `SELECT id, nome, descricao, created_at, updated_at FROM perfis ORDER BY nome`
+      `SELECT id, nome, descricao, created_at, updated_at,
+              COALESCE(ativo, TRUE) AS ativo,
+              COALESCE(ordem_exibicao, 100) AS ordem_exibicao
+       FROM perfis
+       WHERE COALESCE(ativo, TRUE) = TRUE
+       ORDER BY COALESCE(ordem_exibicao, 100) ASC, id ASC`
     );
     const permissoes = await query(
       `SELECT pa.id, pa.perfil_id, pa.menu_id, m.titulo AS menu_titulo, m.rota,

@@ -4,22 +4,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#183b42',
+        ink: '#1e293b',
         slate: {
           health: '#64748b',
         },
+        // Brand VitaLink (logo)
+        vita: {
+          DEFAULT: '#0077B6',
+          deep: '#023E8A',
+          soft: '#E8F4FA',
+        },
+        link: {
+          DEFAULT: '#00B4D8',
+          soft: '#E0F7FC',
+          bright: '#48CAE4',
+        },
+        // Aliases legados → brand (mantém classes aqua/mint existentes)
         aqua: {
-          DEFAULT: '#21888c',
-          deep: '#176f73',
-          soft: '#e8f7f5',
+          DEFAULT: '#00B4D8',
+          deep: '#0077B6',
+          soft: '#E8F7FC',
         },
         mint: {
-          DEFAULT: '#35b6af',
-          soft: '#dcf6ef',
+          DEFAULT: '#48CAE4',
+          soft: '#DFF6FB',
         },
         corp: {
-          blue: '#2f6fed',
-          soft: '#e8f0ff',
+          blue: '#0077B6',
+          soft: '#E8F4FA',
         },
       },
       fontFamily: {
@@ -27,7 +39,10 @@ export default {
         body: ['"Source Sans 3"', 'Segoe UI', 'sans-serif'],
       },
       boxShadow: {
-        panel: '0 24px 60px rgba(24, 59, 66, 0.12)',
+        panel: '0 24px 60px rgba(2, 62, 138, 0.12)',
+      },
+      backgroundImage: {
+        'brand-gradient': 'linear-gradient(135deg, #0077B6 0%, #00B4D8 100%)',
       },
     },
   },

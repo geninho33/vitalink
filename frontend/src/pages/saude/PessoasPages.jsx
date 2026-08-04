@@ -1,15 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import EntityCrudPage from '../../components/EntityCrudPage';
+import FileUploadField from '../../components/FileUploadField';
 import {
   AddressFields,
   Field,
   FormTabs,
-  PhotoUrlField,
   TextInput,
   TextSelect,
   TextTextarea,
 } from '../../components/forms/FormControls';
-import { apiRequest } from '../../services/api';
 import {
   isValidCpf,
   isValidEmail,
@@ -19,18 +18,7 @@ import {
   TURNO_OPTIONS,
 } from '../../hooks/useCep';
 
-function useUsuariosOptions() {
-  const [options, setOptions] = useState([]);
-  useEffect(() => {
-    apiRequest('/usuarios')
-      .then((res) => setOptions(res.data || []))
-      .catch(() => setOptions([]));
-  }, []);
-  return options;
-}
-
 const personEmpty = (extra = {}) => ({
-  usuario_id: '',
   nome: '',
   cpf: '',
   telefone_principal: '',
@@ -49,7 +37,7 @@ const personEmpty = (extra = {}) => ({
   ...extra,
 });
 
-function PersonForm({ form, setForm, usuarios, extraFields, showTurnoEspecialidade }) {
+function PersonForm({ form, setForm, extraFields, showTurnoEspecialidade }) {
   const [tab, setTab] = useState('gerais');
   const [cpfError, setCpfError] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -65,21 +53,6 @@ function PersonForm({ form, setForm, usuarios, extraFields, showTurnoEspecialida
 
       {tab === 'gerais' ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Usuário do sistema" required hint="Vínculo obrigatório para acesso ao painel">
-            <TextSelect
-              value={form.usuario_id || ''}
-              onChange={(e) =>
-                setForm({ ...form, usuario_id: e.target.value ? Number(e.target.value) : '' })
-              }
-            >
-              <option value="">Selecione</option>
-              {usuarios.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nome} ({u.email})
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
           <Field label="Nome completo" required>
             <TextInput value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </Field>
@@ -99,7 +72,7 @@ function PersonForm({ form, setForm, usuarios, extraFields, showTurnoEspecialida
               inputMode="numeric"
             />
           </Field>
-          <Field label="Telefone Principal" required>
+          <Field label="Telefone/WhatsApp" required>
             <TextInput
               value={maskPhone(form.telefone_principal)}
               onChange={(e) =>
@@ -140,10 +113,21 @@ function PersonForm({ form, setForm, usuarios, extraFields, showTurnoEspecialida
               }}
             />
           </Field>
-          <PhotoUrlField
-            value={form.foto_url}
-            onChange={(v) => setForm({ ...form, foto_url: v })}
-          />
+          <div className="sm:col-span-2">
+            <FileUploadField
+              label="Foto"
+              accept="image/*"
+              valueId={form.foto_url ? 1 : null}
+              valuePath={form.foto_url}
+              onUploaded={({ caminho }) =>
+                setForm({
+                  ...form,
+                  foto_url: caminho,
+                })
+              }
+              onCleared={() => setForm({ ...form, foto_url: '' })}
+            />
+          </div>
           <Field label="Status">
             <TextSelect
               value={form.status}
@@ -197,8 +181,11 @@ function PersonForm({ form, setForm, usuarios, extraFields, showTurnoEspecialida
 const baseColumns = [
   { key: 'nome', label: 'Nome' },
   { key: 'cpf', label: 'CPF', render: (r) => maskCpf(r.cpf) },
-  { key: 'telefone_principal', label: 'Telefone', render: (r) => maskPhone(r.telefone_principal) },
-  { key: 'usuario_email', label: 'Usuário' },
+  {
+    key: 'telefone_principal',
+    label: 'Telefone/WhatsApp',
+    render: (r) => maskPhone(r.telefone_principal),
+  },
   {
     key: 'status',
     label: 'Status',
@@ -214,12 +201,24 @@ const baseColumns = [
   },
 ];
 
+function personToPayload(form, extra = {}) {
+  return {
+    ...form,
+    usuario_id: null,
+    cpf: onlyDigits(form.cpf),
+    telefone_principal: onlyDigits(form.telefone_principal),
+    telefone_secundario: form.telefone_secundario ? onlyDigits(form.telefone_secundario) : null,
+    cep: onlyDigits(form.cep),
+    foto_url: form.foto_url || null,
+    ...extra,
+  };
+}
+
 export function CuidadoresPage() {
-  const usuarios = useUsuariosOptions();
   return (
     <EntityCrudPage
       title="Cuidadores"
-      description="Profissionais de cuidado com usuário vinculado ao sistema."
+      description="Profissionais de cuidado vinculados ao paciente."
       endpoint="/cuidadores"
       columns={[
         ...baseColumns,
@@ -229,36 +228,51 @@ export function CuidadoresPage() {
           render: (r) => TURNO_OPTIONS.find((o) => o.value === r.turno)?.label || r.turno || '—',
         },
       ]}
-      emptyForm={() => personEmpty({ turno: '', especialidade: '' })}
-      mapRow={(row) => ({ ...personEmpty({ turno: '', especialidade: '' }), ...row })}
+      emptyForm={() => personEmpty({ turno: '', especialidade: '', empresa_cuidadora_id: '' })}
+      mapRow={(row) => ({
+        ...personEmpty({ turno: '', especialidade: '', empresa_cuidadora_id: '' }),
+        ...row,
+        empresa_cuidadora_id: row.empresa_cuidadora_id ?? '',
+      })}
       renderForm={(form, setForm) => (
         <PersonForm
           form={form}
           setForm={setForm}
-          usuarios={usuarios}
           showTurnoEspecialidade
+          extraFields={
+            <Field label="Empresa cuidadora (ID)" hint="Informe o ID da empresa ou deixe em branco">
+              <TextInput
+                type="number"
+                min={1}
+                value={form.empresa_cuidadora_id ?? ''}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    empresa_cuidadora_id: e.target.value ? Number(e.target.value) : '',
+                  })
+                }
+                placeholder="ID da empresa cuidadora"
+              />
+            </Field>
+          }
         />
       )}
-      toPayload={(form) => ({
-        ...form,
-        usuario_id: Number(form.usuario_id),
-        cpf: onlyDigits(form.cpf),
-        telefone_principal: onlyDigits(form.telefone_principal),
-        telefone_secundario: form.telefone_secundario
-          ? onlyDigits(form.telefone_secundario)
-          : null,
-        cep: onlyDigits(form.cep),
-      })}
+      toPayload={(form) =>
+        personToPayload(form, {
+          turno: form.turno || null,
+          especialidade: form.especialidade || null,
+          empresa_cuidadora_id: form.empresa_cuidadora_id ? Number(form.empresa_cuidadora_id) : null,
+        })
+      }
     />
   );
 }
 
 export function ResponsaveisPage() {
-  const usuarios = useUsuariosOptions();
   return (
     <EntityCrudPage
       title="Responsáveis"
-      description="Familiares/responsáveis legais com acesso vinculado a usuário."
+      description="Familiares e responsáveis legais do paciente."
       endpoint="/responsaveis"
       columns={[...baseColumns, { key: 'grau_parentesco', label: 'Parentesco' }]}
       emptyForm={() => personEmpty({ grau_parentesco: '' })}
@@ -267,7 +281,6 @@ export function ResponsaveisPage() {
         <PersonForm
           form={form}
           setForm={setForm}
-          usuarios={usuarios}
           extraFields={
             <Field label="Grau de parentesco">
               <TextInput
@@ -278,16 +291,11 @@ export function ResponsaveisPage() {
           }
         />
       )}
-      toPayload={(form) => ({
-        ...form,
-        usuario_id: Number(form.usuario_id),
-        cpf: onlyDigits(form.cpf),
-        telefone_principal: onlyDigits(form.telefone_principal),
-        telefone_secundario: form.telefone_secundario
-          ? onlyDigits(form.telefone_secundario)
-          : null,
-        cep: onlyDigits(form.cep),
-      })}
+      toPayload={(form) =>
+        personToPayload(form, {
+          grau_parentesco: form.grau_parentesco || null,
+        })
+      }
     />
   );
 }

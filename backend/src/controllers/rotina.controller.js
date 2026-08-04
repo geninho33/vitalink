@@ -35,12 +35,14 @@ async function listRotinas(req, res, next) {
 async function createRotina(req, res, next) {
   try {
     const b = req.body || {};
-    if (!b.paciente_id || !b.titulo || !b.horario || !b.data_inicio) {
+    if (!b.paciente_id || !b.horario || !b.data_inicio) {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Campos obrigatórios: paciente_id, titulo, horario, data_inicio.',
+        message: 'Campos obrigatórios: paciente_id, horario, data_inicio.',
       });
     }
+    const tipo = b.tipo && b.tipo !== 'medicamento' ? b.tipo : 'outro';
+    const titulo = b.titulo || String(tipo).charAt(0).toUpperCase() + String(tipo).slice(1);
     const result = await query(
       `INSERT INTO atendimentos_rotina
         (paciente_id, tipo, remedio_id, titulo, descricao, horario, dias_semana,
@@ -50,9 +52,9 @@ async function createRotina(req, res, next) {
          :data_inicio, :data_fim, :status)`,
       {
         paciente_id: b.paciente_id,
-        tipo: b.tipo || 'medicamento',
+        tipo,
         remedio_id: b.remedio_id || null,
-        titulo: b.titulo,
+        titulo,
         descricao: b.descricao || null,
         horario: b.horario,
         dias_semana: b.dias_semana || '1,2,3,4,5,6,7',
@@ -85,7 +87,7 @@ async function createRotina(req, res, next) {
           tipo: b.tipo === 'medicamento' ? 'medicamento' : 'cuidado',
           origemTabela: 'atendimento_execucoes',
           origemId: exec.insertId,
-          titulo: b.titulo,
+          titulo,
           descricao: b.descricao || null,
           dataHoraInicio: prevista,
           status: 'pendente',

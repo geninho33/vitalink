@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fetchAddressByCep, maskCep, onlyDigits } from '../../hooks/useCep';
+import { resolveUploadUrl } from '../../services/api';
 
 const UF_OPTIONS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
@@ -36,7 +37,7 @@ export function FormTabs({ tabs, active, onChange }) {
 
 /** Preview miniatura para URL de foto. */
 export function PhotoUrlField({ label = 'Foto (URL)', value, onChange }) {
-  const src = String(value || '').trim();
+  const src = resolveUploadUrl(String(value || '').trim());
   return (
     <div className="grid gap-2 sm:col-span-2 sm:grid-cols-[1fr_auto] sm:items-end">
       <Field label={label} hint="Cole a URL da imagem">

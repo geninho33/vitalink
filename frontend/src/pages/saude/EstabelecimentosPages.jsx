@@ -37,8 +37,24 @@ const empty = () => ({
   status: 'ativo',
 });
 
-function EstablishmentForm({ form, setForm }) {
+function WhatsAppHint({ value }) {
+  const href = toWhatsAppLink(value);
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-xs font-semibold text-aqua hover:underline"
+    >
+      Abrir WhatsApp (wa.me)
+    </a>
+  );
+}
+
+function EstablishmentForm({ form, setForm, relaxed = false }) {
   const [tab, setTab] = useState('gerais');
+  const waDigits = form.whatsapp || form.telefone_secundario || form.telefone_principal;
 
   return (
     <>
@@ -53,7 +69,7 @@ function EstablishmentForm({ form, setForm }) {
 
       {tab === 'gerais' ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Nome Fantasia" required>
+          <Field label="Nome Fantasia" required={!relaxed}>
             <TextInput
               value={form.nome_fantasia}
               onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })}
@@ -80,7 +96,11 @@ function EstablishmentForm({ form, setForm }) {
               onChange={(e) => setForm({ ...form, documento: onlyDigits(e.target.value) })}
             />
           </Field>
-          <Field label="Telefone principal" required>
+          <Field
+            label="Telefone/WhatsApp"
+            required={!relaxed}
+            hint="Opcional · link wa.me ao informar número"
+          >
             <TextInput
               value={maskPhone(form.telefone_principal)}
               onChange={(e) =>
@@ -92,8 +112,9 @@ function EstablishmentForm({ form, setForm }) {
               placeholder="(00) 00000-0000"
               inputMode="tel"
             />
+            <WhatsAppHint value={form.telefone_principal} />
           </Field>
-          <Field label="WhatsApp" hint="Link wa.me automático">
+          <Field label="WhatsApp adicional" hint="Link wa.me automático na listagem">
             <TextInput
               value={maskPhone(form.whatsapp || form.telefone_secundario || '')}
               onChange={(e) => {
@@ -107,6 +128,7 @@ function EstablishmentForm({ form, setForm }) {
               placeholder="(11) 99999-9999"
               inputMode="tel"
             />
+            <WhatsAppHint value={waDigits} />
           </Field>
           <Field label="E-mail">
             <TextInput
@@ -135,7 +157,7 @@ function EstablishmentForm({ form, setForm }) {
           </div>
         </div>
       ) : (
-        <AddressFields values={form} onChange={setForm} required />
+        <AddressFields values={form} onChange={setForm} required={!relaxed} />
       )}
     </>
   );
@@ -184,7 +206,7 @@ const columns = [
   },
 ];
 
-function makePage(title, description, endpoint) {
+function makePage(title, description, endpoint, { relaxed = false } = {}) {
   return function Page() {
     return (
       <EntityCrudPage
@@ -198,15 +220,17 @@ function makePage(title, description, endpoint) {
           ...row,
           whatsapp: row.whatsapp || row.telefone_secundario || '',
         })}
-        renderForm={(form, setForm) => <EstablishmentForm form={form} setForm={setForm} />}
+        renderForm={(form, setForm) => (
+          <EstablishmentForm form={form} setForm={setForm} relaxed={relaxed} />
+        )}
         toPayload={(form) => ({
           ...form,
           documento: form.documento ? onlyDigits(form.documento) : null,
           razao_social: form.razao_social || null,
           whatsapp: form.whatsapp || null,
-          telefone_principal: onlyDigits(form.telefone_principal),
+          telefone_principal: form.telefone_principal ? onlyDigits(form.telefone_principal) : null,
           telefone_secundario: form.whatsapp || form.telefone_secundario || null,
-          cep: onlyDigits(form.cep),
+          cep: form.cep ? onlyDigits(form.cep) : null,
         })}
       />
     );
@@ -214,7 +238,7 @@ function makePage(title, description, endpoint) {
 }
 
 export const HospitaisPage = makePage(
-  'Hospitais / Clínicas',
+  'Estabelecimentos de Saúde',
   'Cadastro de unidades de saúde. Nome fantasia obrigatório; CNPJ e razão social opcionais.',
   '/hospitais'
 );
@@ -222,5 +246,6 @@ export const HospitaisPage = makePage(
 export const FarmaciasPage = makePage(
   'Farmácias',
   'Cadastro de farmácias parceiras com contato WhatsApp e endereço.',
-  '/farmacias'
+  '/farmacias',
+  { relaxed: true }
 );

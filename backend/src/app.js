@@ -15,7 +15,9 @@ const { mountCrud } = require('./routes/crud.routes');
 const { mountAtividadesRoutes } = require('./routes/atividades.routes');
 const { hospitais, farmacias } = require('./controllers/estabelecimentos.controller');
 const { cuidadores, responsaveis } = require('./controllers/pessoas.controller');
-const { medicos, pacientes, remedios } = require('./controllers/saude.controller');
+const { medicos, pacientes } = require('./controllers/saude.controller');
+const examesReceitas = require('./controllers/examesReceitas.controller');
+const { mountRemediosRoutes } = require('./routes/remedios.routes');
 const { ensureUploadDir, UPLOAD_ROOT } = require('./controllers/arquivos.controller');
 
 function createApp() {
@@ -65,15 +67,16 @@ function createApp() {
     mountCrud(responsaveis, { denyCreatePerfilIds: [5], denyDeletePerfilIds: [5] })
   );
   api.use('/medicos', mountCrud(medicos));
-  // Cuidador (4) e Responsável (5): sem criar/excluir pacientes
+  // Cuidador (4): consulta pacientes; sem criar/excluir
   api.use(
     '/pacientes',
     mountCrud(pacientes, {
-      denyCreatePerfilIds: [4, 5],
-      denyDeletePerfilIds: [4, 5],
+      denyCreatePerfilIds: [4],
+      denyDeletePerfilIds: [4],
     })
   );
-  api.use('/remedios', mountCrud(remedios));
+  api.use('/remedios', mountRemediosRoutes());
+  api.use('/exames-receitas', mountCrud(examesReceitas));
   api.use(mountAtividadesRoutes());
 
   app.use(env.apiPrefix, api);

@@ -16,7 +16,6 @@ const cuidadores = createCrudController({
   menuRota: '/cuidadores',
   searchable: ['cuidadores.nome', 'cuidadores.cpf', 'cuidadores.email'],
   requiredCreate: [
-    'usuario_id',
     'nome',
     'cpf',
     'telefone_principal',
@@ -28,6 +27,8 @@ const cuidadores = createCrudController({
     'uf',
   ],
   optional: [
+    'usuario_id',
+    'empresa_cuidadora_id',
     'telefone_secundario',
     'email',
     'foto_url',
@@ -53,7 +54,6 @@ const responsaveis = createCrudController({
   menuRota: '/responsaveis',
   searchable: ['responsaveis.nome', 'responsaveis.cpf', 'responsaveis.email'],
   requiredCreate: [
-    'usuario_id',
     'nome',
     'cpf',
     'telefone_principal',
@@ -65,6 +65,7 @@ const responsaveis = createCrudController({
     'uf',
   ],
   optional: [
+    'usuario_id',
     'telefone_secundario',
     'email',
     'foto_url',

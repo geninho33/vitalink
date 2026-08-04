@@ -17,6 +17,7 @@ import MeusDadosPage from './pages/MeusDadosPage';
 import { HospitaisPage, FarmaciasPage } from './pages/saude/EstabelecimentosPages';
 import { CuidadoresPage, ResponsaveisPage } from './pages/saude/PessoasPages';
 import { MedicosPage, PacientesPage, RemediosPage } from './pages/saude/ClinicosPages';
+import ExamesReceitasPage from './pages/saude/ExamesReceitasPage';
 import {
   UsuariosPage,
   PerfisPage,
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/pacientes" element={<PacientesPage />} />
           <Route path="/medicos" element={<MedicosPage />} />
           <Route path="/remedios" element={<RemediosPage />} />
+          <Route path="/exames-receitas" element={<ExamesReceitasPage />} />
           <Route path="/hospitais" element={<HospitaisPage />} />
           <Route path="/farmacias" element={<FarmaciasPage />} />
           <Route path="/cuidadores" element={<CuidadoresPage />} />

@@ -509,16 +509,17 @@ INSERT INTO menus (id, titulo, rota, icone, ordem, menu_pai_id) VALUES
   (2,  'Início', '/inicio', 'home', 15, NULL),
   (30, 'Saúde', NULL, 'heart-pulse', 20, NULL),
   (31, 'Pacientes', '/pacientes', 'user', 21, 30),
-  (32, 'Médicos', '/medicos', 'stethoscope', 22, 30),
-  (33, 'Remédios', '/remedios', 'pill', 23, 30),
-  (34, 'Hospitais / Clínicas', '/hospitais', 'building', 24, 30),
-  (35, 'Farmácias', '/farmacias', 'store', 25, 30),
-  (36, 'Cuidadores', '/cuidadores', 'handshake', 26, 30),
-  (37, 'Responsáveis', '/responsaveis', 'users', 27, 30),
+  (32, 'Profissionais da Saúde', '/medicos', 'stethoscope', 22, 30),
+  (33, 'Medicamentos', '/remedios', 'pill', 23, 30),
+  (38, 'Exames / Receitas', '/exames-receitas', 'file-text', 24, 30),
+  (34, 'Estabelecimentos de Saúde', '/hospitais', 'building', 25, 30),
+  (35, 'Farmácias', '/farmacias', 'store', 26, 30),
+  (36, 'Cuidadores', '/cuidadores', 'handshake', 27, 30),
+  (37, 'Responsáveis', '/responsaveis', 'users', 28, 30),
   (50, 'Atividades', NULL, 'calendar', 50, NULL),
   (51, 'Agenda do Paciente', '/agenda', 'calendar', 51, 50),
   (52, 'Consultas e Sessões', '/consultas', 'stethoscope', 52, 50),
-  (53, 'Medicamentos e Atendimento', '/rotina', 'pill', 53, 50),
+  (53, 'Eventos', '/rotina', 'pill', 53, 50),
   (54, 'Linha do Tempo', '/timeline', 'scroll-text', 54, 50),
   (10, 'Administração', NULL, 'settings', 90, NULL),
   (11, 'Usuários', '/usuarios', 'users', 91, 10),
@@ -540,10 +541,9 @@ INSERT INTO usuarios (id, nome, email, senha_hash, status, perfil_id) VALUES
 
 SELECT setval(pg_get_serial_sequence('usuarios', 'id'), (SELECT MAX(id) FROM usuarios));
 
--- Papéis do admin seed (Administrador + Paciente para Profile Switch)
+-- Papel do admin seed (sem Paciente automático — vínculo explícito se necessário)
 INSERT INTO usuario_perfis (usuario_id, perfil_id, paciente_id, rotulo, ativo, is_default) VALUES
-  (1, 1, NULL, 'Administrador', TRUE, TRUE),
-  (1, 6, NULL, 'Paciente (uso pessoal)', TRUE, FALSE);
+  (1, 1, NULL, 'Administrador', TRUE, TRUE);
 
 -- Administrador: CRUD completo
 INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)

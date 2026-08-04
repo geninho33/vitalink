@@ -1,15 +1,178 @@
-const { createCrudController, addressNormalize } = require('../utils/crudFactory');
+const { query, isDuplicateKey } = require('../config/database');
+const { writeAudit, buildAuditDiff } = require('../services/audit.service');
+const { createCrudController, addressNormalize, pick, requireFields } = require('../utils/crudFactory');
 
-const medicos = createCrudController({
+async function syncMedicoEstabelecimentos(medicoId, estabelecimentoIds) {
+  if (!Array.isArray(estabelecimentoIds)) return;
+  await query('DELETE FROM medico_estabelecimentos WHERE medico_id = :medicoId', { medicoId });
+  const ids = estabelecimentoIds.map(Number).filter((id) => id > 0);
+  for (const hospital_clinica_id of ids) {
+    await query(
+      `INSERT INTO medico_estabelecimentos (medico_id, hospital_clinica_id)
+       VALUES (:medicoId, :hospital_clinica_id)
+       ON CONFLICT DO NOTHING`,
+      { medicoId, hospital_clinica_id }
+    );
+  }
+  if (ids.length) {
+    await query('UPDATE medicos SET hospital_clinica_id = :hid WHERE id = :medicoId', {
+      hid: ids[0],
+      medicoId,
+    });
+  } else {
+    await query('UPDATE medicos SET hospital_clinica_id = NULL WHERE id = :medicoId', { medicoId });
+  }
+}
+
+async function syncPacienteMedicos(pacienteId, medicoIds) {
+  if (!Array.isArray(medicoIds)) return;
+  await query('DELETE FROM paciente_medicos WHERE paciente_id = :pacienteId', { pacienteId });
+  const ids = medicoIds.map(Number).filter((id) => id > 0);
+  for (let i = 0; i < ids.length; i++) {
+    await query(
+      `INSERT INTO paciente_medicos (paciente_id, medico_id, principal)
+       VALUES (:pacienteId, :medico_id, :principal)`,
+      { pacienteId, medico_id: ids[i], principal: i === 0 }
+    );
+  }
+  if (ids.length) {
+    await query('UPDATE pacientes SET medico_id = :mid WHERE id = :pacienteId', {
+      mid: ids[0],
+      pacienteId,
+    });
+  }
+}
+
+async function syncPacienteResponsaveis(pacienteId, responsavelIds) {
+  if (!Array.isArray(responsavelIds)) return;
+  await query('DELETE FROM paciente_responsaveis WHERE paciente_id = :pacienteId', { pacienteId });
+  const ids = responsavelIds.map(Number).filter((id) => id > 0);
+  for (const responsavel_id of ids) {
+    await query(
+      `INSERT INTO paciente_responsaveis (paciente_id, responsavel_id)
+       VALUES (:pacienteId, :responsavel_id)
+       ON CONFLICT DO NOTHING`,
+      { pacienteId, responsavel_id }
+    );
+  }
+  if (ids.length) {
+    await query('UPDATE pacientes SET responsavel_id = :rid WHERE id = :pacienteId', {
+      rid: ids[0],
+      pacienteId,
+    });
+  }
+}
+
+function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, normalize, afterSave }) {
+  async function create(req, res, next) {
+    try {
+      const body = req.body || {};
+      let payload = pick(body, allFields);
+      if (normalize) payload = normalize(payload, 'create');
+      requireFields(payload, requiredCreate);
+
+      const cols = Object.keys(payload);
+      const placeholders = cols.map((c) => `:${c}`).join(', ');
+      const result = await query(
+        `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`,
+        payload
+      );
+
+      await afterSave(result.insertId, body);
+
+      await writeAudit({
+        usuarioId: req.user.id,
+        acao: 'criar',
+        recurso,
+        recursoId: result.insertId,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      return res.status(201).json({ id: result.insertId });
+    } catch (err) {
+      if (isDuplicateKey(err)) {
+        err.status = 409;
+        err.message = 'Registro duplicado.';
+      }
+      return next(err);
+    }
+  }
+
+  async function update(req, res, next) {
+    try {
+      const body = req.body || {};
+      let payload = pick(body, allFields);
+      if (normalize) payload = normalize(payload, 'update');
+      const cols = Object.keys(payload);
+      if (!cols.length && !afterSaveNeedsBody(body)) {
+        return res.status(400).json({
+          error: 'validation_error',
+          message: 'Nenhum campo para atualizar.',
+        });
+      }
+
+      const beforeRows = await query(`SELECT * FROM ${table} WHERE id = :id LIMIT 1`, {
+        id: req.params.id,
+      });
+      const before = beforeRows[0] || {};
+      if (!before.id) {
+        return res.status(404).json({ error: 'not_found', message: 'Registro não encontrado.' });
+      }
+
+      if (cols.length) {
+        const sets = cols.map((c) => `${c} = :${c}`).join(', ');
+        await query(`UPDATE ${table} SET ${sets} WHERE id = :id`, {
+          ...payload,
+          id: req.params.id,
+        });
+      }
+
+      await afterSave(req.params.id, body);
+
+      const diff = cols.length ? buildAuditDiff(before, { ...before, ...payload }, cols) : undefined;
+      await writeAudit({
+        usuarioId: req.user.id,
+        acao: 'editar',
+        recurso,
+        recursoId: req.params.id,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+        metadados: diff ? { diff } : undefined,
+      });
+
+      return res.json({ ok: true });
+    } catch (err) {
+      if (isDuplicateKey(err)) {
+        err.status = 409;
+        err.message = 'Registro duplicado.';
+      }
+      return next(err);
+    }
+  }
+
+  return { ...base, create, update };
+}
+
+function afterSaveNeedsBody(body) {
+  return (
+    Array.isArray(body?.estabelecimento_ids) ||
+    Array.isArray(body?.medico_ids) ||
+    Array.isArray(body?.responsavel_ids)
+  );
+}
+
+const medicosConfig = {
   table: 'medicos',
   recurso: 'medicos',
   menuRota: '/medicos',
   searchable: ['medicos.nome', 'medicos.crm', 'medicos.especialidade'],
-  requiredCreate: ['hospital_clinica_id', 'nome', 'crm', 'uf_crm', 'telefone_principal'],
+  requiredCreate: ['nome', 'especialidade', 'crm', 'uf_crm'],
   optional: [
     'usuario_id',
+    'hospital_clinica_id',
     'cpf',
-    'especialidade',
+    'telefone_principal',
     'turno',
     'telefone_secundario',
     'email',
@@ -29,17 +192,40 @@ const medicos = createCrudController({
     if (!n.status) n.status = 'ativo';
     return n;
   },
-  selectExtra: ', h.nome_fantasia AS hospital_nome',
-  joins: 'LEFT JOIN hospitais_clinicas h ON h.id = medicos.hospital_clinica_id',
+  selectExtra: `,
+    (SELECT COALESCE(
+      json_agg(json_build_object('id', h.id, 'nome_fantasia', h.nome_fantasia) ORDER BY h.nome_fantasia),
+      '[]'::json
+    )
+     FROM medico_estabelecimentos me
+     JOIN hospitais_clinicas h ON h.id = me.hospital_clinica_id
+     WHERE me.medico_id = medicos.id) AS estabelecimentos`,
+  joins: '',
+};
+
+const medicosAllFields = [...new Set([...medicosConfig.requiredCreate, ...medicosConfig.optional])];
+const medicosBase = createCrudController(medicosConfig);
+const medicos = wrapCreateUpdate(medicosBase, {
+  table: medicosConfig.table,
+  recurso: medicosConfig.recurso,
+  allFields: medicosAllFields,
+  requiredCreate: medicosConfig.requiredCreate,
+  normalize: medicosConfig.normalize,
+  afterSave: async (medicoId, body) => {
+    if (Array.isArray(body.estabelecimento_ids)) {
+      await syncMedicoEstabelecimentos(medicoId, body.estabelecimento_ids);
+    }
+  },
 });
 
-const pacientes = createCrudController({
+const pacientesConfig = {
   table: 'pacientes',
   recurso: 'pacientes',
   menuRota: '/pacientes',
   searchable: ['pacientes.nome', 'pacientes.cpf', 'pacientes.convenio_nome'],
   requiredCreate: ['nome', 'data_nascimento', 'cpf'],
   optional: [
+    'sexo',
     'diagnostico_principal',
     'alergias',
     'tipo_sanguineo',
@@ -80,7 +266,21 @@ const pacientes = createCrudController({
     m.nome AS medico_nome,
     af.caminho AS foto_caminho,
     acf.caminho AS convenio_frente_caminho,
-    acv.caminho AS convenio_verso_caminho`,
+    acv.caminho AS convenio_verso_caminho,
+    (SELECT COALESCE(json_agg(pm.medico_id ORDER BY pm.medico_id), '[]'::json)
+     FROM paciente_medicos pm
+     WHERE pm.paciente_id = pacientes.id) AS medico_ids,
+    (SELECT COALESCE(json_agg(pr.responsavel_id ORDER BY pr.responsavel_id), '[]'::json)
+     FROM paciente_responsaveis pr
+     WHERE pr.paciente_id = pacientes.id) AS responsavel_ids,
+    (SELECT string_agg(md.nome, ', ' ORDER BY md.nome)
+     FROM paciente_medicos pm
+     JOIN medicos md ON md.id = pm.medico_id
+     WHERE pm.paciente_id = pacientes.id) AS medicos_nomes,
+    (SELECT string_agg(resp.nome, ', ' ORDER BY resp.nome)
+     FROM paciente_responsaveis pr
+     JOIN responsaveis resp ON resp.id = pr.responsavel_id
+     WHERE pr.paciente_id = pacientes.id) AS responsaveis_nomes`,
   joins: `
     LEFT JOIN responsaveis r ON r.id = pacientes.responsavel_id
     LEFT JOIN cuidadores c ON c.id = pacientes.cuidador_id
@@ -88,6 +288,24 @@ const pacientes = createCrudController({
     LEFT JOIN arquivos af ON af.id = pacientes.foto_arquivo_id
     LEFT JOIN arquivos acf ON acf.id = pacientes.convenio_frente_arquivo_id
     LEFT JOIN arquivos acv ON acv.id = pacientes.convenio_verso_arquivo_id`,
+};
+
+const pacientesAllFields = [...new Set([...pacientesConfig.requiredCreate, ...pacientesConfig.optional])];
+const pacientesBase = createCrudController(pacientesConfig);
+const pacientes = wrapCreateUpdate(pacientesBase, {
+  table: pacientesConfig.table,
+  recurso: pacientesConfig.recurso,
+  allFields: pacientesAllFields,
+  requiredCreate: pacientesConfig.requiredCreate,
+  normalize: pacientesConfig.normalize,
+  afterSave: async (pacienteId, body) => {
+    if (Array.isArray(body.medico_ids)) {
+      await syncPacienteMedicos(pacienteId, body.medico_ids);
+    }
+    if (Array.isArray(body.responsavel_ids)) {
+      await syncPacienteResponsaveis(pacienteId, body.responsavel_ids);
+    }
+  },
 });
 
 const remedios = createCrudController({
@@ -95,8 +313,18 @@ const remedios = createCrudController({
   recurso: 'remedios',
   menuRota: '/remedios',
   searchable: ['remedios.nome_comercial', 'remedios.principio_ativo', 'remedios.registro_anvisa'],
-  requiredCreate: ['nome_comercial', 'principio_ativo'],
+  requiredCreate: [
+    'nome_comercial',
+    'principio_ativo',
+    'quantidade_administrar',
+    'quantidade_estoque',
+    'indicacao',
+    'medico_prescritor_id',
+  ],
   optional: [
+    'laboratorio',
+    'numero_controle_pessoal',
+    'hora_exata',
     'concentracao',
     'forma_farmaceutica',
     'registro_anvisa',
@@ -111,8 +339,83 @@ const remedios = createCrudController({
     if (!n.forma_farmaceutica) n.forma_farmaceutica = 'comprimido';
     n.uso_continuo = n.uso_continuo === true || n.uso_continuo === 'true' || n.uso_continuo === 1;
     if (!n.periodo_horario) n.periodo_horario = 'manha';
+    if (n.quantidade_estoque != null && n.quantidade_estoque !== '') {
+      n.quantidade_estoque = Number(n.quantidade_estoque);
+    }
+    if (n.medico_prescritor_id != null && n.medico_prescritor_id !== '') {
+      n.medico_prescritor_id = Number(n.medico_prescritor_id);
+    }
     return n;
   },
+  selectExtra: ', mp.nome AS medico_prescritor_nome',
+  joins: 'LEFT JOIN medicos mp ON mp.id = remedios.medico_prescritor_id',
 });
 
-module.exports = { medicos, pacientes, remedios };
+function parseQuantidadeDecrement(value) {
+  if (value == null || value === '') return 1;
+  const n = Number(value);
+  if (!Number.isNaN(n) && n > 0) return n;
+  const match = String(value).match(/[\d]+([.,]\d+)?/);
+  if (match) {
+    const parsed = Number(match[0].replace(',', '.'));
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return 1;
+}
+
+async function administrarRemedio(req, res, next) {
+  try {
+    const remedioId = Number(req.params.id);
+    const { paciente_id, quantidade, observacoes } = req.body || {};
+
+    const rows = await query('SELECT * FROM remedios WHERE id = :id LIMIT 1', { id: remedioId });
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'not_found', message: 'Medicamento não encontrado.' });
+    }
+    const remedio = rows[0];
+    const qtyLabel = quantidade ?? remedio.quantidade_administrar;
+    const decrement = parseQuantidadeDecrement(qtyLabel);
+
+    const adminResult = await query(
+      `INSERT INTO medicamento_administracoes
+        (remedio_id, paciente_id, usuario_id, quantidade, observacoes)
+       VALUES
+        (:remedio_id, :paciente_id, :usuario_id, :quantidade, :observacoes)`,
+      {
+        remedio_id: remedioId,
+        paciente_id: paciente_id != null && paciente_id !== '' ? Number(paciente_id) : null,
+        usuario_id: req.user.id,
+        quantidade: qtyLabel != null ? String(qtyLabel) : null,
+        observacoes: observacoes ?? null,
+      }
+    );
+
+    await query(
+      `UPDATE remedios
+       SET quantidade_estoque = GREATEST(0, COALESCE(quantidade_estoque, 0) - :dec)
+       WHERE id = :id`,
+      { dec: decrement, id: remedioId }
+    );
+
+    await writeAudit({
+      usuarioId: req.user.id,
+      acao: 'editar',
+      recurso: 'remedios',
+      recursoId: remedioId,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      metadados: {
+        acao: 'administrar',
+        administracao_id: adminResult.insertId,
+        quantidade: qtyLabel,
+        decremento_estoque: decrement,
+      },
+    });
+
+    return res.status(201).json({ id: adminResult.insertId, ok: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { medicos, pacientes, remedios, administrarRemedio };

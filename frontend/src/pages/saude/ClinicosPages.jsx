@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import EntityCrudPage from '../../components/EntityCrudPage';
 import FileUploadField, { extractConvenioHints } from '../../components/FileUploadField';
 import {
@@ -31,11 +32,131 @@ function useOptions(endpoint) {
   return options;
 }
 
+function parseJsonIds(value) {
+  if (Array.isArray(value)) return value.map(Number).filter((id) => id > 0);
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.map(Number).filter((id) => id > 0) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function parseEstabelecimentoIds(row) {
+  let est = row.estabelecimentos;
+  if (typeof est === 'string') {
+    try {
+      est = JSON.parse(est);
+    } catch {
+      est = [];
+    }
+  }
+  if (Array.isArray(est) && est.length) {
+    return est.map((e) => Number(e.id)).filter((id) => id > 0);
+  }
+  if (row.hospital_clinica_id) return [Number(row.hospital_clinica_id)];
+  return [];
+}
+
+function normalizeSpecialty(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+const SPECIALTY_HOTSPOTS = {
+  cardiologia: { top: '38%', left: '50%' },
+  urologia: { top: '72%', left: '50%' },
+  neurologia: { top: '18%', left: '50%' },
+  ortopedia: { top: '58%', left: '35%' },
+  dermatologia: { top: '42%', left: '68%' },
+  oftalmologia: { top: '14%', left: '42%' },
+  ginecologia: { top: '68%', left: '50%' },
+  gastroenterologia: { top: '52%', left: '50%' },
+  pneumologia: { top: '40%', left: '45%' },
+  endocrinologia: { top: '48%', left: '55%' },
+};
+
+function MultiCheckboxField({ label, hint, options, valueIds, onChange, footer }) {
+  const set = new Set(valueIds || []);
+  return (
+    <Field label={label} hint={hint}>
+      <div className="max-h-44 overflow-y-auto rounded-xl border border-[#d7e8e7] bg-[#f8fcfc]">
+        {options.length === 0 ? (
+          <p className="px-3 py-4 text-sm text-slate-health">Nenhum registro disponível.</p>
+        ) : (
+          options.map((o) => (
+            <label
+              key={o.id}
+              className="flex cursor-pointer items-center gap-2 border-b border-[#e8f1f0] px-3 py-2 last:border-0 hover:bg-white"
+            >
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-[#cfe0df] text-aqua"
+                checked={set.has(o.id)}
+                onChange={(e) => {
+                  const next = new Set(set);
+                  if (e.target.checked) next.add(o.id);
+                  else next.delete(o.id);
+                  onChange([...next]);
+                }}
+              />
+              <span className="text-sm text-ink">{o.nome || o.nome_fantasia}</span>
+            </label>
+          ))
+        )}
+      </div>
+      {footer}
+    </Field>
+  );
+}
+
+function SexoBodyPreview({ sexo, medicos, medicoIds }) {
+  if (sexo !== 'masculino' && sexo !== 'feminino') return null;
+  const imgSrc = sexo === 'masculino' ? '/Sexo Masculino.png' : '/Sexo Feminino.png';
+  const linked = (medicos || []).filter((m) => (medicoIds || []).includes(m.id));
+  const hotspots = useMemo(() => {
+    const seen = new Set();
+    return linked
+      .map((m) => {
+        const key = Object.keys(SPECIALTY_HOTSPOTS).find((k) =>
+          normalizeSpecialty(m.especialidade).includes(k)
+        );
+        if (!key || seen.has(key)) return null;
+        seen.add(key);
+        return { key, label: m.especialidade, pos: SPECIALTY_HOTSPOTS[key] };
+      })
+      .filter(Boolean);
+  }, [medicos, medicoIds]);
+
+  return (
+    <div className="sm:col-span-2">
+      <Field label="Mapa por especialidade" hint="Áreas dos médicos vinculados">
+        <div className="relative mx-auto max-w-xs">
+          <img src={imgSrc} alt="" className="w-full rounded-xl border border-[#d7e8e7]" />
+          {hotspots.map((h) => (
+            <span
+              key={h.key}
+              title={h.label}
+              className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-aqua shadow-md"
+              style={{ top: h.pos.top, left: h.pos.left }}
+            />
+          ))}
+        </div>
+      </Field>
+    </div>
+  );
+}
+
 export function MedicosPage() {
   const hospitais = useOptions('/hospitais');
 
   const empty = () => ({
-    hospital_clinica_id: '',
+    estabelecimento_ids: [],
     nome: '',
     cpf: '',
     crm: '',
@@ -75,28 +196,27 @@ export function MedicosPage() {
 
         {tab === 'gerais' ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Hospital / Clínica" required>
-              <TextSelect
-                value={form.hospital_clinica_id || ''}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    hospital_clinica_id: e.target.value ? Number(e.target.value) : '',
-                  })
+            <div className="sm:col-span-2">
+              <MultiCheckboxField
+                label="Estabelecimentos de saúde"
+                hint="Selecione um ou mais estabelecimentos"
+                options={hospitais}
+                valueIds={form.estabelecimento_ids || []}
+                onChange={(ids) => setForm({ ...form, estabelecimento_ids: ids })}
+                footer={
+                  <Link
+                    to="/hospitais"
+                    className="mt-2 inline-block text-sm font-semibold text-aqua hover:underline"
+                  >
+                    + Novo estabelecimento
+                  </Link>
                 }
-              >
-                <option value="">Selecione</option>
-                {hospitais.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.nome_fantasia}
-                  </option>
-                ))}
-              </TextSelect>
-            </Field>
+              />
+            </div>
             <Field label="Nome completo" required>
               <TextInput value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
             </Field>
-            <Field label="CPF" required error={cpfError}>
+            <Field label="CPF" error={cpfError}>
               <TextInput
                 value={maskCpf(form.cpf || '')}
                 onChange={(e) => {
@@ -120,7 +240,7 @@ export function MedicosPage() {
                 onChange={(e) => setForm({ ...form, uf_crm: e.target.value.toUpperCase() })}
               />
             </Field>
-            <Field label="Especialidade">
+            <Field label="Especialidade" required>
               <TextInput
                 value={form.especialidade || ''}
                 onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
@@ -139,9 +259,9 @@ export function MedicosPage() {
                 ))}
               </TextSelect>
             </Field>
-            <Field label="Telefone Principal" required>
+            <Field label="Telefone/WhatsApp" hint="Opcional">
               <TextInput
-                value={maskPhone(form.telefone_principal)}
+                value={maskPhone(form.telefone_principal || '')}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -165,7 +285,7 @@ export function MedicosPage() {
                 inputMode="tel"
               />
             </Field>
-            <Field label="E-mail" error={emailError}>
+            <Field label="E-mail" hint="Opcional" error={emailError}>
               <TextInput
                 type="email"
                 value={form.email || ''}
@@ -210,14 +330,31 @@ export function MedicosPage() {
 
   return (
     <EntityCrudPage
-      title="Médicos"
-      description="Cadastro médico com CRM e vínculo obrigatório a hospital/clínica."
+      title="Profissionais da Saúde"
+      description="Cadastro de profissionais com CRM, especialidade e estabelecimentos vinculados."
       endpoint="/medicos"
       columns={[
         { key: 'nome', label: 'Nome' },
         { key: 'crm', label: 'CRM', render: (r) => `${r.crm}/${r.uf_crm}` },
         { key: 'especialidade', label: 'Especialidade' },
-        { key: 'hospital_nome', label: 'Hospital/Clínica' },
+        {
+          key: 'estabelecimentos',
+          label: 'Estabelecimentos',
+          render: (r) => {
+            let est = r.estabelecimentos;
+            if (typeof est === 'string') {
+              try {
+                est = JSON.parse(est);
+              } catch {
+                est = [];
+              }
+            }
+            if (Array.isArray(est) && est.length) {
+              return est.map((e) => e.nome_fantasia).join(', ');
+            }
+            return r.hospital_nome || '—';
+          },
+        },
         {
           key: 'telefone_principal',
           label: 'Telefone',
@@ -238,13 +375,22 @@ export function MedicosPage() {
         },
       ]}
       emptyForm={empty}
-      mapRow={(row) => ({ ...empty(), ...row })}
+      mapRow={(row) => ({
+        ...empty(),
+        ...row,
+        estabelecimento_ids: parseEstabelecimentoIds(row),
+      })}
       renderForm={(form, setForm) => <MedicoForm form={form} setForm={setForm} />}
       toPayload={(form) => ({
         ...form,
-        hospital_clinica_id: Number(form.hospital_clinica_id),
+        estabelecimento_ids: form.estabelecimento_ids || [],
+        hospital_clinica_id: form.estabelecimento_ids?.[0]
+          ? Number(form.estabelecimento_ids[0])
+          : null,
         cpf: form.cpf ? onlyDigits(form.cpf) : null,
-        telefone_principal: onlyDigits(form.telefone_principal),
+        telefone_principal: form.telefone_principal
+          ? onlyDigits(form.telefone_principal)
+          : null,
         telefone_secundario: form.telefone_secundario
           ? onlyDigits(form.telefone_secundario)
           : null,
@@ -371,7 +517,7 @@ function AnamneseFields({ form, setForm }) {
   );
 }
 
-function PacienteForm({ form, setForm, editing, responsaveis, cuidadores, medicos }) {
+function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
   const [tab, setTab] = useState('gerais');
   const [cpfError, setCpfError] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -389,15 +535,21 @@ function PacienteForm({ form, setForm, editing, responsaveis, cuidadores, medico
   const tabs = [
     { id: 'gerais', label: 'Dados Gerais' },
     { id: 'endereco', label: 'Endereço' },
-    ...(editing?.id ? [{ id: 'anamnese', label: 'Anamnese' }] : []),
+    { id: 'anamnese', label: 'Anamnese' },
   ];
 
   return (
     <>
       <FormTabs tabs={tabs} active={tab} onChange={setTab} />
 
-      {tab === 'anamnese' && editing?.id ? (
-        <AnamneseFields form={form} setForm={setForm} />
+      {tab === 'anamnese' ? (
+        editing?.id ? (
+          <AnamneseFields form={form} setForm={setForm} />
+        ) : (
+          <p className="text-sm text-slate-health">
+            Salve o paciente para registrar a anamnese completa.
+          </p>
+        )
       ) : null}
 
       {tab === 'endereco' ? (
@@ -416,6 +568,23 @@ function PacienteForm({ form, setForm, editing, responsaveis, cuidadores, medico
               onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })}
             />
           </Field>
+          <Field label="Sexo">
+            <TextSelect
+              value={form.sexo || ''}
+              onChange={(e) => setForm({ ...form, sexo: e.target.value })}
+            >
+              <option value="">Selecione</option>
+              <option value="masculino">Masculino</option>
+              <option value="feminino">Feminino</option>
+              <option value="outro">Outro</option>
+              <option value="nao_informado">Não informado</option>
+            </TextSelect>
+          </Field>
+          <SexoBodyPreview
+            sexo={form.sexo}
+            medicos={medicos}
+            medicoIds={form.medico_ids || []}
+          />
           <Field label="CPF" required error={cpfError}>
             <TextInput
               value={maskCpf(form.cpf)}
@@ -576,60 +745,30 @@ function PacienteForm({ form, setForm, editing, responsaveis, cuidadores, medico
               }
             />
           </div>
-          <Field label="Responsável legal">
-            <TextSelect
-              value={form.responsavel_id || ''}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  responsavel_id: e.target.value ? Number(e.target.value) : null,
-                })
-              }
+          <div className="sm:col-span-2">
+            <MultiCheckboxField
+              label="Responsável(eis)"
+              options={responsaveis}
+              valueIds={form.responsavel_ids || []}
+              onChange={(ids) => setForm({ ...form, responsavel_ids: ids })}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <MultiCheckboxField
+              label="Médico(s) principal(is)"
+              options={medicos}
+              valueIds={form.medico_ids || []}
+              onChange={(ids) => setForm({ ...form, medico_ids: ids })}
+            />
+          </div>
+          <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
+            <Link
+              to="/cuidadores"
+              className="text-sm font-semibold text-aqua hover:underline"
             >
-              <option value="">—</option>
-              {responsaveis.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nome}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
-          <Field label="Cuidador principal">
-            <TextSelect
-              value={form.cuidador_id || ''}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  cuidador_id: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            >
-              <option value="">—</option>
-              {cuidadores.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
-          <Field label="Médico responsável">
-            <TextSelect
-              value={form.medico_id || ''}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  medico_id: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-            >
-              <option value="">—</option>
-              {medicos.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nome}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
+              + Novo cuidador
+            </Link>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Observações">
               <TextTextarea
@@ -647,12 +786,12 @@ function PacienteForm({ form, setForm, editing, responsaveis, cuidadores, medico
 
 export function PacientesPage() {
   const responsaveis = useOptions('/responsaveis');
-  const cuidadores = useOptions('/cuidadores');
   const medicos = useOptions('/medicos');
 
   const empty = () => ({
     nome: '',
     data_nascimento: '',
+    sexo: '',
     cpf: '',
     alergias: '',
     tipo_sanguineo: 'NI',
@@ -668,9 +807,8 @@ export function PacientesPage() {
     convenio_verso_arquivo_id: null,
     convenio_frente_caminho: '',
     convenio_verso_caminho: '',
-    responsavel_id: '',
-    cuidador_id: '',
-    medico_id: '',
+    responsavel_ids: [],
+    medico_ids: [],
     cep: '',
     logradouro: '',
     numero: '',
@@ -692,9 +830,8 @@ export function PacientesPage() {
         { key: 'nome', label: 'Nome' },
         { key: 'cpf', label: 'CPF', render: (r) => maskCpf(r.cpf) },
         { key: 'convenio_nome', label: 'Convênio' },
-        { key: 'responsavel_nome', label: 'Responsável' },
-        { key: 'cuidador_nome', label: 'Cuidador' },
-        { key: 'medico_nome', label: 'Médico' },
+        { key: 'responsaveis_nomes', label: 'Responsáveis' },
+        { key: 'medicos_nomes', label: 'Médicos' },
         {
           key: 'status',
           label: 'Status',
@@ -714,12 +851,23 @@ export function PacientesPage() {
         ...empty(),
         ...row,
         data_nascimento: row.data_nascimento ? String(row.data_nascimento).slice(0, 10) : '',
+        sexo: row.sexo || '',
         convenio_validade: row.convenio_validade
           ? String(row.convenio_validade).slice(0, 10)
           : '',
         foto_caminho: row.foto_caminho || row.foto_url || '',
         convenio_frente_caminho: row.convenio_frente_caminho || '',
         convenio_verso_caminho: row.convenio_verso_caminho || '',
+        medico_ids: parseJsonIds(row.medico_ids).length
+          ? parseJsonIds(row.medico_ids)
+          : row.medico_id
+            ? [Number(row.medico_id)]
+            : [],
+        responsavel_ids: parseJsonIds(row.responsavel_ids).length
+          ? parseJsonIds(row.responsavel_ids)
+          : row.responsavel_id
+            ? [Number(row.responsavel_id)]
+            : [],
         anamnese: {},
       })}
       renderForm={(form, setForm, { editing }) => (
@@ -728,7 +876,6 @@ export function PacientesPage() {
           setForm={setForm}
           editing={editing}
           responsaveis={responsaveis}
-          cuidadores={cuidadores}
           medicos={medicos}
         />
       )}
@@ -739,13 +886,15 @@ export function PacientesPage() {
         convenio_frente_caminho: undefined,
         convenio_verso_caminho: undefined,
         cpf: onlyDigits(form.cpf),
+        sexo: form.sexo || null,
         telefone_principal: form.telefone_principal
           ? onlyDigits(form.telefone_principal)
           : null,
         cep: form.cep ? onlyDigits(form.cep) : null,
-        responsavel_id: form.responsavel_id || null,
-        cuidador_id: form.cuidador_id || null,
-        medico_id: form.medico_id || null,
+        medico_ids: form.medico_ids || [],
+        responsavel_ids: form.responsavel_ids || [],
+        responsavel_id: form.responsavel_ids?.[0] ?? null,
+        medico_id: form.medico_ids?.[0] ?? null,
         foto_arquivo_id: form.foto_arquivo_id || null,
         convenio_frente_arquivo_id: form.convenio_frente_arquivo_id || null,
         convenio_verso_arquivo_id: form.convenio_verso_arquivo_id || null,
@@ -765,28 +914,65 @@ export function PacientesPage() {
 }
 
 export function RemediosPage() {
+  const medicos = useOptions('/medicos');
+
   const empty = () => ({
     nome_comercial: '',
     principio_ativo: '',
+    laboratorio: '',
+    numero_controle_pessoal: '',
+    quantidade_administrar: '',
+    quantidade_estoque: '',
+    indicacao: '',
+    medico_prescritor_id: '',
     concentracao: '',
     forma_farmaceutica: 'comprimido',
     registro_anvisa: '',
     instrucoes_uso: '',
     uso_continuo: false,
     periodo_horario: 'manha',
+    hora_exata: '',
     status: 'ativo',
   });
 
   return (
     <EntityCrudPage
-      title="Remédios / Medicamentos"
-      description="Catálogo farmacêutico para rotinas de cuidado."
+      title="Medicamentos"
+      description="Controle de medicamentos, estoque e administração."
       endpoint="/remedios"
+      extraActions={
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-aqua px-5 text-sm font-semibold text-aqua transition hover:bg-aqua-soft"
+        >
+          Imprimir Lista
+        </button>
+      }
+      extraRowActions={(row, { reload }) => (
+        <button
+          type="button"
+          className="min-h-10 rounded-lg border border-mint px-3 text-xs font-semibold text-aqua-deep hover:bg-mint-soft"
+          onClick={async () => {
+            if (!window.confirm(`Registrar administração de "${row.nome_comercial}"?`)) return;
+            try {
+              await apiRequest(`/remedios/${row.id}/administrar`, { method: 'POST', body: {} });
+              await reload();
+            } catch (err) {
+              window.alert(err.message || 'Falha ao dar baixa.');
+            }
+          }}
+        >
+          Dar baixa
+        </button>
+      )}
       columns={[
         { key: 'nome_comercial', label: 'Nome comercial' },
-        { key: 'principio_ativo', label: 'Princípio ativo' },
-        { key: 'concentracao', label: 'Concentração' },
-        { key: 'forma_farmaceutica', label: 'Forma' },
+        { key: 'laboratorio', label: 'Laboratório', render: (r) => r.laboratorio || '—' },
+        { key: 'quantidade_administrar', label: 'Qtd. administrar' },
+        { key: 'quantidade_estoque', label: 'Estoque' },
+        { key: 'indicacao', label: 'Indicação', render: (r) => r.indicacao || '—' },
+        { key: 'medico_prescritor_nome', label: 'Prescritor' },
         {
           key: 'uso_continuo',
           label: 'Uso contínuo',
@@ -795,10 +981,16 @@ export function RemediosPage() {
         {
           key: 'periodo_horario',
           label: 'Período',
-          render: (r) =>
-            PERIODO_HORARIO_OPTIONS.find((o) => o.value === r.periodo_horario)?.label ||
-            r.periodo_horario ||
-            '—',
+          render: (r) => {
+            const label =
+              PERIODO_HORARIO_OPTIONS.find((o) => o.value === r.periodo_horario)?.label ||
+              r.periodo_horario ||
+              '—';
+            if (r.periodo_horario === 'personalizado' && r.hora_exata) {
+              return `${label} (${r.hora_exata})`;
+            }
+            return label;
+          },
         },
         {
           key: 'status',
@@ -820,6 +1012,8 @@ export function RemediosPage() {
         ...row,
         uso_continuo: Boolean(row.uso_continuo),
         periodo_horario: row.periodo_horario || 'manha',
+        medico_prescritor_id: row.medico_prescritor_id ?? '',
+        hora_exata: row.hora_exata || '',
       })}
       renderForm={(form, setForm) => (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -834,6 +1028,60 @@ export function RemediosPage() {
               value={form.principio_ativo}
               onChange={(e) => setForm({ ...form, principio_ativo: e.target.value })}
             />
+          </Field>
+          <Field label="Laboratório">
+            <TextInput
+              value={form.laboratorio || ''}
+              onChange={(e) => setForm({ ...form, laboratorio: e.target.value })}
+            />
+          </Field>
+          <Field label="Nº controle pessoal">
+            <TextInput
+              value={form.numero_controle_pessoal || ''}
+              onChange={(e) => setForm({ ...form, numero_controle_pessoal: e.target.value })}
+            />
+          </Field>
+          <Field label="Quantidade a administrar" required>
+            <TextInput
+              value={form.quantidade_administrar ?? ''}
+              onChange={(e) => setForm({ ...form, quantidade_administrar: e.target.value })}
+              placeholder="Ex.: 1 comprimido"
+            />
+          </Field>
+          <Field label="Quantidade em estoque" required>
+            <TextInput
+              type="number"
+              min={0}
+              value={form.quantidade_estoque ?? ''}
+              onChange={(e) => setForm({ ...form, quantidade_estoque: e.target.value })}
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Indicação" required>
+              <TextTextarea
+                rows={2}
+                value={form.indicacao || ''}
+                onChange={(e) => setForm({ ...form, indicacao: e.target.value })}
+              />
+            </Field>
+          </div>
+          <Field label="Médico prescritor" required>
+            <TextSelect
+              value={form.medico_prescritor_id || ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  medico_prescritor_id: e.target.value ? Number(e.target.value) : '',
+                })
+              }
+            >
+              <option value="">Selecione</option>
+              {medicos.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nome}
+                </option>
+              ))}
+            </TextSelect>
           </Field>
           <Field label="Dosagem / concentração">
             <TextInput
@@ -902,6 +1150,15 @@ export function RemediosPage() {
               </div>
             </Field>
           </div>
+          {form.periodo_horario === 'personalizado' ? (
+            <Field label="Hora exata" required>
+              <TextInput
+                type="time"
+                value={form.hora_exata || ''}
+                onChange={(e) => setForm({ ...form, hora_exata: e.target.value })}
+              />
+            </Field>
+          ) : null}
           <Field label="Status">
             <TextSelect
               value={form.status}
@@ -926,6 +1183,17 @@ export function RemediosPage() {
         ...form,
         uso_continuo: Boolean(form.uso_continuo),
         periodo_horario: form.periodo_horario || 'manha',
+        hora_exata:
+          form.periodo_horario === 'personalizado' ? form.hora_exata || null : null,
+        quantidade_estoque:
+          form.quantidade_estoque !== '' && form.quantidade_estoque != null
+            ? Number(form.quantidade_estoque)
+            : null,
+        medico_prescritor_id: form.medico_prescritor_id
+          ? Number(form.medico_prescritor_id)
+          : null,
+        laboratorio: form.laboratorio || null,
+        numero_controle_pessoal: form.numero_controle_pessoal || null,
       })}
     />
   );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BrandLogo from '../BrandLogo';
 import Icon from '../Icon';
 import { getInitials } from '../../utils/menuTree';
 import { useAuth } from '../../context/AuthContext';
@@ -87,9 +88,12 @@ export default function Header({ onOpenMobile, usuario }) {
         >
           <Icon name="menu" className="h-5 w-5" />
         </button>
-        <div className="hidden sm:block">
-          <p className="text-xs font-bold uppercase tracking-wider text-aqua">Painel</p>
-          <p className="text-sm text-slate-health">Gestão de saúde e acessos</p>
+        <div className="hidden items-center gap-3 sm:flex">
+          <BrandLogo variant="compact" className="lg:hidden" />
+          <div className="hidden md:block">
+            <p className="text-xs font-bold uppercase tracking-wider text-vita">Painel</p>
+            <p className="text-sm text-slate-health">Gestão de saúde e acessos</p>
+          </div>
         </div>
       </div>
 
