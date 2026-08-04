@@ -103,8 +103,7 @@ export default function Login() {
           }}
         />
         <div className="relative z-10">
-          <BrandLogo variant="full" className="items-start [&_img]:brightness-0 [&_img]:invert" />
-          <h1 className="mt-8 max-w-lg font-display text-4xl font-bold leading-tight tracking-tight">
+          <h1 className="max-w-lg font-display text-4xl font-bold leading-tight tracking-tight">
             Cuidado contínuo para quem você ama, onde ele estiver.
           </h1>
           <p className="mt-4 max-w-md text-base leading-relaxed text-white/90">
