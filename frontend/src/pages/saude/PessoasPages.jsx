@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import EntityCrudPage from '../../components/EntityCrudPage';
 import FileUploadField from '../../components/FileUploadField';
 import {
@@ -9,6 +10,7 @@ import {
   TextSelect,
   TextTextarea,
 } from '../../components/forms/FormControls';
+import { apiRequest } from '../../services/api';
 import {
   isValidCpf,
   isValidEmail,
@@ -17,6 +19,16 @@ import {
   onlyDigits,
   TURNO_OPTIONS,
 } from '../../hooks/useCep';
+
+function useEmpresasCuidadoras() {
+  const [list, setList] = useState([]);
+  useEffect(() => {
+    apiRequest('/empresas-cuidadoras', { query: { pageSize: 100, status: 'ativo' } })
+      .then((r) => setList(r.data || []))
+      .catch(() => setList([]));
+  }, []);
+  return list;
+}
 
 const personEmpty = (extra = {}) => ({
   nome: '',
@@ -215,10 +227,11 @@ function personToPayload(form, extra = {}) {
 }
 
 export function CuidadoresPage() {
+  const empresas = useEmpresasCuidadoras();
   return (
     <EntityCrudPage
       title="Cuidadores"
-      description="Profissionais de cuidado vinculados ao paciente."
+      description="Profissionais de cuidado vinculados ao paciente e/ou empresa."
       endpoint="/cuidadores"
       columns={[
         ...baseColumns,
@@ -226,6 +239,12 @@ export function CuidadoresPage() {
           key: 'turno',
           label: 'Turno',
           render: (r) => TURNO_OPTIONS.find((o) => o.value === r.turno)?.label || r.turno || '—',
+        },
+        {
+          key: 'empresa_cuidadora_id',
+          label: 'Empresa',
+          render: (r) =>
+            empresas.find((e) => e.id === r.empresa_cuidadora_id)?.nome_fantasia || '—',
         },
       ]}
       emptyForm={() => personEmpty({ turno: '', especialidade: '', empresa_cuidadora_id: '' })}
@@ -240,20 +259,32 @@ export function CuidadoresPage() {
           setForm={setForm}
           showTurnoEspecialidade
           extraFields={
-            <Field label="Empresa cuidadora (ID)" hint="Informe o ID da empresa ou deixe em branco">
-              <TextInput
-                type="number"
-                min={1}
-                value={form.empresa_cuidadora_id ?? ''}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    empresa_cuidadora_id: e.target.value ? Number(e.target.value) : '',
-                  })
-                }
-                placeholder="ID da empresa cuidadora"
-              />
-            </Field>
+            <div className="sm:col-span-2 grid gap-1">
+              <Field label="Empresa cuidadora">
+                <TextSelect
+                  value={form.empresa_cuidadora_id ?? ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      empresa_cuidadora_id: e.target.value ? Number(e.target.value) : '',
+                    })
+                  }
+                >
+                  <option value="">Nenhuma (PF independente)</option>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nome_fantasia}
+                    </option>
+                  ))}
+                </TextSelect>
+              </Field>
+              <Link
+                to="/empresas-cuidadoras"
+                className="text-xs font-semibold text-vita hover:underline"
+              >
+                Cadastrar nova empresa cuidadora
+              </Link>
+            </div>
           }
         />
       )}
@@ -261,7 +292,9 @@ export function CuidadoresPage() {
         personToPayload(form, {
           turno: form.turno || null,
           especialidade: form.especialidade || null,
-          empresa_cuidadora_id: form.empresa_cuidadora_id ? Number(form.empresa_cuidadora_id) : null,
+          empresa_cuidadora_id: form.empresa_cuidadora_id
+            ? Number(form.empresa_cuidadora_id)
+            : null,
         })
       }
     />

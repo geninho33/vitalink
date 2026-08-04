@@ -13,6 +13,11 @@ function mount() {
   r.use(authenticate);
 
   r.get('/agenda', requirePermission('/agenda', 'ler'), atividades.listAgenda);
+  r.get(
+    '/agenda/:id/documentos',
+    requirePermission('/agenda', 'ler'),
+    atividades.listAgendaDocumentos
+  );
   r.get('/timeline', requirePermission('/timeline', 'ler'), atividades.listTimeline);
   r.get('/timeline/:pacienteId', requirePermission('/timeline', 'ler'), atividades.listTimeline);
 

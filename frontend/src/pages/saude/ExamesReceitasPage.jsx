@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import FileUploadField from '../../components/FileUploadField';
 import { Field, Modal, TextInput, TextSelect } from '../../components/forms/FormControls';
@@ -14,7 +15,7 @@ function usePacientes() {
   return options;
 }
 
-const emptyForm = () => ({
+const emptyForm = (overrides = {}) => ({
   paciente_id: '',
   especialidade: '',
   titulo: '',
@@ -23,10 +24,14 @@ const emptyForm = () => ({
   arquivo_id: null,
   arquivo_caminho: '',
   observacoes: '',
+  agenda_evento_id: null,
+  consulta_id: null,
+  ...overrides,
 });
 
 export default function ExamesReceitasPage() {
   const pacientes = usePacientes();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,12 +41,26 @@ export default function ExamesReceitasPage() {
   const [saving, setSaving] = useState(false);
   const [openFolders, setOpenFolders] = useState({});
 
+  const filterPacienteId = searchParams.get('paciente_id') || '';
+  const filterData = searchParams.get('data') || '';
+  const filterEspecialidade = searchParams.get('especialidade') || '';
+  const filterAgendaId = searchParams.get('agenda_evento_id') || '';
+  const filterConsultaId = searchParams.get('consulta_id') || '';
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const res = await apiRequest('/exames-receitas', {
-        query: { pageSize: 200, q: q || undefined },
+        query: {
+          pageSize: 200,
+          q: q || undefined,
+          paciente_id: filterPacienteId || undefined,
+          data: filterData || undefined,
+          especialidade: filterEspecialidade || undefined,
+          agenda_evento_id: filterAgendaId || undefined,
+          consulta_id: filterConsultaId || undefined,
+        },
       });
       const sorted = [...(res.data || [])].sort((a, b) => {
         const da = String(a.data_documento || '');
@@ -55,11 +74,46 @@ export default function ExamesReceitasPage() {
     } finally {
       setLoading(false);
     }
-  }, [q]);
+  }, [q, filterPacienteId, filterData, filterEspecialidade, filterAgendaId, filterConsultaId]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Pré-preenche e abre modal quando vem da Agenda (?novo=1)
+  useEffect(() => {
+    if (searchParams.get('novo') !== '1') return;
+    setForm(
+      emptyForm({
+        paciente_id: filterPacienteId || '',
+        especialidade: filterEspecialidade || '',
+        data_documento: filterData || new Date().toISOString().slice(0, 10),
+        agenda_evento_id: filterAgendaId ? Number(filterAgendaId) : null,
+        consulta_id: filterConsultaId ? Number(filterConsultaId) : null,
+        titulo: filterEspecialidade
+          ? `Documento — ${filterEspecialidade}`
+          : '',
+      })
+    );
+    setModalOpen(true);
+    if (filterEspecialidade) {
+      setOpenFolders((prev) => ({ ...prev, [filterEspecialidade]: true }));
+    }
+    // Mantém filtros de pasta; vínculos ficam só no form
+    const next = new URLSearchParams();
+    if (filterPacienteId) next.set('paciente_id', filterPacienteId);
+    if (filterData) next.set('data', filterData);
+    if (filterEspecialidade) next.set('especialidade', filterEspecialidade);
+    setSearchParams(next, { replace: true });
+  }, [
+    searchParams,
+    setSearchParams,
+    filterPacienteId,
+    filterEspecialidade,
+    filterData,
+    filterAgendaId,
+    filterConsultaId,
+  ]);
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -81,6 +135,14 @@ export default function ExamesReceitasPage() {
     });
   }, [grouped]);
 
+  const hasActiveFilters = Boolean(
+    filterPacienteId || filterData || filterEspecialidade || filterAgendaId || filterConsultaId
+  );
+
+  function clearFilters() {
+    setSearchParams({}, { replace: true });
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
@@ -96,6 +158,8 @@ export default function ExamesReceitasPage() {
           data_documento: form.data_documento,
           arquivo_id: form.arquivo_id || null,
           observacoes: form.observacoes || null,
+          agenda_evento_id: form.agenda_evento_id || null,
+          consulta_id: form.consulta_id || null,
         },
       });
       setModalOpen(false);
@@ -128,7 +192,15 @@ export default function ExamesReceitasPage() {
           <button
             type="button"
             onClick={() => {
-              setForm(emptyForm());
+              setForm(
+                emptyForm({
+                  paciente_id: filterPacienteId || '',
+                  especialidade: filterEspecialidade || '',
+                  data_documento: filterData || new Date().toISOString().slice(0, 10),
+                  agenda_evento_id: filterAgendaId ? Number(filterAgendaId) : null,
+                  consulta_id: filterConsultaId ? Number(filterConsultaId) : null,
+                })
+              );
               setModalOpen(true);
             }}
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-aqua px-5 text-sm font-semibold text-white hover:bg-aqua-deep"
@@ -136,6 +208,35 @@ export default function ExamesReceitasPage() {
             Novo documento
           </button>
         </div>
+
+        {hasActiveFilters ? (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#d0e4ef] bg-vita-soft/40 px-3 py-2 text-xs text-ink">
+            <span className="font-bold uppercase tracking-wider text-vita">Filtros</span>
+            {filterPacienteId ? (
+              <span className="rounded-md bg-white px-2 py-0.5">
+                Paciente #
+                {pacientes.find((p) => String(p.id) === String(filterPacienteId))?.nome ||
+                  filterPacienteId}
+              </span>
+            ) : null}
+            {filterData ? (
+              <span className="rounded-md bg-white px-2 py-0.5">Data {filterData}</span>
+            ) : null}
+            {filterEspecialidade ? (
+              <span className="rounded-md bg-white px-2 py-0.5">{filterEspecialidade}</span>
+            ) : null}
+            {filterAgendaId ? (
+              <span className="rounded-md bg-white px-2 py-0.5">Agenda #{filterAgendaId}</span>
+            ) : null}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ml-auto font-semibold text-vita hover:underline"
+            >
+              Limpar
+            </button>
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -206,6 +307,13 @@ export default function ExamesReceitasPage() {
 
       <Modal open={modalOpen} wide title="Novo exame / receita" onClose={() => setModalOpen(false)}>
         <form className="grid gap-4" onSubmit={handleSave}>
+          {(form.agenda_evento_id || form.consulta_id) && (
+            <p className="rounded-lg border border-[#d0e4ef] bg-vita-soft/40 px-3 py-2 text-xs text-ink">
+              Documento será vinculado
+              {form.agenda_evento_id ? ` à agenda #${form.agenda_evento_id}` : ''}
+              {form.consulta_id ? ` · consulta #${form.consulta_id}` : ''}.
+            </p>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Paciente" required>
               <TextSelect

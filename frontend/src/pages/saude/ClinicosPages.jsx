@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import CuidadorVinculosPanel from '../../components/CuidadorVinculosPanel';
 import EntityCrudPage from '../../components/EntityCrudPage';
 import FileUploadField, { extractConvenioHints } from '../../components/FileUploadField';
 import {
@@ -535,6 +536,7 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
   const tabs = [
     { id: 'gerais', label: 'Dados Gerais' },
     { id: 'endereco', label: 'Endereço' },
+    { id: 'cuidadores', label: 'Cuidadores' },
     { id: 'anamnese', label: 'Anamnese' },
   ];
 
@@ -550,6 +552,10 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
             Salve o paciente para registrar a anamnese completa.
           </p>
         )
+      ) : null}
+
+      {tab === 'cuidadores' ? (
+        <CuidadorVinculosPanel pacienteId={editing?.id} />
       ) : null}
 
       {tab === 'endereco' ? (
@@ -761,12 +767,22 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
               onChange={(ids) => setForm({ ...form, medico_ids: ids })}
             />
           </div>
-          <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
-            <Link
-              to="/cuidadores"
-              className="text-sm font-semibold text-aqua hover:underline"
+          <div className="sm:col-span-2 flex flex-wrap items-center gap-3 text-sm">
+            <button
+              type="button"
+              className="font-semibold text-vita hover:underline"
+              onClick={() => setTab('cuidadores')}
             >
+              Histórico de vínculos de cuidador →
+            </button>
+            <Link to="/cuidadores" className="font-semibold text-aqua hover:underline">
               + Novo cuidador
+            </Link>
+            <Link
+              to="/empresas-cuidadoras"
+              className="font-semibold text-aqua hover:underline"
+            >
+              Empresas cuidadoras
             </Link>
           </div>
           <div className="sm:col-span-2">

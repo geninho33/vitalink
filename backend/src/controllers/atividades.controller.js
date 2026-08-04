@@ -37,15 +37,104 @@ async function listAgenda(req, res, next) {
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const rows = await query(
-      `SELECT a.*, p.nome AS paciente_nome
+      `SELECT a.*, p.nome AS paciente_nome,
+              c.especialidade AS consulta_especialidade,
+              c.id AS consulta_id,
+              (
+                SELECT COUNT(*)::int
+                FROM exames_receitas er
+                WHERE er.paciente_id = a.paciente_id
+                  AND (
+                    er.agenda_evento_id = a.id
+                    OR (a.origem_tabela = 'consultas' AND er.consulta_id = a.origem_id)
+                    OR (
+                      er.data_documento = (a.data_hora_inicio::date)
+                      AND (
+                        c.especialidade IS NULL
+                        OR er.especialidade ILIKE ('%' || c.especialidade || '%')
+                        OR a.titulo ILIKE ('%' || er.especialidade || '%')
+                      )
+                    )
+                  )
+              ) AS docs_count
        FROM agenda_eventos a
        INNER JOIN pacientes p ON p.id = a.paciente_id
+       LEFT JOIN consultas c
+         ON a.origem_tabela = 'consultas' AND c.id = a.origem_id
        ${whereSql}
        ORDER BY a.data_hora_inicio ASC
        LIMIT 500`,
       params
     );
     return res.json({ data: rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/** Documentos (exames/receitas) vinculados a um evento da agenda. */
+async function listAgendaDocumentos(req, res, next) {
+  try {
+    const id = req.params.id;
+    const events = await query(
+      `SELECT a.*, c.especialidade AS consulta_especialidade, c.id AS consulta_id
+       FROM agenda_eventos a
+       LEFT JOIN consultas c
+         ON a.origem_tabela = 'consultas' AND c.id = a.origem_id
+       WHERE a.id = :id
+       LIMIT 1`,
+      { id }
+    );
+    const ev = events[0];
+    if (!ev) {
+      return res.status(404).json({ error: 'not_found', message: 'Evento não encontrado.' });
+    }
+
+    let especialidade = ev.consulta_especialidade || null;
+    if (!especialidade && ev.titulo) {
+      const m = String(ev.titulo).match(/Consulta:\s*(.+?)\s*—/i);
+      if (m) especialidade = m[1].trim();
+    }
+
+    const day = String(ev.data_hora_inicio || '').slice(0, 10);
+    const rows = await query(
+      `SELECT e.*, a.caminho AS arquivo_caminho, p.nome AS paciente_nome
+       FROM exames_receitas e
+       LEFT JOIN arquivos a ON a.id = e.arquivo_id
+       LEFT JOIN pacientes p ON p.id = e.paciente_id
+       WHERE e.paciente_id = :pacienteId
+         AND (
+           e.agenda_evento_id = :eventoId
+           OR (:consultaId::int IS NOT NULL AND e.consulta_id = :consultaId)
+           OR (
+             e.data_documento = :day::date
+             AND (
+               :especialidade::text IS NULL
+               OR e.especialidade ILIKE :espLike
+             )
+           )
+         )
+       ORDER BY e.data_documento DESC, e.id DESC`,
+      {
+        pacienteId: ev.paciente_id,
+        eventoId: ev.id,
+        consultaId: ev.consulta_id || null,
+        day,
+        especialidade: especialidade || null,
+        espLike: especialidade ? `%${especialidade}%` : '%',
+      }
+    );
+
+    return res.json({
+      data: rows,
+      meta: {
+        agenda_evento_id: Number(ev.id),
+        paciente_id: Number(ev.paciente_id),
+        consulta_id: ev.consulta_id ? Number(ev.consulta_id) : null,
+        data: day,
+        especialidade: especialidade || null,
+      },
+    });
   } catch (err) {
     return next(err);
   }
@@ -235,6 +324,7 @@ async function deleteConsulta(req, res, next) {
 
 module.exports = {
   listAgenda,
+  listAgendaDocumentos,
   listTimeline,
   listConsultas,
   createConsulta,

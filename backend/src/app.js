@@ -17,7 +17,9 @@ const { hospitais, farmacias } = require('./controllers/estabelecimentos.control
 const { cuidadores, responsaveis } = require('./controllers/pessoas.controller');
 const { medicos, pacientes } = require('./controllers/saude.controller');
 const examesReceitas = require('./controllers/examesReceitas.controller');
+const empresasCuidadoras = require('./controllers/empresasCuidadoras.controller');
 const { mountRemediosRoutes } = require('./routes/remedios.routes');
+const { mountPacienteVinculosRoutes } = require('./routes/pacienteVinculos.routes');
 const { ensureUploadDir, UPLOAD_ROOT } = require('./controllers/arquivos.controller');
 
 function createApp() {
@@ -67,6 +69,12 @@ function createApp() {
     mountCrud(responsaveis, { denyCreatePerfilIds: [5], denyDeletePerfilIds: [5] })
   );
   api.use('/medicos', mountCrud(medicos));
+  api.use('/empresas-cuidadoras', mountCrud(empresasCuidadoras));
+  // Rotas aninhadas antes do CRUD genérico de pacientes
+  api.use(
+    '/pacientes/:pacienteId/cuidador-vinculos',
+    mountPacienteVinculosRoutes()
+  );
   // Cuidador (4): consulta pacientes; sem criar/excluir
   api.use(
     '/pacientes',

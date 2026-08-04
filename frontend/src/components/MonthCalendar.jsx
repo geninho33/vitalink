@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import AgendaDocsLinks from './AgendaDocsLinks';
 import Icon from './Icon';
 import { Modal } from './forms/FormControls';
 
@@ -264,41 +265,50 @@ export default function MonthCalendar({ events = [], onSelectEvent }) {
         )}
       </Modal>
 
-      {/* Detalhe rápido */}
+      {/* Detalhe rápido + documentos */}
       <Modal
         open={Boolean(detail)}
         title={detail?.titulo || 'Detalhe'}
         onClose={() => setDetail(null)}
       >
         {detail ? (
-          <dl className="grid gap-2 text-sm">
-            <div>
-              <dt className="text-xs font-bold uppercase text-slate-health">Tipo</dt>
-              <dd className="font-semibold capitalize text-ink">{detail.tipo}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-bold uppercase text-slate-health">Quando</dt>
-              <dd className="font-semibold text-ink">
-                {detail.data_hora_inicio
-                  ? new Date(detail.data_hora_inicio).toLocaleString('pt-BR')
-                  : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-bold uppercase text-slate-health">Paciente</dt>
-              <dd className="font-semibold text-ink">{detail.paciente_nome || '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-bold uppercase text-slate-health">Status</dt>
-              <dd className="font-semibold capitalize text-ink">{detail.status || '—'}</dd>
-            </div>
-            {detail.observacoes ? (
+          <>
+            <dl className="grid gap-2 text-sm">
               <div>
-                <dt className="text-xs font-bold uppercase text-slate-health">Observações</dt>
-                <dd className="text-ink">{detail.observacoes}</dd>
+                <dt className="text-xs font-bold uppercase text-slate-health">Tipo</dt>
+                <dd className="font-semibold capitalize text-ink">{detail.tipo}</dd>
               </div>
-            ) : null}
-          </dl>
+              {detail.consulta_especialidade ? (
+                <div>
+                  <dt className="text-xs font-bold uppercase text-slate-health">Especialidade</dt>
+                  <dd className="font-semibold text-ink">{detail.consulta_especialidade}</dd>
+                </div>
+              ) : null}
+              <div>
+                <dt className="text-xs font-bold uppercase text-slate-health">Quando</dt>
+                <dd className="font-semibold text-ink">
+                  {detail.data_hora_inicio
+                    ? new Date(detail.data_hora_inicio).toLocaleString('pt-BR')
+                    : '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold uppercase text-slate-health">Paciente</dt>
+                <dd className="font-semibold text-ink">{detail.paciente_nome || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold uppercase text-slate-health">Status</dt>
+                <dd className="font-semibold capitalize text-ink">{detail.status || '—'}</dd>
+              </div>
+              {detail.observacoes ? (
+                <div>
+                  <dt className="text-xs font-bold uppercase text-slate-health">Observações</dt>
+                  <dd className="text-ink">{detail.observacoes}</dd>
+                </div>
+              ) : null}
+            </dl>
+            <AgendaDocsLinks event={detail} />
+          </>
         ) : null}
       </Modal>
     </div>

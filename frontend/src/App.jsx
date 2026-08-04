@@ -18,6 +18,7 @@ import { HospitaisPage, FarmaciasPage } from './pages/saude/EstabelecimentosPage
 import { CuidadoresPage, ResponsaveisPage } from './pages/saude/PessoasPages';
 import { MedicosPage, PacientesPage, RemediosPage } from './pages/saude/ClinicosPages';
 import ExamesReceitasPage from './pages/saude/ExamesReceitasPage';
+import EmpresasCuidadorasPage from './pages/saude/EmpresasCuidadorasPage';
 import {
   UsuariosPage,
   PerfisPage,
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/exames-receitas" element={<ExamesReceitasPage />} />
           <Route path="/hospitais" element={<HospitaisPage />} />
           <Route path="/farmacias" element={<FarmaciasPage />} />
+          <Route path="/empresas-cuidadoras" element={<EmpresasCuidadorasPage />} />
           <Route path="/cuidadores" element={<CuidadoresPage />} />
           <Route path="/responsaveis" element={<ResponsaveisPage />} />
           <Route path="/agenda" element={<AgendaPage />} />

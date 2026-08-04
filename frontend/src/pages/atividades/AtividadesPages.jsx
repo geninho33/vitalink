@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import AgendaDocsLinks from '../../components/AgendaDocsLinks';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import MonthCalendar from '../../components/MonthCalendar';
 import TimelineRail from '../../components/TimelineRail';
@@ -225,6 +226,7 @@ export function AgendaPage() {
   const [view, setView] = useState('mensal');
   const [dayDate, setDayDate] = useState(() => dayKey());
   const [weekAnchor, setWeekAnchor] = useState(() => startOfWeekSunday(new Date()));
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   async function load() {
     const res = await apiRequest('/agenda', {
@@ -258,21 +260,29 @@ export function AgendaPage() {
           minute: '2-digit',
         })
       : '—';
+    const docs = Number(e.docs_count || 0);
     return (
-      <div
+      <button
         key={e.id}
-        className="flex flex-wrap items-center gap-2 rounded-lg border border-[#e2eeee] bg-[#fbfefe] px-2 py-1.5 text-sm"
+        type="button"
+        onClick={() => setSelectedEvent(e)}
+        className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-[#e2eeee] bg-[#fbfefe] px-2 py-1.5 text-left text-sm transition hover:border-vita/40 hover:bg-vita-soft/30"
       >
         <span className="text-[11px] font-bold tabular-nums text-aqua-deep">{time}</span>
         <span className="min-w-0 flex-1 font-semibold text-ink">{e.titulo}</span>
         {e.paciente_nome ? (
           <span className="truncate text-[11px] text-slate-health">{e.paciente_nome}</span>
         ) : null}
+        {docs > 0 ? (
+          <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">
+            {docs} doc{docs > 1 ? 's' : ''}
+          </span>
+        ) : null}
         <span className={statusChip(e.status)}>{e.status}</span>
         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] capitalize text-slate-health">
           {e.tipo}
         </span>
-      </div>
+      </button>
     );
   }
 
@@ -403,9 +413,11 @@ export function AgendaPage() {
                     </p>
                     <div className="grid gap-1">
                       {list.slice(0, 5).map((e) => (
-                        <div
+                        <button
                           key={e.id}
-                          className="truncate rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-ink shadow-sm"
+                          type="button"
+                          onClick={() => setSelectedEvent(e)}
+                          className="truncate rounded-md bg-white px-1.5 py-0.5 text-left text-[10px] font-medium text-ink shadow-sm hover:bg-vita-soft"
                           title={e.titulo}
                         >
                           {e.data_hora_inicio
@@ -415,7 +427,8 @@ export function AgendaPage() {
                               })
                             : ''}{' '}
                           {e.titulo}
-                        </div>
+                          {Number(e.docs_count) > 0 ? ` · ${e.docs_count} doc` : ''}
+                        </button>
                       ))}
                       {list.length > 5 ? (
                         <p className="text-center text-[10px] text-slate-health">
@@ -433,6 +446,58 @@ export function AgendaPage() {
           </div>
         ) : null}
       </PlaceholderCard>
+
+      <Modal
+        open={Boolean(selectedEvent)}
+        title={selectedEvent?.titulo || 'Detalhe'}
+        onClose={() => setSelectedEvent(null)}
+      >
+        {selectedEvent ? (
+          <>
+            <dl className="grid gap-2 text-sm">
+              <div>
+                <dt className="text-xs font-bold uppercase text-slate-health">Tipo</dt>
+                <dd className="font-semibold capitalize text-ink">{selectedEvent.tipo}</dd>
+              </div>
+              {selectedEvent.consulta_especialidade ? (
+                <div>
+                  <dt className="text-xs font-bold uppercase text-slate-health">Especialidade</dt>
+                  <dd className="font-semibold text-ink">
+                    {selectedEvent.consulta_especialidade}
+                  </dd>
+                </div>
+              ) : null}
+              <div>
+                <dt className="text-xs font-bold uppercase text-slate-health">Quando</dt>
+                <dd className="font-semibold text-ink">
+                  {selectedEvent.data_hora_inicio
+                    ? new Date(selectedEvent.data_hora_inicio).toLocaleString('pt-BR')
+                    : '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold uppercase text-slate-health">Paciente</dt>
+                <dd className="font-semibold text-ink">
+                  {selectedEvent.paciente_nome || '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold uppercase text-slate-health">Status</dt>
+                <dd className="font-semibold capitalize text-ink">
+                  {selectedEvent.status || '—'}
+                </dd>
+              </div>
+              {selectedEvent.observacoes ? (
+                <div>
+                  <dt className="text-xs font-bold uppercase text-slate-health">Observações</dt>
+                  <dd className="text-ink">{selectedEvent.observacoes}</dd>
+                </div>
+              ) : null}
+            </dl>
+            <AgendaDocsLinks event={selectedEvent} />
+          </>
+        ) : null}
+      </Modal>
     </div>
   );
 }

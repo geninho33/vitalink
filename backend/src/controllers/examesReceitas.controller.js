@@ -47,6 +47,9 @@ async function list(req, res, next) {
     const q = String(req.query.q || '').trim();
     const pacienteId = req.query.paciente_id;
     const especialidade = req.query.especialidade;
+    const dataDocumento = req.query.data_documento || req.query.data;
+    const agendaEventoId = req.query.agenda_evento_id;
+    const consultaId = req.query.consulta_id;
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
     const offset = (page - 1) * pageSize;
@@ -61,6 +64,18 @@ async function list(req, res, next) {
     if (especialidade != null && String(especialidade).trim() !== '') {
       where.push(`${table}.especialidade ILIKE :especialidade`);
       params.especialidade = `%${String(especialidade).trim()}%`;
+    }
+    if (dataDocumento != null && String(dataDocumento).trim() !== '') {
+      where.push(`${table}.data_documento = :data_documento`);
+      params.data_documento = String(dataDocumento).slice(0, 10);
+    }
+    if (agendaEventoId != null && String(agendaEventoId).trim() !== '') {
+      where.push(`${table}.agenda_evento_id = :agenda_evento_id`);
+      params.agenda_evento_id = Number(agendaEventoId);
+    }
+    if (consultaId != null && String(consultaId).trim() !== '') {
+      where.push(`${table}.consulta_id = :consulta_id`);
+      params.consulta_id = Number(consultaId);
     }
     if (q && searchable.length) {
       const parts = searchable.map((col, i) => {
