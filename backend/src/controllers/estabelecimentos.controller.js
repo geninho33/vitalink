@@ -13,6 +13,7 @@ const addressFields = [
 const establishmentFields = [
   'razao_social',
   'nome_fantasia',
+  'tipo_estabelecimento',
   'tipo_documento',
   'documento',
   'telefone_principal',
@@ -57,6 +58,7 @@ function makeEstablishment(table, recurso, menuRota) {
     normalize: (p) => {
       const n = addressNormalize({ ...p });
       if (!n.tipo_documento) n.tipo_documento = 'cnpj';
+      if (!n.tipo_estabelecimento) n.tipo_estabelecimento = 'clinica';
       if (!n.status) n.status = 'ativo';
       // Evita UNIQUE/CHECK com string vazia
       if (n.documento != null && String(n.documento).trim() === '') n.documento = null;

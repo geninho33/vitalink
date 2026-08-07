@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AgendaDocsLinks from '../../components/AgendaDocsLinks';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import MonthCalendar from '../../components/MonthCalendar';
@@ -962,9 +963,20 @@ export function RotinaPage() {
 }
 
 export function TimelinePage() {
+  const navigate = useNavigate();
   const pacientes = usePacientes();
-  const [pacienteId, setPacienteId] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [pacienteId, setPacienteId] = useState(searchParams.get('paciente_id') || '');
+  const [q, setQ] = useState(searchParams.get('q') || '');
   const [events, setEvents] = useState([]);
+  const [highlightId, setHighlightId] = useState(null);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get('paciente_id') || '';
+    const qUrl = searchParams.get('q') || '';
+    if (fromUrl) setPacienteId(fromUrl);
+    if (qUrl) setQ(qUrl);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!pacienteId) {
@@ -976,7 +988,40 @@ export function TimelinePage() {
       .catch(() => setEvents([]));
   }, [pacienteId]);
 
-  const items = events.map((e) => ({
+  const filtered = useMemo(() => {
+    const term = q.trim().toLocaleLowerCase('pt-BR');
+    if (!term) return events;
+    return events.filter((e) => {
+      const hay = [
+        e.titulo,
+        e.descricao,
+        e.tipo,
+        e.observacoes,
+        e.status,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('pt-BR');
+      return hay.includes(term);
+    });
+  }, [events, q]);
+
+  useEffect(() => {
+    if (q.trim() && filtered[0]) setHighlightId(filtered[0].id);
+    else setHighlightId(null);
+  }, [filtered, q]);
+
+  function detailHref(e) {
+    if (e.origem_tabela === 'consultas' && e.origem_id) {
+      return `/consultas?edit=${e.origem_id}`;
+    }
+    if (e.origem_tabela === 'atendimentos_rotina' && e.origem_id) {
+      return `/rotina?edit=${e.origem_id}`;
+    }
+    return `/agenda`;
+  }
+
+  const items = filtered.map((e) => ({
     id: e.id,
     title: e.titulo,
     category: e.tipo,
@@ -984,32 +1029,62 @@ export function TimelinePage() {
     subtitle: e.data_hora_inicio
       ? new Date(e.data_hora_inicio).toLocaleString('pt-BR')
       : '',
+    selected: highlightId != null && Number(highlightId) === Number(e.id),
+    onClick: () => navigate(detailHref(e)),
   }));
 
   return (
     <div>
       <PageHeader
         title="Linha do Tempo"
-        description="Histórico contínuo do que foi agendado e realizado."
+        description="Histórico contínuo do que foi agendado e realizado. Clique no card para abrir o registro detalhado."
       />
       <PlaceholderCard>
-        <Field label="Paciente">
-          <TextSelect value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
-            <option value="">Selecione</option>
-            {pacientes.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </TextSelect>
-        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Paciente">
+            <TextSelect
+              value={pacienteId}
+              onChange={(e) => {
+                setPacienteId(e.target.value);
+                const next = new URLSearchParams(searchParams);
+                if (e.target.value) next.set('paciente_id', e.target.value);
+                else next.delete('paciente_id');
+                setSearchParams(next, { replace: true });
+              }}
+            >
+              <option value="">Selecione</option>
+              {pacientes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </TextSelect>
+          </Field>
+          <Field label="Busca por palavras-chave">
+            <TextInput
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                const next = new URLSearchParams(searchParams);
+                if (e.target.value) next.set('q', e.target.value);
+                else next.delete('q');
+                setSearchParams(next, { replace: true });
+              }}
+              placeholder="Ex.: Febre, Dor de cabeça..."
+            />
+          </Field>
+        </div>
 
         <div className="mt-6">
           {pacienteId ? (
             <TimelineRail
               items={items}
               orientation="horizontal"
-              emptyMessage="Sem eventos para este paciente."
+              emptyMessage={
+                q.trim()
+                  ? 'Nenhum evento corresponde à busca.'
+                  : 'Sem eventos para este paciente.'
+              }
             />
           ) : (
             <p className="py-6 text-center text-sm text-slate-health">

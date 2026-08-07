@@ -31,6 +31,7 @@ import {
   RotinaPage,
   TimelinePage,
 } from './pages/atividades/AtividadesPages';
+import TermosPage from './pages/TermosPage';
 
 function PublicOnly({ children }) {
   const { isAuthenticated } = useAuth();
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="/perfis" element={<PerfisPage />} />
           <Route path="/acessos" element={<AcessosPage />} />
           <Route path="/auditoria" element={<AuditoriaPage />} />
+          <Route path="/termos" element={<TermosPage />} />
           <Route path="/meus-dados" element={<MeusDadosPage />} />
         </Route>
       </Route>

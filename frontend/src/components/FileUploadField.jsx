@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { apiUpload, assetUrl } from '../services/api';
 import { Field } from './forms/FormControls';
 
 /**
- * Upload de imagem/documento com preview.
+ * Upload de imagem/documento com preview e captura pela câmera (mobile).
  * onUploaded({ id, caminho, url })
  */
 export default function FileUploadField({
@@ -14,14 +14,15 @@ export default function FileUploadField({
   valuePath,
   onUploaded,
   onCleared,
+  allowCamera = true,
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const cameraRef = useRef(null);
   const preview = valuePath ? assetUrl(valuePath) : '';
+  const isImage = String(accept || '').includes('image');
 
-  async function handleChange(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  async function uploadFile(file) {
     if (!file) return;
     setBusy(true);
     setError('');
@@ -38,6 +39,12 @@ export default function FileUploadField({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    await uploadFile(file);
   }
 
   return (
@@ -63,6 +70,27 @@ export default function FileUploadField({
               onChange={handleChange}
             />
           </label>
+          {allowCamera && isImage ? (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-vita px-4 text-sm font-semibold text-white hover:bg-vita/90 disabled:opacity-60"
+                onClick={() => cameraRef.current?.click()}
+              >
+                Usar câmera
+              </button>
+              <input
+                ref={cameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                disabled={busy}
+                onChange={handleChange}
+              />
+            </>
+          ) : null}
           {valueId ? (
             <button
               type="button"

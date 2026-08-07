@@ -257,6 +257,25 @@ async function applyPatchEmpresasCuidadores(client) {
   }
 }
 
+async function applyPatchOnda3(client) {
+  if (!cfg.runMigrations) return;
+
+  const patchFile = path.join(SQL_DIR, 'patch_onda3_sugestoes.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch Onda 3 não encontrado: ${patchFile}`);
+    return;
+  }
+
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  const sql = fs.readFileSync(patchFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Patch Onda 3 OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch Onda 3: ${err.code || ''} ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -267,6 +286,7 @@ async function main() {
     await applyPatchFormsUx(client);
     await applyPatchOnda2(client);
     await applyPatchEmpresasCuidadores(client);
+    await applyPatchOnda3(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

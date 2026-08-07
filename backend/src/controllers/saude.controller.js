@@ -319,7 +319,6 @@ const remedios = createCrudController({
     'quantidade_administrar',
     'quantidade_estoque',
     'indicacao',
-    'medico_prescritor_id',
   ],
   optional: [
     'laboratorio',
@@ -332,6 +331,7 @@ const remedios = createCrudController({
     'uso_continuo',
     'periodo_horario',
     'status',
+    'medico_prescritor_id',
   ],
   normalize: (p) => {
     const n = { ...p };
@@ -342,7 +342,9 @@ const remedios = createCrudController({
     if (n.quantidade_estoque != null && n.quantidade_estoque !== '') {
       n.quantidade_estoque = Number(n.quantidade_estoque);
     }
-    if (n.medico_prescritor_id != null && n.medico_prescritor_id !== '') {
+    if (n.medico_prescritor_id === '' || n.medico_prescritor_id == null) {
+      n.medico_prescritor_id = null;
+    } else {
       n.medico_prescritor_id = Number(n.medico_prescritor_id);
     }
     return n;
@@ -373,6 +375,24 @@ async function administrarRemedio(req, res, next) {
       return res.status(404).json({ error: 'not_found', message: 'Medicamento não encontrado.' });
     }
     const remedio = rows[0];
+
+    // Idempotente no dia: não baixa estoque duas vezes
+    const jaHoje = await query(
+      `SELECT id FROM medicamento_administracoes
+       WHERE remedio_id = :remedioId
+         AND (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       LIMIT 1`,
+      { remedioId }
+    );
+    if (jaHoje[0]) {
+      return res.json({
+        id: jaHoje[0].id,
+        ok: true,
+        already: true,
+        quantidade_estoque: Number(remedio.quantidade_estoque || 0),
+      });
+    }
+
     const qtyLabel = quantidade ?? remedio.quantidade_administrar;
     const decrement = parseQuantidadeDecrement(qtyLabel);
 
@@ -397,6 +417,11 @@ async function administrarRemedio(req, res, next) {
       { dec: decrement, id: remedioId }
     );
 
+    const updated = await query(
+      'SELECT quantidade_estoque FROM remedios WHERE id = :id LIMIT 1',
+      { id: remedioId }
+    );
+
     await writeAudit({
       usuarioId: req.user.id,
       acao: 'editar',
@@ -412,10 +437,35 @@ async function administrarRemedio(req, res, next) {
       },
     });
 
-    return res.status(201).json({ id: adminResult.insertId, ok: true });
+    return res.status(201).json({
+      id: adminResult.insertId,
+      ok: true,
+      quantidade_estoque: Number(updated[0]?.quantidade_estoque || 0),
+    });
   } catch (err) {
     return next(err);
   }
 }
 
-module.exports = { medicos, pacientes, remedios, administrarRemedio };
+async function listAdministracoesHoje(req, res, next) {
+  try {
+    const rows = await query(
+      `SELECT remedio_id, MAX(id) AS id
+       FROM medicamento_administracoes
+       WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date
+             = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+       GROUP BY remedio_id`
+    );
+    return res.json({ data: rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = {
+  medicos,
+  pacientes,
+  remedios,
+  administrarRemedio,
+  listAdministracoesHoje,
+};

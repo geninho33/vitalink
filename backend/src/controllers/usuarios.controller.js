@@ -7,13 +7,23 @@ function clientMeta(req) {
   return { ip: req.ip, userAgent: req.get('user-agent') };
 }
 
+const PERFIS_RESPONSAVEL_PODE_GERIR = [4, 5, 6]; // Cuidador, Responsável, Paciente
+
+function isResponsavel(req) {
+  return Number(req.user?.perfilId) === 5;
+}
+
 async function listUsuarios(req, res, next) {
   try {
+    const where = isResponsavel(req)
+      ? 'WHERE u.perfil_id IN (4, 5, 6)'
+      : '';
     const rows = await query(
       `SELECT u.id, u.nome, u.email, u.status, u.perfil_id, p.nome AS perfil_nome,
               u.created_at, u.updated_at
        FROM usuarios u
        INNER JOIN perfis p ON p.id = u.perfil_id
+       ${where}
        ORDER BY u.nome ASC`
     );
     return res.json({ data: rows });
@@ -29,6 +39,13 @@ async function createUsuario(req, res, next) {
       return res.status(400).json({
         error: 'validation_error',
         message: 'Campos obrigatórios: nome, email, senha, perfil_id.',
+      });
+    }
+
+    if (isResponsavel(req) && !PERFIS_RESPONSAVEL_PODE_GERIR.includes(Number(perfil_id))) {
+      return res.status(403).json({
+        error: 'forbidden',
+        message: 'Responsável só pode criar usuários Cuidador, Responsável ou Paciente.',
       });
     }
 
@@ -80,6 +97,21 @@ async function updateUsuario(req, res, next) {
       });
     }
 
+    const existing = await query(
+      'SELECT perfil_id FROM usuarios WHERE id = :id LIMIT 1',
+      { id: targetId }
+    );
+    if (
+      isResponsavel(req) &&
+      existing[0] &&
+      !PERFIS_RESPONSAVEL_PODE_GERIR.includes(Number(existing[0].perfil_id))
+    ) {
+      return res.status(403).json({
+        error: 'forbidden',
+        message: 'Não é permitido alterar usuários Administradores.',
+      });
+    }
+
     const fields = [];
     const params = { id: targetId };
 
@@ -96,6 +128,12 @@ async function updateUsuario(req, res, next) {
       params.status = status;
     }
     if (perfil_id != null) {
+      if (isResponsavel(req) && !PERFIS_RESPONSAVEL_PODE_GERIR.includes(Number(perfil_id))) {
+        return res.status(403).json({
+          error: 'forbidden',
+          message: 'Responsável só pode atribuir perfis Cuidador, Responsável ou Paciente.',
+        });
+      }
       fields.push('perfil_id = :perfil_id');
       params.perfil_id = Number(perfil_id);
     }

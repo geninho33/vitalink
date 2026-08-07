@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader, { PlaceholderCard } from './PageHeader';
 import { Modal, TextInput, TextSelect } from './forms/FormControls';
 import { apiRequest } from '../services/api';
@@ -17,6 +18,7 @@ export default function EntityCrudPage({
   extraActions,
   extraRowActions,
 }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0 });
   const [q, setQ] = useState('');
@@ -61,6 +63,33 @@ export default function EntityCrudPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  // Deep-link: /recurso?edit=ID abre a ficha
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || loading) return;
+    const fromList = rows.find((r) => String(r.id) === String(editId));
+    let cancelled = false;
+    (async () => {
+      try {
+        const row =
+          fromList ||
+          (await apiRequest(`${endpoint}/${editId}`).then((r) => r.data || r));
+        if (cancelled || !row?.id) return;
+        setEditing(row);
+        setForm(mapRow ? mapRow(row) : { ...row });
+        setModalOpen(true);
+        const next = new URLSearchParams(searchParams);
+        next.delete('edit');
+        setSearchParams(next, { replace: true });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, rows, loading, endpoint, mapRow, setSearchParams]);
 
   function openCreate() {
     setEditing(null);

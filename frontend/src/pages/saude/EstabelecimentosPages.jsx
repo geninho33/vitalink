@@ -20,6 +20,7 @@ function toWhatsAppLink(value) {
 const empty = () => ({
   razao_social: '',
   nome_fantasia: '',
+  tipo_estabelecimento: 'clinica',
   tipo_documento: 'cnpj',
   documento: '',
   telefone_principal: '',
@@ -81,6 +82,18 @@ function EstablishmentForm({ form, setForm, relaxed = false }) {
               onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
             />
           </Field>
+          {!relaxed ? (
+            <Field label="Tipo de estabelecimento" required>
+              <TextSelect
+                value={form.tipo_estabelecimento || 'clinica'}
+                onChange={(e) => setForm({ ...form, tipo_estabelecimento: e.target.value })}
+              >
+                <option value="hospital">Hospital</option>
+                <option value="clinica">Clínica</option>
+                <option value="laboratorio">Laboratório Médico</option>
+              </TextSelect>
+            </Field>
+          ) : null}
           <Field label="Tipo documento">
             <TextSelect
               value={form.tipo_documento || 'cnpj'}
@@ -163,8 +176,19 @@ function EstablishmentForm({ form, setForm, relaxed = false }) {
   );
 }
 
+const TIPO_EST = {
+  hospital: 'Hospital',
+  clinica: 'Clínica',
+  laboratorio: 'Laboratório',
+};
+
 const columns = [
   { key: 'nome_fantasia', label: 'Nome fantasia' },
+  {
+    key: 'tipo_estabelecimento',
+    label: 'Tipo',
+    render: (r) => TIPO_EST[r.tipo_estabelecimento] || r.tipo_estabelecimento || '—',
+  },
   { key: 'documento', label: 'Documento', render: (r) => r.documento || '—' },
   {
     key: 'telefone_principal',

@@ -7,7 +7,6 @@ import {
   AddressFields,
   Field,
   FormTabs,
-  PhotoUrlField,
   TextInput,
   TextSelect,
   TextTextarea,
@@ -20,7 +19,6 @@ import {
   maskPhone,
   onlyDigits,
   PERIODO_HORARIO_OPTIONS,
-  TURNO_OPTIONS,
 } from '../../hooks/useCep';
 
 function useOptions(endpoint) {
@@ -180,152 +178,82 @@ export function MedicosPage() {
   });
 
   function MedicoForm({ form, setForm }) {
-    const [tab, setTab] = useState('gerais');
-    const [cpfError, setCpfError] = useState('');
     const [emailError, setEmailError] = useState('');
 
     return (
-      <>
-        <FormTabs
-          tabs={[
-            { id: 'gerais', label: 'Dados Gerais' },
-            { id: 'endereco', label: 'Endereço' },
-          ]}
-          active={tab}
-          onChange={setTab}
-        />
-
-        {tab === 'gerais' ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <MultiCheckboxField
-                label="Estabelecimentos de saúde"
-                hint="Selecione um ou mais estabelecimentos"
-                options={hospitais}
-                valueIds={form.estabelecimento_ids || []}
-                onChange={(ids) => setForm({ ...form, estabelecimento_ids: ids })}
-                footer={
-                  <Link
-                    to="/hospitais"
-                    className="mt-2 inline-block text-sm font-semibold text-aqua hover:underline"
-                  >
-                    + Novo estabelecimento
-                  </Link>
-                }
-              />
-            </div>
-            <Field label="Nome completo" required>
-              <TextInput value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-            </Field>
-            <Field label="CPF" error={cpfError}>
-              <TextInput
-                value={maskCpf(form.cpf || '')}
-                onChange={(e) => {
-                  setCpfError('');
-                  setForm({ ...form, cpf: onlyDigits(e.target.value).slice(0, 11) });
-                }}
-                onBlur={() => {
-                  if (form.cpf && !isValidCpf(form.cpf)) setCpfError('CPF inválido.');
-                }}
-                placeholder="000.000.000-00"
-                inputMode="numeric"
-              />
-            </Field>
-            <Field label="CRM" required>
-              <TextInput value={form.crm} onChange={(e) => setForm({ ...form, crm: e.target.value })} />
-            </Field>
-            <Field label="UF CRM" required>
-              <TextInput
-                maxLength={2}
-                value={form.uf_crm}
-                onChange={(e) => setForm({ ...form, uf_crm: e.target.value.toUpperCase() })}
-              />
-            </Field>
-            <Field label="Especialidade" required>
-              <TextInput
-                value={form.especialidade || ''}
-                onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
-              />
-            </Field>
-            <Field label="Turno">
-              <TextSelect
-                value={form.turno || ''}
-                onChange={(e) => setForm({ ...form, turno: e.target.value })}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Nome completo" required>
+          <TextInput value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+        </Field>
+        <Field label="Especialidade" required>
+          <TextInput
+            value={form.especialidade || ''}
+            onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
+          />
+        </Field>
+        <Field label="CRM" required>
+          <TextInput value={form.crm} onChange={(e) => setForm({ ...form, crm: e.target.value })} />
+        </Field>
+        <Field label="UF CRM" required>
+          <TextInput
+            maxLength={2}
+            value={form.uf_crm}
+            onChange={(e) => setForm({ ...form, uf_crm: e.target.value.toUpperCase() })}
+          />
+        </Field>
+        <Field label="Telefone pessoal/WhatsApp" hint="Opcional">
+          <TextInput
+            value={maskPhone(form.telefone_principal || '')}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                telefone_principal: onlyDigits(e.target.value).slice(0, 11),
+              })
+            }
+            placeholder="(00) 00000-0000"
+            inputMode="tel"
+          />
+        </Field>
+        <Field label="E-mail pessoal" hint="Opcional" error={emailError}>
+          <TextInput
+            type="email"
+            value={form.email || ''}
+            onChange={(e) => {
+              setEmailError('');
+              setForm({ ...form, email: e.target.value });
+            }}
+            onBlur={() => {
+              if (form.email && !isValidEmail(form.email)) setEmailError('E-mail inválido.');
+            }}
+          />
+        </Field>
+        <div className="sm:col-span-2">
+          <MultiCheckboxField
+            label="Local(is) de atendimento"
+            hint="Hospital/Clínica cadastrados no sistema"
+            options={hospitais}
+            valueIds={form.estabelecimento_ids || []}
+            onChange={(ids) => setForm({ ...form, estabelecimento_ids: ids })}
+            footer={
+              <Link
+                to="/hospitais"
+                className="mt-2 inline-block text-sm font-semibold text-aqua hover:underline"
               >
-                <option value="">Selecione</option>
-                {TURNO_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </TextSelect>
-            </Field>
-            <Field label="Telefone/WhatsApp" hint="Opcional">
-              <TextInput
-                value={maskPhone(form.telefone_principal || '')}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    telefone_principal: onlyDigits(e.target.value).slice(0, 11),
-                  })
-                }
-                placeholder="(00) 00000-0000"
-                inputMode="tel"
-              />
-            </Field>
-            <Field label="Telefone Adicional" hint="Opcional">
-              <TextInput
-                value={maskPhone(form.telefone_secundario || '')}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    telefone_secundario: onlyDigits(e.target.value).slice(0, 11),
-                  })
-                }
-                placeholder="(00) 00000-0000"
-                inputMode="tel"
-              />
-            </Field>
-            <Field label="E-mail" hint="Opcional" error={emailError}>
-              <TextInput
-                type="email"
-                value={form.email || ''}
-                onChange={(e) => {
-                  setEmailError('');
-                  setForm({ ...form, email: e.target.value });
-                }}
-                onBlur={() => {
-                  if (form.email && !isValidEmail(form.email)) setEmailError('E-mail inválido.');
-                }}
-              />
-            </Field>
-            <PhotoUrlField
-              value={form.foto_url}
-              onChange={(v) => setForm({ ...form, foto_url: v })}
-            />
-            <Field label="Status">
-              <TextSelect
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-              >
-                <option value="ativo">Ativo</option>
-                <option value="inativo">Inativo</option>
-              </TextSelect>
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Observações">
-                <TextTextarea
-                  rows={3}
-                  value={form.observacoes || ''}
-                  onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-                />
-              </Field>
-            </div>
-          </div>
-        ) : (
-          <AddressFields values={form} onChange={setForm} required={false} />
-        )}
-      </>
+                + Novo estabelecimento
+              </Link>
+            }
+          />
+        </div>
+        <Field label="Status">
+          <TextSelect
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value })}
+          >
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+          </TextSelect>
+        </Field>
+      </div>
     );
   }
 
@@ -931,7 +859,6 @@ export function PacientesPage() {
 
 export function RemediosPage() {
   const medicos = useOptions('/medicos');
-
   const empty = () => ({
     nome_comercial: '',
     principio_ativo: '',
@@ -951,19 +878,49 @@ export function RemediosPage() {
     status: 'ativo',
   });
 
+  async function loadForPrint() {
+    const res = await apiRequest('/remedios', { query: { pageSize: 100, status: 'ativo' } });
+    return res.data || [];
+  }
+
   return (
     <EntityCrudPage
       title="Medicamentos"
       description="Controle de medicamentos, estoque e administração."
       endpoint="/remedios"
       extraActions={
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-aqua px-5 text-sm font-semibold text-aqua transition hover:bg-aqua-soft"
-        >
-          Imprimir Lista
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const rows = await loadForPrint();
+                const { printMedicamentos } = await import('../../utils/printMedicamentos');
+                printMedicamentos(rows, { mode: 'lista' });
+              } catch (err) {
+                window.alert(err.message || 'Falha ao preparar impressão.');
+              }
+            }}
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-aqua px-5 text-sm font-semibold text-aqua transition hover:bg-aqua-soft"
+          >
+            Imprimir Lista
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const rows = await loadForPrint();
+                const { printMedicamentos } = await import('../../utils/printMedicamentos');
+                printMedicamentos(rows, { mode: 'estoque' });
+              } catch (err) {
+                window.alert(err.message || 'Falha ao preparar impressão.');
+              }
+            }}
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-aqua px-5 text-sm font-semibold text-white transition hover:bg-aqua-deep"
+          >
+            Imprimir estoque
+          </button>
+        </div>
       }
       extraRowActions={(row, { reload }) => (
         <button
@@ -1081,7 +1038,7 @@ export function RemediosPage() {
               />
             </Field>
           </div>
-          <Field label="Médico prescritor" required>
+          <Field label="Médico prescritor" hint="Opcional — medicamentos sem controle especial">
             <TextSelect
               value={form.medico_prescritor_id || ''}
               onChange={(e) =>
@@ -1091,7 +1048,7 @@ export function RemediosPage() {
                 })
               }
             >
-              <option value="">Selecione</option>
+              <option value="">Não informado</option>
               {medicos.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.nome}

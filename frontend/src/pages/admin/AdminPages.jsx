@@ -8,11 +8,17 @@ import { useAuth } from '../../context/AuthContext';
 export function UsuariosPage() {
   const [perfis, setPerfis] = useState([]);
   const { usuario, refreshSession } = useAuth();
+  const isResponsavel = Number(usuario?.perfil?.id || usuario?.perfil_id) === 5;
+
   useEffect(() => {
     apiRequest('/perfis').then((r) => setPerfis(r.data || [])).catch(() => setPerfis([]));
   }, []);
 
-  const perfisAtivos = perfis.filter((p) => p.ativo !== false);
+  const perfisAtivos = perfis.filter((p) => {
+    if (p.ativo === false) return false;
+    if (isResponsavel) return [4, 5, 6].includes(Number(p.id));
+    return true;
+  });
 
   const empty = () => ({
     nome: '',
