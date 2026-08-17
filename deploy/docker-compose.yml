@@ -39,7 +39,9 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${BACKEND_PORT:-3333}
+      # Porta INTERNA fixa — não use BACKEND_PORT/.env para isto.
+      # Host público: VITALINK_BACKEND_HOST_PORT (ex.: 3002→3333).
+      PORT: "3333"
       API_PREFIX: ${API_PREFIX:-/api/v1}
       DB_HOST: vitalink-db
       DB_PORT: 5432

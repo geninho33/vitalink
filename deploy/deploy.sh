@@ -109,14 +109,17 @@ cmd_doctor() {
   compose logs --tail=80 vitalink-backend || true
   echo
   echo "--- healthchecks ---"
-  echo -n "backend container /health: "
+  echo -n "backend container /health (3333): "
   compose exec -T vitalink-backend curl -fsS http://127.0.0.1:3333/health 2>/dev/null || echo "FALHOU"
+  echo -n "backend listen (ss/netstat): "
+  compose exec -T vitalink-backend sh -c "ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null" 2>/dev/null | head -20 || echo "(n/d)"
   echo -n "frontend /healthz: "
   compose exec -T vitalink-frontend wget -qO- http://127.0.0.1/healthz 2>/dev/null || echo "FALHOU"
   echo -n "frontend /api-health (proxy→API): "
   compose exec -T vitalink-frontend wget -qO- http://127.0.0.1/api-health 2>/dev/null || echo "FALHOU"
   echo
   echo "Host ports: DB ${VITALINK_DB_HOST_PORT:-5433} | API ${VITALINK_BACKEND_HOST_PORT:-3002} | HTTP ${VITALINK_FRONTEND_HOST_PORT:-3102} | HTTPS ${VITALINK_FRONTEND_HTTPS_HOST_PORT:-3443}"
+  echo "Dica: se o log mostrar port≠3333, remova PORT/BACKEND_PORT do deploy/.env (porta interna é fixa)."
 }
 
 cmd_seed() {
