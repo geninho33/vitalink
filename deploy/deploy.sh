@@ -45,6 +45,11 @@ cmd_up() {
   echo "  DB host port:       ${VITALINK_DB_HOST_PORT:-5433}"
   echo "  Backend host port:  ${VITALINK_BACKEND_HOST_PORT:-3002}"
   echo "  Frontend host port: ${VITALINK_FRONTEND_HOST_PORT:-3102}"
+  echo "  VITE_API_URL:       ${VITE_API_URL:-/api/v1}"
+  if [[ "${VITE_API_URL:-/api/v1}" =~ ^https?:// ]]; then
+    echo "[deploy] AVISO: VITE_API_URL absoluto (${VITE_API_URL})."
+    echo "         Em HTTPS (homolog.vitalink.app.br) use VITE_API_URL=/api/v1 para evitar mixed content."
+  fi
   compose up -d --build
   echo "[deploy] OK."
   echo "  Frontend HTTP:  http://localhost:${VITALINK_FRONTEND_HOST_PORT:-3102}"

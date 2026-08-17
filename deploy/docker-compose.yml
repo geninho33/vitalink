@@ -74,7 +74,9 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        # Sempre relativo: HTTPS (homolog) → mesmo origin via Nginx /api/
+        # Valores http://IP:porta no .env causam Mixed Content no browser.
+        VITE_API_URL: /api/v1
     image: vitalink-frontend:latest
     container_name: vitalink-frontend
     restart: unless-stopped
