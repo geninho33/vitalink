@@ -7,13 +7,22 @@
 DO $$ BEGIN
   ALTER TABLE hospitais_clinicas
     ADD COLUMN tipo_estabelecimento TEXT NOT NULL DEFAULT 'clinica';
-EXCEPTION WHEN duplicate_column THEN NULL;
+EXCEPTION
+  WHEN duplicate_column THEN NULL;
+  WHEN undefined_table THEN NULL;
 END $$;
 
-ALTER TABLE hospitais_clinicas DROP CONSTRAINT IF EXISTS hospitais_clinicas_tipo_estabelecimento_check;
-ALTER TABLE hospitais_clinicas
-  ADD CONSTRAINT hospitais_clinicas_tipo_estabelecimento_check
-  CHECK (tipo_estabelecimento IN ('hospital', 'clinica', 'laboratorio'));
+DO $$ BEGIN
+  ALTER TABLE hospitais_clinicas DROP CONSTRAINT IF EXISTS hospitais_clinicas_tipo_estabelecimento_check;
+  ALTER TABLE hospitais_clinicas
+    ADD CONSTRAINT hospitais_clinicas_tipo_estabelecimento_check
+    CHECK (tipo_estabelecimento IN ('hospital', 'clinica', 'laboratorio'));
+EXCEPTION
+  WHEN undefined_table THEN NULL;
+  WHEN duplicate_object THEN NULL;
+  WHEN check_violation THEN
+    RAISE NOTICE 'tipo_estabelecimento: constraint não aplicada (dados inválidos)';
+END $$;
 
 -- =============================================================================
 -- Menu Termos e Privacidade

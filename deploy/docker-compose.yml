@@ -56,11 +56,12 @@ services:
     volumes:
       - vitalink_uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3333/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 18
-      start_period: 90s
+      # /health não depende do DB — sobe assim que o Node escuta a porta
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3333/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 36
+      start_period: 120s
     networks:
       vitalink-net:
         aliases:

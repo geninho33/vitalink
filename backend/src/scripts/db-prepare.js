@@ -13,8 +13,8 @@ const cfg = {
   password: process.env.DB_PASSWORD || 'vitalink_secret',
   database: process.env.DB_NAME || 'vitalink',
   runMigrations: (process.env.RUN_MIGRATIONS || 'true') === 'true',
-  retries: Number(process.env.DB_WAIT_RETRIES || 60),
-  delayMs: Number(process.env.DB_WAIT_DELAY_MS || 2000),
+  retries: Number(process.env.DB_WAIT_RETRIES || 20),
+  delayMs: Number(process.env.DB_WAIT_DELAY_MS || 1500),
 };
 
 const SQL_DIR = process.env.SQL_DIR || path.join(__dirname, '../../database');
@@ -46,6 +46,8 @@ async function connectApp() {
     password: cfg.password,
     database: cfg.database,
     connectionTimeoutMillis: 8000,
+    statement_timeout: 60000,
+    query_timeout: 60000,
   });
   await client.connect();
   await client.query('SELECT 1');

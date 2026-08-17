@@ -61,7 +61,29 @@ cmd_down() {
 cmd_rebuild() {
   echo "[deploy] Rebuild sem cache..."
   compose build --no-cache
-  compose up -d
+  if ! compose up -d; then
+    echo "[deploy] ERRO ao subir stack. Logs do backend:"
+    compose logs --tail=120 vitalink-backend || true
+    compose ps || true
+    exit 1
+  fi
+  echo "[deploy] Aguardando health do backend..."
+  local tries=40
+  local i=1
+  while (( i <= tries )); do
+    if compose exec -T vitalink-backend curl -fsS http://127.0.0.1:3333/health >/dev/null 2>&1; then
+      echo "[deploy] Backend healthy."
+      compose ps
+      return 0
+    fi
+    echo "  ... (${i}/${tries})"
+    sleep 3
+    (( ++i ))
+  done
+  echo "[deploy] ERRO: backend permanece unhealthy."
+  compose logs --tail=120 vitalink-backend || true
+  compose ps || true
+  exit 1
 }
 
 cmd_logs() {
