@@ -4,6 +4,7 @@ import BrandLogo from '../BrandLogo';
 import Icon from '../Icon';
 import { getInitials } from '../../utils/menuTree';
 import { useAuth } from '../../context/AuthContext';
+import { usePacienteAtivo } from '../../context/PacienteAtivoContext';
 
 function labelPapel(papel) {
   if (!papel) return 'Sem perfil';
@@ -14,7 +15,9 @@ function labelPapel(papel) {
 
 export default function Header({ onOpenMobile, usuario }) {
   const { logout, papeis, switchContext } = useAuth();
+  const { pacientes, pacienteId, setPacienteId, paciente } = usePacienteAtivo();
   const navigate = useNavigate();
+  const showPacienteSelector = pacientes.length > 0;
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const menuRef = useRef(null);
@@ -96,6 +99,25 @@ export default function Header({ onOpenMobile, usuario }) {
           </div>
         </div>
       </div>
+
+      {showPacienteSelector ? (
+        <label className="flex min-w-0 max-w-[16rem] flex-1 items-center gap-2 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-3 py-1.5 sm:max-w-xs">
+          <Icon name="user" className="h-4 w-4 shrink-0 text-vita" />
+          <span className="sr-only">Paciente ativo</span>
+          <select
+            className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-ink outline-none"
+            value={pacienteId}
+            onChange={(e) => setPacienteId(e.target.value)}
+            title={paciente?.nome || 'Paciente ativo'}
+          >
+            {pacientes.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       <div className="relative" ref={menuRef}>
         <button

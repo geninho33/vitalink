@@ -53,6 +53,7 @@ async function menusMe(req, res, next) {
           nome: ativo?.perfil_nome || req.user.perfilNome,
         },
         paciente_ativo_id: req.user.pacienteId || null,
+        onboarding_concluido: req.user.onboardingConcluido !== false,
         papel_ativo: {
           id: ativo?.id ?? req.user.papelId,
           perfil_id: req.user.perfilId,

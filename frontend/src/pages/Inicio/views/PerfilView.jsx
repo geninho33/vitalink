@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
+import { DateBrInput, Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
 import { calculateAge, storageGet, storageSet } from '../localStore';
 import { PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
 
@@ -110,10 +110,9 @@ export default function PerfilView() {
             </TextSelect>
           </Field>
           <Field label="Data de nascimento">
-            <TextInput
-              type="date"
+            <DateBrInput
               value={form.birthDate}
-              onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+              onChange={(birthDate) => setForm({ ...form, birthDate })}
             />
           </Field>
           <div className="rounded-xl bg-[#f4fbfa] px-3 py-2.5 sm:col-span-2">

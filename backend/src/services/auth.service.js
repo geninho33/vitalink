@@ -28,6 +28,7 @@ function buildSessionPayload(user, papel, menus) {
         nome: papel.perfil_nome,
       },
       paciente_ativo_id: papel.paciente_id || null,
+      onboarding_concluido: user.onboarding_concluido !== false,
       papel_ativo: {
         id: papel.id,
         rotulo: papel.rotulo,
@@ -42,7 +43,8 @@ function buildSessionPayload(user, papel, menus) {
 
 async function login({ email, senha, ip, userAgent }) {
   const rows = await query(
-    `SELECT u.id, u.nome, u.email, u.senha_hash, u.status, u.perfil_id, p.nome AS perfil_nome
+    `SELECT u.id, u.nome, u.email, u.senha_hash, u.status, u.perfil_id, p.nome AS perfil_nome,
+            COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido
      FROM usuarios u
      INNER JOIN perfis p ON p.id = u.perfil_id
      WHERE u.email = :email
@@ -55,6 +57,13 @@ async function login({ email, senha, ip, userAgent }) {
     const err = new Error('Credenciais inválidas.');
     err.status = 401;
     err.code = 'invalid_credentials';
+    throw err;
+  }
+
+  if (user.status === 'pendente_confirmacao') {
+    const err = new Error('Confirme seu e-mail para liberar o acesso.');
+    err.status = 403;
+    err.code = 'email_not_confirmed';
     throw err;
   }
 
@@ -107,7 +116,8 @@ async function login({ email, senha, ip, userAgent }) {
 
 async function switchContext({ usuarioId, papelId, perfilId, pacienteId, ip, userAgent }) {
   const users = await query(
-    `SELECT u.id, u.nome, u.email, u.status, u.perfil_id
+    `SELECT u.id, u.nome, u.email, u.status, u.perfil_id,
+            COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido
      FROM usuarios u
      WHERE u.id = :id AND u.status = 'ativo'
      LIMIT 1`,

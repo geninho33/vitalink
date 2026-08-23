@@ -1,5 +1,15 @@
 const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit } = require('../services/audit.service');
+const { applyPacienteScope, assertPacienteAccess } = require('../services/pacienteScope.service');
+const { upsertAgendaEvento, toSqlTimestamp } = require('../services/agenda.service');
+
+function mapInicioTipoToAgenda(tipo) {
+  const t = String(tipo || '').toLowerCase();
+  if (t === 'medicamento') return 'medicamento';
+  if (t === 'compromisso') return 'consulta';
+  if (t === 'saude') return 'cuidado';
+  return 'outro';
+}
 
 function clientMeta(req) {
   return { ip: req.ip, userAgent: req.get('user-agent') };
@@ -28,6 +38,16 @@ async function list(req, res, next) {
     if (q) {
       where.push('(i.titulo ILIKE :q OR i.descricao ILIKE :q)');
       params.q = `%${q}%`;
+    }
+    if (req.query.paciente_id) {
+      where.push('i.paciente_id = :paciente_id');
+      params.paciente_id = Number(req.query.paciente_id);
+    }
+    const scope = await applyPacienteScope(req.user, 'i.paciente_id');
+    if (scope?.sql) {
+      where.push(`(${scope.sql} OR i.paciente_id IS NULL AND i.usuario_id = :scopeUserId)`);
+      Object.assign(params, scope.params);
+      params.scopeUserId = req.user.id;
     }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -90,6 +110,9 @@ async function create(req, res, next) {
         message: 'Campos obrigatórios: titulo, descricao.',
       });
     }
+    if (b.paciente_id) {
+      await assertPacienteAccess(req.user, b.paciente_id);
+    }
 
     const result = await query(
       `INSERT INTO inicio_registros
@@ -108,6 +131,19 @@ async function create(req, res, next) {
         status: b.status || 'ativo',
       }
     );
+
+    if (b.paciente_id && result.insertId) {
+      await upsertAgendaEvento({
+        pacienteId: b.paciente_id,
+        tipo: mapInicioTipoToAgenda(b.tipo),
+        origemTabela: 'inicio_registros',
+        origemId: result.insertId,
+        titulo: String(b.titulo).trim(),
+        descricao: String(b.descricao).trim(),
+        dataHoraInicio: toSqlTimestamp(b.data_registro || new Date()),
+        status: 'pendente',
+      });
+    }
 
     await writeAudit({
       usuarioId: req.user.id,

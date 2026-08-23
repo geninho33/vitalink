@@ -1,6 +1,12 @@
 const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit, buildAuditDiff } = require('../services/audit.service');
 const { createCrudController, addressNormalize, pick, requireFields } = require('../utils/crudFactory');
+const { pacientesScopeForCrud } = require('../services/pacienteScope.service');
+const { parseIsoDate, isValidCpf, isValidEmail } = require('../utils/validation');
+const {
+  syncRemedioAgenda,
+  clearFutureDoses,
+} = require('../services/medicamentoAgenda.service');
 
 async function syncMedicoEstabelecimentos(medicoId, estabelecimentoIds) {
   if (!Array.isArray(estabelecimentoIds)) return;
@@ -258,6 +264,24 @@ const pacientesConfig = {
     if (n.diagnostico_principal != null && String(n.diagnostico_principal).trim() === '') {
       n.diagnostico_principal = null;
     }
+    if (n.data_nascimento) {
+      n.data_nascimento = parseIsoDate(n.data_nascimento) || n.data_nascimento;
+    }
+    if (n.convenio_validade) {
+      n.convenio_validade = parseIsoDate(n.convenio_validade) || n.convenio_validade;
+    }
+    if (n.cpf && !isValidCpf(n.cpf)) {
+      const err = new Error('CPF inválido.');
+      err.status = 400;
+      err.code = 'validation_error';
+      throw err;
+    }
+    if (n.email && !isValidEmail(n.email)) {
+      const err = new Error('E-mail inválido.');
+      err.status = 400;
+      err.code = 'validation_error';
+      throw err;
+    }
     return n;
   },
   selectExtra: `,
@@ -288,6 +312,7 @@ const pacientesConfig = {
     LEFT JOIN arquivos af ON af.id = pacientes.foto_arquivo_id
     LEFT JOIN arquivos acf ON acf.id = pacientes.convenio_frente_arquivo_id
     LEFT JOIN arquivos acv ON acv.id = pacientes.convenio_verso_arquivo_id`,
+  buildScope: pacientesScopeForCrud,
 };
 
 const pacientesAllFields = [...new Set([...pacientesConfig.requiredCreate, ...pacientesConfig.optional])];
@@ -319,6 +344,8 @@ const remedios = createCrudController({
     'quantidade_administrar',
     'quantidade_estoque',
     'indicacao',
+    'farmacia_id',
+    'valor',
   ],
   optional: [
     'laboratorio',
@@ -332,6 +359,10 @@ const remedios = createCrudController({
     'periodo_horario',
     'status',
     'medico_prescritor_id',
+    'farmacia_id',
+    'valor',
+    'paciente_id',
+    'consumo_diario',
   ],
   normalize: (p) => {
     const n = { ...p };
@@ -347,10 +378,26 @@ const remedios = createCrudController({
     } else {
       n.medico_prescritor_id = Number(n.medico_prescritor_id);
     }
+    if (n.farmacia_id === '' || n.farmacia_id == null) n.farmacia_id = null;
+    else n.farmacia_id = Number(n.farmacia_id);
+    if (n.paciente_id === '' || n.paciente_id == null) n.paciente_id = null;
+    else n.paciente_id = Number(n.paciente_id);
+    if (n.valor != null && n.valor !== '') n.valor = Number(n.valor);
+    if (n.consumo_diario != null && n.consumo_diario !== '') n.consumo_diario = Number(n.consumo_diario);
     return n;
   },
-  selectExtra: ', mp.nome AS medico_prescritor_nome',
-  joins: 'LEFT JOIN medicos mp ON mp.id = remedios.medico_prescritor_id',
+  selectExtra: ', mp.nome AS medico_prescritor_nome, f.nome_fantasia AS farmacia_nome',
+  joins:
+    'LEFT JOIN medicos mp ON mp.id = remedios.medico_prescritor_id LEFT JOIN farmacias f ON f.id = remedios.farmacia_id',
+  afterSave: async (id) => {
+    const rows = await query('SELECT * FROM remedios WHERE id = :id LIMIT 1', { id });
+    if (rows[0]?.paciente_id) {
+      await syncRemedioAgenda(rows[0]);
+    }
+  },
+  beforeDelete: async (id) => {
+    await clearFutureDoses(id);
+  },
 });
 
 function parseQuantidadeDecrement(value) {

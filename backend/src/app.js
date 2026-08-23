@@ -7,6 +7,8 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/auth.routes');
 const menusRoutes = require('./routes/menus.routes');
+const meController = require('./controllers/me.controller');
+const { authenticate } = require('./middleware/auth');
 const usuariosRoutes = require('./routes/usuarios.routes');
 const perfisRoutes = require('./routes/perfis.routes');
 const inicioRoutes = require('./routes/inicio.routes');
@@ -56,6 +58,8 @@ function createApp() {
   const api = express.Router();
   api.use('/auth', authRoutes);
   api.use('/menus', menusRoutes);
+  api.get('/me/pacientes', authenticate, meController.listMeusPacientes);
+  api.get('/my-patients', authenticate, meController.listMeusPacientes);
   api.use('/usuarios', usuariosRoutes);
   api.use('/perfis', perfisRoutes);
   api.use('/inicio', inicioRoutes);

@@ -1,4 +1,21 @@
 const { createCrudController, addressNormalize } = require('../utils/crudFactory');
+const { isValidCpf, isValidEmail } = require('../utils/validation');
+
+function assertPessoaDocs(n) {
+  if (n.cpf && !isValidCpf(n.cpf)) {
+    const err = new Error('CPF inválido.');
+    err.status = 400;
+    err.code = 'validation_error';
+    throw err;
+  }
+  if (n.email && !isValidEmail(n.email)) {
+    const err = new Error('E-mail inválido.');
+    err.status = 400;
+    err.code = 'validation_error';
+    throw err;
+  }
+  return n;
+}
 
 const addressFields = [
   'cep',
@@ -42,7 +59,7 @@ const cuidadores = createCrudController({
   normalize: (p) => {
     const n = addressNormalize({ ...p });
     if (!n.status) n.status = 'ativo';
-    return n;
+    return assertPessoaDocs(n);
   },
   selectExtra: ', u.email AS usuario_email, u.nome AS usuario_nome',
   joins: 'LEFT JOIN usuarios u ON u.id = cuidadores.usuario_id',
@@ -77,7 +94,7 @@ const responsaveis = createCrudController({
   normalize: (p) => {
     const n = addressNormalize({ ...p });
     if (!n.status) n.status = 'ativo';
-    return n;
+    return assertPessoaDocs(n);
   },
   selectExtra: ', u.email AS usuario_email, u.nome AS usuario_nome',
   joins: 'LEFT JOIN usuarios u ON u.id = responsaveis.usuario_id',

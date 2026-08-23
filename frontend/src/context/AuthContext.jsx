@@ -95,6 +95,7 @@ export function AuthProvider({ children }) {
       usuario: session?.usuario || null,
       menus: session?.menus || [],
       papeis: session?.papeis || [],
+      requerOnboarding: session?.usuario?.onboarding_concluido === false,
       login,
       logout,
       refreshSession,

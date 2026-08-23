@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchAddressByCep, maskCep, onlyDigits } from '../../hooks/useCep';
 import { resolveUploadUrl } from '../../services/api';
+import { formatDateBr, maskDateBr, parseDateBr, maskMoneyBr, parseMoneyBr } from '../../utils/validation';
 
 const UF_OPTIONS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
@@ -69,6 +70,50 @@ export function Field({ label, required, children, hint, error }) {
       {hint ? <span className="text-xs text-slate-health">{hint}</span> : null}
       {error ? <span className="text-xs font-medium text-red-600">{error}</span> : null}
     </label>
+  );
+}
+
+export function DateBrInput({ value, onChange, className = '', ...props }) {
+  const [text, setText] = useState(formatDateBr(value));
+  useEffect(() => {
+    setText(formatDateBr(value));
+  }, [value]);
+  return (
+    <TextInput
+      inputMode="numeric"
+      placeholder="DD/MM/AAAA"
+      maxLength={10}
+      autoComplete="bday"
+      className={className}
+      {...props}
+      value={text}
+      onChange={(e) => {
+        const masked = maskDateBr(e.target.value);
+        setText(masked);
+        onChange(parseDateBr(masked) || masked);
+      }}
+    />
+  );
+}
+
+export function MoneyInput({ value, onChange, className = '', ...props }) {
+  const display =
+    value === '' || value == null
+      ? ''
+      : typeof value === 'number'
+        ? maskMoneyBr(String(Math.round(value * 100)))
+        : String(value).includes('R$')
+          ? value
+          : maskMoneyBr(value);
+  return (
+    <TextInput
+      inputMode="numeric"
+      placeholder="R$ 0,00"
+      className={className}
+      {...props}
+      value={display}
+      onChange={(e) => onChange(parseMoneyBr(e.target.value))}
+    />
   );
 }
 

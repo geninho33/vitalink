@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -83,8 +83,10 @@ export default function Login() {
     setLoading(true);
     setAuthError('');
     try {
-      await login({ email: email.trim(), senha });
-      navigate('/dashboard', { replace: true });
+      const data = await login({ email: email.trim(), senha });
+      navigate(data?.usuario?.onboarding_concluido === false ? '/onboarding' : '/dashboard', {
+        replace: true,
+      });
     } catch (err) {
       setAuthError(err.message || 'Falha na autenticação.');
     } finally {
@@ -129,7 +131,7 @@ export default function Login() {
       </section>
 
       <section className="flex items-center justify-center bg-[#F8F9FA] px-5 py-10 sm:px-8">
-        <div className="w-full max-w-md rounded-3xl border border-[#d0e4ef] bg-white/95 p-7 shadow-panel sm:p-9">
+        <div className="w-full max-w-md rounded-3xl border border-[#d0e4ef] bg-[#F7F9F6] p-7 shadow-panel sm:p-9">
           <div className="mb-6 flex flex-col items-center">
             <BrandLogo variant="full" />
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-vita-soft px-3 py-1 text-xs font-bold uppercase tracking-wider text-vita">
@@ -193,6 +195,12 @@ export default function Login() {
               {touched.senha && errors.senha ? (
                 <span className="text-xs font-medium text-red-600">{errors.senha}</span>
               ) : null}
+              <Link
+                to="/esqueci-senha"
+                className="justify-self-end text-xs font-semibold text-vita hover:underline"
+              >
+                Esqueceu a senha?
+              </Link>
             </label>
 
             {authError ? (
@@ -219,6 +227,13 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-slate-health">
+            Novo por aqui?{' '}
+            <Link to="/registro" className="font-semibold text-vita hover:underline">
+              Criar conta
+            </Link>
+          </p>
 
           <aside className="mt-6 flex gap-3 rounded-2xl border border-[#d0e4ef] bg-vita-soft/70 p-3.5 text-sm text-[#38565b]">
             <IconShield className="mt-0.5 h-5 w-5 shrink-0 text-vita" />

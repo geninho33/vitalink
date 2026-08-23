@@ -1,12 +1,37 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const FREE_PATHS = ['/meus-dados', '/onboarding', '/termos'];
+
+function canAccessPath(pathname, menus) {
+  if (FREE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;
+  const list = Array.isArray(menus) ? menus : [];
+  return list.some((m) => {
+    const rota = m.rota || m.path;
+    if (!rota) return false;
+    return pathname === rota || pathname.startsWith(`${rota}/`);
+  });
+}
+
 export default function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, requerOnboarding, menus } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (requerOnboarding && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (
+    location.pathname !== '/onboarding' &&
+    !canAccessPath(location.pathname, menus)
+  ) {
+    const fallback =
+      menus.find((m) => m.rota)?.rota || '/dashboard';
+    return <Navigate to={fallback} replace />;
   }
 
   return <Outlet />;

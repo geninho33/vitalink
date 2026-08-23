@@ -201,12 +201,12 @@ export default function EntityCrudPage({
           <table className="min-w-full text-left text-sm">
             <thead className="bg-[#eaf7f6] text-xs uppercase tracking-wide text-aqua-deep">
               <tr>
+                <th className="px-3 py-3 font-bold">Ações</th>
                 {columns.map((c) => (
                   <th key={c.key} className="px-3 py-3 font-bold">
                     {c.label}
                   </th>
                 ))}
-                <th className="px-3 py-3 font-bold">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -225,11 +225,6 @@ export default function EntityCrudPage({
               ) : (
                 rows.map((row) => (
                   <tr key={row.id} className="border-t border-[#e8f1f0] hover:bg-[#f8fcfc]">
-                    {columns.map((c) => (
-                      <td key={c.key} className="px-3 py-3 text-ink">
-                        {c.render ? c.render(row) : row[c.key] ?? '—'}
-                      </td>
-                    ))}
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-2">
                         {extraRowActions ? extraRowActions(row, { reload: load }) : null}
@@ -249,6 +244,11 @@ export default function EntityCrudPage({
                         </button>
                       </div>
                     </td>
+                    {columns.map((c) => (
+                      <td key={c.key} className="px-3 py-3 text-ink">
+                        {c.render ? c.render(row) : row[c.key] ?? '—'}
+                      </td>
+                    ))}
                   </tr>
                 ))
               )}
@@ -265,6 +265,23 @@ export default function EntityCrudPage({
           ) : (
             rows.map((row) => (
               <article key={row.id} className="rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] p-4">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {extraRowActions ? extraRowActions(row, { reload: load }) : null}
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-xl border border-aqua px-3 text-sm font-semibold text-aqua"
+                    onClick={() => openEdit(row)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-xl border border-red-200 px-3 text-sm font-semibold text-red-700"
+                    onClick={() => handleDelete(row)}
+                  >
+                    Excluir
+                  </button>
+                </div>
                 <div className="grid gap-2">
                   {columns.slice(0, 4).map((c) => (
                     <div key={c.key}>
@@ -276,22 +293,6 @@ export default function EntityCrudPage({
                       </p>
                     </div>
                   ))}
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    className="min-h-12 rounded-xl border border-aqua font-semibold text-aqua"
-                    onClick={() => openEdit(row)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="min-h-12 rounded-xl border border-red-200 font-semibold text-red-700"
-                    onClick={() => handleDelete(row)}
-                  >
-                    Excluir
-                  </button>
                 </div>
               </article>
             ))

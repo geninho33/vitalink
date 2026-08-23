@@ -3,12 +3,18 @@ import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 import Login from './pages/Login';
+import Registro from './pages/Registro';
+import EsqueciSenha from './pages/EsqueciSenha';
+import RedefinirSenha from './pages/RedefinirSenha';
+import ConfirmarEmail from './pages/ConfirmarEmail';
+import OnboardingPage from './pages/OnboardingPage';
 import DashboardPage from './pages/DashboardPage';
 import InicioLayout from './pages/Inicio/InicioLayout';
 import VistaGeralView from './pages/Inicio/views/VistaGeralView';
 import PerfilView from './pages/Inicio/views/PerfilView';
 import EventosView from './pages/Inicio/views/EventosView';
 import AgendaView from './pages/Inicio/views/AgendaView';
+import InicioAgendaView from './pages/Inicio/views/InicioAgendaView';
 import CorpoView from './pages/Inicio/views/CorpoView';
 import LinhaView from './pages/Inicio/views/LinhaView';
 import MedsView from './pages/Inicio/views/MedsView';
@@ -34,7 +40,8 @@ import {
 import TermosPage from './pages/TermosPage';
 
 function PublicOnly({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, requerOnboarding } = useAuth();
+  if (isAuthenticated && requerOnboarding) return <Navigate to="/onboarding" replace />;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return children;
 }
@@ -50,8 +57,27 @@ export default function App() {
           </PublicOnly>
         }
       />
+      <Route
+        path="/registro"
+        element={
+          <PublicOnly>
+            <Registro />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/esqueci-senha"
+        element={
+          <PublicOnly>
+            <EsqueciSenha />
+          </PublicOnly>
+        }
+      />
+      <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+      <Route path="/confirmar-email" element={<ConfirmarEmail />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -60,7 +86,8 @@ export default function App() {
             <Route index element={<VistaGeralView />} />
             <Route path="perfil" element={<PerfilView />} />
             <Route path="eventos" element={<EventosView />} />
-            <Route path="agenda" element={<AgendaView />} />
+            <Route path="especialistas" element={<AgendaView />} />
+            <Route path="agenda" element={<InicioAgendaView />} />
             <Route path="corpo" element={<CorpoView />} />
             <Route path="linha" element={<LinhaView />} />
             <Route path="meds" element={<MedsView />} />

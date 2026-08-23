@@ -18,7 +18,13 @@ async function listPerfis(req, res, next) {
        INNER JOIN menus m ON m.id = pa.menu_id
        ORDER BY pa.perfil_id, m.ordem`
     );
-    return res.json({ data: perfis, permissoes });
+    const menus = await query(
+      `SELECT id, titulo, rota, icone, ordem, menu_pai_id
+       FROM menus
+       WHERE ativo = TRUE
+       ORDER BY COALESCE(ordem, 100) ASC, id ASC`
+    );
+    return res.json({ data: perfis, permissoes, menus });
   } catch (err) {
     return next(err);
   }

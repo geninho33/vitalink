@@ -35,6 +35,9 @@ function createCrudController({
   normalize,
   selectExtra = '',
   joins = '',
+  buildScope,
+  afterSave,
+  beforeDelete,
 }) {
   const allFields = [...new Set([...requiredCreate, ...optional])];
 
@@ -59,6 +62,13 @@ function createCrudController({
           return `${col} ILIKE :q${i}`;
         });
         where.push(`(${parts.join(' OR ')})`);
+      }
+      if (typeof buildScope === 'function') {
+        const scope = await buildScope(req);
+        if (scope?.sql) {
+          where.push(`(${scope.sql})`);
+          Object.assign(params, scope.params || {});
+        }
       }
 
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -91,9 +101,19 @@ function createCrudController({
 
   async function getById(req, res, next) {
     try {
+      const params = { id: req.params.id };
+      const extra = [];
+      if (typeof buildScope === 'function') {
+        const scope = await buildScope(req);
+        if (scope?.sql) {
+          extra.push(`(${scope.sql})`);
+          Object.assign(params, scope.params || {});
+        }
+      }
+      const scopeSql = extra.length ? ` AND ${extra.join(' AND ')}` : '';
       const rows = await query(
-        `SELECT ${table}.* ${selectExtra} FROM ${table} ${joins} WHERE ${table}.id = :id LIMIT 1`,
-        { id: req.params.id }
+        `SELECT ${table}.* ${selectExtra} FROM ${table} ${joins} WHERE ${table}.id = :id${scopeSql} LIMIT 1`,
+        params
       );
       if (!rows[0]) {
         return res.status(404).json({ error: 'not_found', message: 'Registro não encontrado.' });
@@ -116,6 +136,10 @@ function createCrudController({
         `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`,
         payload
       );
+
+      if (typeof afterSave === 'function') {
+        await afterSave(result.insertId, payload, req);
+      }
 
       await writeAudit({
         usuarioId: req.user.id,
@@ -160,6 +184,10 @@ function createCrudController({
         id: req.params.id,
       });
 
+      if (typeof afterSave === 'function') {
+        await afterSave(req.params.id, { ...before, ...payload }, req);
+      }
+
       const diff = buildAuditDiff(before, { ...before, ...payload }, cols);
 
       await writeAudit({
@@ -184,6 +212,9 @@ function createCrudController({
 
   async function remove(req, res, next) {
     try {
+      if (typeof beforeDelete === 'function') {
+        await beforeDelete(req.params.id, req);
+      }
       await query(`DELETE FROM ${table} WHERE id = :id`, { id: req.params.id });
       await writeAudit({
         usuarioId: req.user.id,

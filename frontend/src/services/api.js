@@ -156,6 +156,45 @@ export async function loginRequest({ email, senha }) {
   });
 }
 
+export async function registroRequest(body) {
+  return apiRequest('/auth/registro', {
+    method: 'POST',
+    body,
+    skipAuthRedirect: true,
+  });
+}
+
+export async function confirmarEmailRequest(token) {
+  return apiRequest('/auth/confirmar-email', {
+    method: 'POST',
+    body: { token },
+    skipAuthRedirect: true,
+  });
+}
+
+export async function esqueciSenhaRequest(email) {
+  return apiRequest('/auth/esqueci-senha', {
+    method: 'POST',
+    body: { email },
+    skipAuthRedirect: true,
+  });
+}
+
+export async function redefinirSenhaRequest({ token, senha }) {
+  return apiRequest('/auth/redefinir-senha', {
+    method: 'POST',
+    body: { token, senha },
+    skipAuthRedirect: true,
+  });
+}
+
+export async function onboardingRequest(body) {
+  return apiRequest('/auth/onboarding', {
+    method: 'POST',
+    body,
+  });
+}
+
 /** Atualiza menus/usuário/papéis no storage mantendo o token atual. */
 export async function refreshSessionRequest() {
   const data = await apiRequest('/menus/me');

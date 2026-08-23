@@ -5,8 +5,10 @@ import EntityCrudPage from '../../components/EntityCrudPage';
 import FileUploadField, { extractConvenioHints } from '../../components/FileUploadField';
 import {
   AddressFields,
+  DateBrInput,
   Field,
   FormTabs,
+  MoneyInput,
   TextInput,
   TextSelect,
   TextTextarea,
@@ -496,10 +498,9 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
             <TextInput value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </Field>
           <Field label="Data de nascimento" required>
-            <TextInput
-              type="date"
+            <DateBrInput
               value={form.data_nascimento}
-              onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })}
+              onChange={(data_nascimento) => setForm({ ...form, data_nascimento })}
             />
           </Field>
           <Field label="Sexo">
@@ -623,10 +624,9 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
             />
           </Field>
           <Field label="Validade convênio">
-            <TextInput
-              type="date"
+            <DateBrInput
               value={form.convenio_validade || ''}
-              onChange={(e) => setForm({ ...form, convenio_validade: e.target.value })}
+              onChange={(convenio_validade) => setForm({ ...form, convenio_validade })}
             />
           </Field>
           <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
@@ -859,6 +859,7 @@ export function PacientesPage() {
 
 export function RemediosPage() {
   const medicos = useOptions('/medicos');
+  const farmacias = useOptions('/farmacias');
   const empty = () => ({
     nome_comercial: '',
     principio_ativo: '',
@@ -876,6 +877,9 @@ export function RemediosPage() {
     periodo_horario: 'manha',
     hora_exata: '',
     status: 'ativo',
+    farmacia_id: '',
+    valor: null,
+    consumo_diario: '',
   });
 
   async function loadForPrint() {
@@ -941,6 +945,15 @@ export function RemediosPage() {
       )}
       columns={[
         { key: 'nome_comercial', label: 'Nome comercial' },
+        { key: 'farmacia_nome', label: 'Farmácia', render: (r) => r.farmacia_nome || '—' },
+        {
+          key: 'valor',
+          label: 'Valor',
+          render: (r) =>
+            r.valor != null
+              ? Number(r.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+              : '—',
+        },
         { key: 'laboratorio', label: 'Laboratório', render: (r) => r.laboratorio || '—' },
         { key: 'quantidade_administrar', label: 'Qtd. administrar' },
         { key: 'quantidade_estoque', label: 'Estoque' },
@@ -987,9 +1000,43 @@ export function RemediosPage() {
         periodo_horario: row.periodo_horario || 'manha',
         medico_prescritor_id: row.medico_prescritor_id ?? '',
         hora_exata: row.hora_exata || '',
+        farmacia_id: row.farmacia_id ?? '',
+        valor: row.valor != null ? Number(row.valor) : null,
+        consumo_diario: row.consumo_diario ?? '',
       })}
       renderForm={(form, setForm) => (
         <div className="grid gap-3 sm:grid-cols-2">
+          <Field
+            label="Farmácia"
+            required
+            hint={
+              <Link to="/farmacias" className="text-aqua-deep underline">
+                Cadastrar nova farmácia
+              </Link>
+            }
+          >
+            <TextSelect
+              required
+              value={form.farmacia_id || ''}
+              onChange={(e) =>
+                setForm({ ...form, farmacia_id: e.target.value ? Number(e.target.value) : '' })
+              }
+            >
+              <option value="">Selecione</option>
+              {farmacias.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.nome_fantasia}
+                </option>
+              ))}
+            </TextSelect>
+          </Field>
+          <Field label="Valor do medicamento" required>
+            <MoneyInput
+              required
+              value={form.valor}
+              onChange={(valor) => setForm({ ...form, valor })}
+            />
+          </Field>
           <Field label="Nome comercial" required>
             <TextInput
               value={form.nome_comercial}
@@ -1027,6 +1074,15 @@ export function RemediosPage() {
               min={0}
               value={form.quantidade_estoque ?? ''}
               onChange={(e) => setForm({ ...form, quantidade_estoque: e.target.value })}
+            />
+          </Field>
+          <Field label="Consumo por dia">
+            <TextInput
+              type="number"
+              min={0.25}
+              step={0.25}
+              value={form.consumo_diario ?? ''}
+              onChange={(e) => setForm({ ...form, consumo_diario: e.target.value })}
             />
           </Field>
           <div className="sm:col-span-2">
@@ -1165,6 +1221,12 @@ export function RemediosPage() {
         medico_prescritor_id: form.medico_prescritor_id
           ? Number(form.medico_prescritor_id)
           : null,
+        farmacia_id: form.farmacia_id ? Number(form.farmacia_id) : null,
+        valor: form.valor != null && form.valor !== '' ? Number(form.valor) : null,
+        consumo_diario:
+          form.consumo_diario !== '' && form.consumo_diario != null
+            ? Number(form.consumo_diario)
+            : null,
         laboratorio: form.laboratorio || null,
         numero_controle_pessoal: form.numero_controle_pessoal || null,
       })}

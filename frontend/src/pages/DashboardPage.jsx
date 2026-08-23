@@ -188,7 +188,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [usuario?.id, usuario?.perfil?.id]);
 
   const metrics = useMemo(() => {
     const today = dayKey();

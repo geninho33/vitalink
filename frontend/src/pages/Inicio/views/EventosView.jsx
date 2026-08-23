@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
+import { DateBrInput, Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
 import { apiRequest } from '../../../services/api';
+import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { todayKey } from '../localStore';
 import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
 
@@ -26,6 +27,7 @@ function emptyForm() {
 }
 
 export default function EventosView() {
+  const { pacienteId } = usePacienteAtivo();
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [rows, setRows] = useState([]);
@@ -39,7 +41,12 @@ export default function EventosView() {
     setError('');
     try {
       const res = await apiRequest('/inicio', {
-        query: { status: 'ativo', page: 1, pageSize: 50 },
+        query: {
+          status: 'ativo',
+          page: 1,
+          pageSize: 50,
+          paciente_id: pacienteId || undefined,
+        },
       });
       setRows(res.data || []);
     } catch (err) {
@@ -47,7 +54,7 @@ export default function EventosView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pacienteId]);
 
   useEffect(() => {
     load();
@@ -96,6 +103,7 @@ export default function EventosView() {
         prioridade: 'media',
         status: 'ativo',
         data_registro: form.date ? new Date(`${form.date}T12:00:00`).toISOString() : undefined,
+        paciente_id: pacienteId ? Number(pacienteId) : null,
       };
       if (editingId) {
         await apiRequest(`/inicio/${editingId}`, { method: 'PUT', body: payload });
@@ -151,11 +159,10 @@ export default function EventosView() {
       <Panel className="mb-5">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
           <Field label="Data do evento" required>
-            <TextInput
-              type="date"
+            <DateBrInput
               required
               value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              onChange={(date) => setForm({ ...form, date })}
             />
           </Field>
           <Field label="Tipo de evento">

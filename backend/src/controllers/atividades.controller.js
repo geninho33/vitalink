@@ -5,6 +5,7 @@ const {
   removeAgendaEvento,
   toSqlTimestamp,
 } = require('../services/agenda.service');
+const { applyPacienteScope, assertPacienteAccess } = require('../services/pacienteScope.service');
 
 function clientMeta(req) {
   return { ip: req.ip, userAgent: req.get('user-agent') };
@@ -34,6 +35,11 @@ async function listAgenda(req, res, next) {
     if (ate) {
       where.push('a.data_hora_inicio <= :ate');
       params.ate = toSqlTimestamp(ate);
+    }
+    const scope = await applyPacienteScope(req.user, 'a.paciente_id');
+    if (scope?.sql) {
+      where.push(`(${scope.sql})`);
+      Object.assign(params, scope.params);
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const rows = await query(
@@ -149,6 +155,7 @@ async function listTimeline(req, res, next) {
         message: 'Informe paciente_id.',
       });
     }
+    await assertPacienteAccess(req.user, pacienteId);
     const rows = await query(
       `SELECT a.*, p.nome AS paciente_nome
        FROM agenda_eventos a
@@ -166,13 +173,23 @@ async function listTimeline(req, res, next) {
 
 async function listConsultas(req, res, next) {
   try {
+    const where = [];
+    const params = {};
+    const scope = await applyPacienteScope(req.user, 'c.paciente_id');
+    if (scope?.sql) {
+      where.push(`(${scope.sql})`);
+      Object.assign(params, scope.params);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const rows = await query(
       `SELECT c.*, p.nome AS paciente_nome, h.nome_fantasia AS hospital_nome
        FROM consultas c
        INNER JOIN pacientes p ON p.id = c.paciente_id
        LEFT JOIN hospitais_clinicas h ON h.id = c.hospital_clinica_id
+       ${whereSql}
        ORDER BY c.data_hora DESC
-       LIMIT 200`
+       LIMIT 200`,
+      params
     );
     return res.json({ data: rows, pagination: { page: 1, pageSize: 200, total: rows.length } });
   } catch (err) {
@@ -189,6 +206,7 @@ async function createConsulta(req, res, next) {
         message: 'Campos obrigatórios: paciente_id, profissional_nome, especialidade, data_hora.',
       });
     }
+    await assertPacienteAccess(req.user, b.paciente_id);
     const dataHora = toSqlTimestamp(b.data_hora);
     const result = await query(
       `INSERT INTO consultas

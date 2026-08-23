@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import EntityCrudPage from '../../components/EntityCrudPage';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
-import { Field, TextInput, TextSelect, TextTextarea } from '../../components/forms/FormControls';
+import { DateBrInput, Field, TextInput, TextSelect, TextTextarea } from '../../components/forms/FormControls';
+import { isValidCpf, isValidEmail, maskCpf, onlyDigits } from '../../hooks/useCep';
 import { apiRequest } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { PASSWORD_HINT, isAdult, validateStrongPassword } from '../../utils/validation';
 
 export function UsuariosPage() {
   const [perfis, setPerfis] = useState([]);
@@ -26,6 +28,8 @@ export function UsuariosPage() {
     senha: '',
     perfil_id: '',
     status: 'ativo',
+    cpf: '',
+    data_nascimento: '',
   });
 
   return (
@@ -68,7 +72,24 @@ export function UsuariosPage() {
           <Field label="E-mail" required>
             <TextInput type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </Field>
-          <Field label={editing ? 'Nova senha (opcional)' : 'Senha'} required={!editing}>
+          <Field label="CPF" required>
+            <TextInput
+              inputMode="numeric"
+              value={maskCpf(form.cpf)}
+              onChange={(e) => setForm({ ...form, cpf: onlyDigits(e.target.value).slice(0, 11) })}
+            />
+          </Field>
+          <Field label="Data de nascimento" required>
+            <DateBrInput
+              value={form.data_nascimento}
+              onChange={(data_nascimento) => setForm({ ...form, data_nascimento })}
+            />
+          </Field>
+          <Field
+            label={editing ? 'Nova senha (opcional)' : 'Senha'}
+            required={!editing}
+            hint={PASSWORD_HINT}
+          >
             <TextInput type="password" value={form.senha || ''} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
           </Field>
           <Field label="Perfil" required>
@@ -88,12 +109,29 @@ export function UsuariosPage() {
           </Field>
         </div>
       )}
-      toPayload={(form) => {
+      toPayload={(form, editing) => {
+        if (form.email && !isValidEmail(form.email)) {
+          throw new Error('E-mail inválido.');
+        }
+        if (form.cpf && !isValidCpf(form.cpf)) {
+          throw new Error('CPF inválido.');
+        }
+        if (form.data_nascimento && !isAdult(form.data_nascimento)) {
+          throw new Error('Cadastro restrito a maiores de 18 anos. Menores de idade não podem criar conta.');
+        }
+        if (form.senha && validateStrongPassword(form.senha)) {
+          throw new Error(validateStrongPassword(form.senha));
+        }
+        if (!editing && !form.senha) {
+          throw new Error('Informe a senha.');
+        }
         const payload = {
           nome: form.nome,
           email: form.email,
           perfil_id: Number(form.perfil_id),
           status: form.status,
+          cpf: onlyDigits(form.cpf),
+          data_nascimento: form.data_nascimento,
         };
         if (form.senha) payload.senha = form.senha;
         return payload;
@@ -103,12 +141,45 @@ export function UsuariosPage() {
 }
 
 export function PerfisPage() {
-  const empty = () => ({ nome: '', descricao: '' });
+  const extra = useRef({ menus: [], permissoes: [] });
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    apiRequest('/perfis')
+      .then((res) => {
+        extra.current = { menus: res.menus || [], permissoes: res.permissoes || [] };
+        setTick((n) => n + 1);
+      })
+      .catch(() => {});
+  }, []);
+
+  function matrixFor(perfilId) {
+    return extra.current.menus.map((m) => {
+      const p = extra.current.permissoes.find(
+        (x) => Number(x.perfil_id) === Number(perfilId) && Number(x.menu_id) === Number(m.id)
+      );
+      return {
+        menu_id: m.id,
+        menu_titulo: m.titulo,
+        rota: m.rota || '—',
+        pode_ler: p?.pode_ler ? 1 : 0,
+        pode_criar: p?.pode_criar ? 1 : 0,
+        pode_editar: p?.pode_editar ? 1 : 0,
+        pode_deletar: p?.pode_deletar ? 1 : 0,
+      };
+    });
+  }
+
+  const empty = () => ({
+    nome: '',
+    descricao: '',
+    permissoes: matrixFor(null),
+  });
 
   return (
     <EntityCrudPage
       title="Perfis"
-      description="Papéis do sistema. Permissões de menu são gerenciadas em Acessos (RBAC)."
+      description="Papéis do sistema com acesso granular por item de menu."
       endpoint="/perfis"
       statusFilter={false}
       columns={[
@@ -116,11 +187,15 @@ export function PerfisPage() {
         { key: 'descricao', label: 'Descrição' },
       ]}
       emptyForm={empty}
-      mapRow={(row) => ({ nome: row.nome || '', descricao: row.descricao || '' })}
+      mapRow={(row) => ({
+        nome: row.nome || '',
+        descricao: row.descricao || '',
+        permissoes: matrixFor(row.id),
+      })}
       toPayload={(form) => ({
         nome: form.nome,
         descricao: form.descricao || null,
-        // NÃO envia "permissoes" — evita apagar a matriz RBAC ao renomear o perfil
+        ...(form.permissoes?.length ? { permissoes: form.permissoes } : {}),
       })}
       renderForm={(form, setForm) => (
         <div className="grid gap-3">
@@ -130,9 +205,44 @@ export function PerfisPage() {
           <Field label="Descrição">
             <TextTextarea rows={2} value={form.descricao || ''} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
           </Field>
-          <p className="text-sm text-slate-health">
-            Para alterar menus e permissões deste perfil, use a tela <strong>Acessos</strong>.
-          </p>
+          <div className="overflow-x-auto rounded-xl border border-[#e2eeee]">
+            <table className="min-w-full text-left text-xs">
+              <thead className="bg-[#eaf7f6] uppercase text-aqua-deep">
+                <tr>
+                  <th className="px-3 py-2">Menu</th>
+                  <th className="px-3 py-2">Rota</th>
+                  <th className="px-3 py-2">Ler</th>
+                  <th className="px-3 py-2">Criar</th>
+                  <th className="px-3 py-2">Editar</th>
+                  <th className="px-3 py-2">Deletar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(form.permissoes || []).map((m, idx) => (
+                  <tr key={m.menu_id} className="border-t border-[#e8f1f0]">
+                    <td className="px-3 py-2 font-semibold text-ink">{m.menu_titulo}</td>
+                    <td className="px-3 py-2 text-slate-health">{m.rota}</td>
+                    {['pode_ler', 'pode_criar', 'pode_editar', 'pode_deletar'].map((field) => (
+                      <td key={field} className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(m[field])}
+                          onChange={() =>
+                            setForm({
+                              ...form,
+                              permissoes: form.permissoes.map((x, i) =>
+                                i === idx ? { ...x, [field]: x[field] ? 0 : 1 } : x
+                              ),
+                            })
+                          }
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     />

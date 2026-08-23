@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import PageHeader, { PlaceholderCard } from '../components/PageHeader';
+import { PASSWORD_HINT, validateStrongPassword } from '../utils/validation';
 
 export default function MeusDadosPage() {
   const { usuario } = useAuth();
@@ -16,8 +17,9 @@ export default function MeusDadosPage() {
       setMsg('Preencha os campos de senha.');
       return;
     }
-    if (novaSenha.length < 6) {
-      setMsg('A nova senha deve ter ao menos 6 caracteres.');
+    const senhaMsg = validateStrongPassword(novaSenha);
+    if (senhaMsg) {
+      setMsg(senhaMsg);
       return;
     }
     if (novaSenha !== confirma) {
@@ -72,6 +74,7 @@ export default function MeusDadosPage() {
                 onChange={(e) => setNovaSenha(e.target.value)}
                 className="rounded-xl border border-[#cfe0df] bg-[#f8fcfc] px-3 py-2.5 outline-none focus:border-aqua focus:ring-2 focus:ring-aqua/20"
               />
+              <span className="text-xs text-slate-health">{PASSWORD_HINT}</span>
             </label>
             <label className="grid gap-1 text-sm">
               <span className="font-semibold text-ink">Confirmar nova senha</span>

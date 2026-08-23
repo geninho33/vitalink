@@ -2,6 +2,7 @@ const { query, isDuplicateKey } = require('../config/database');
 const { hashPassword } = require('../utils/password');
 const { writeAudit } = require('../services/audit.service');
 const { syncUsuarioPerfilPadrao } = require('../services/papel.service');
+const { assertEmail, assertPassword, assertCpf, assertAdult } = require('../utils/validation');
 
 function clientMeta(req) {
   return { ip: req.ip, userAgent: req.get('user-agent') };
@@ -20,7 +21,7 @@ async function listUsuarios(req, res, next) {
       : '';
     const rows = await query(
       `SELECT u.id, u.nome, u.email, u.status, u.perfil_id, p.nome AS perfil_nome,
-              u.created_at, u.updated_at
+              u.cpf, u.data_nascimento, u.created_at, u.updated_at
        FROM usuarios u
        INNER JOIN perfis p ON p.id = u.perfil_id
        ${where}
@@ -34,13 +35,17 @@ async function listUsuarios(req, res, next) {
 
 async function createUsuario(req, res, next) {
   try {
-    const { nome, email, senha, status = 'ativo', perfil_id } = req.body || {};
-    if (!nome || !email || !senha || !perfil_id) {
+    const { nome, email, senha, status = 'ativo', perfil_id, cpf, data_nascimento } = req.body || {};
+    if (!nome || !email || !senha || !perfil_id || !cpf || !data_nascimento) {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Campos obrigatórios: nome, email, senha, perfil_id.',
+        message: 'Campos obrigatórios: nome, email, senha, perfil_id, CPF e data de nascimento.',
       });
     }
+    const emailOk = assertEmail(email);
+    assertPassword(senha);
+    const cpfOk = assertCpf(cpf);
+    const nasc = assertAdult(data_nascimento);
 
     if (isResponsavel(req) && !PERFIS_RESPONSAVEL_PODE_GERIR.includes(Number(perfil_id))) {
       return res.status(403).json({
@@ -51,14 +56,16 @@ async function createUsuario(req, res, next) {
 
     const senha_hash = await hashPassword(senha);
     const result = await query(
-      `INSERT INTO usuarios (nome, email, senha_hash, status, perfil_id)
-       VALUES (:nome, :email, :senha_hash, :status, :perfil_id)`,
+      `INSERT INTO usuarios (nome, email, senha_hash, status, perfil_id, cpf, data_nascimento)
+       VALUES (:nome, :email, :senha_hash, :status, :perfil_id, :cpf, :nasc)`,
       {
         nome,
-        email: String(email).trim().toLowerCase(),
+        email: emailOk,
         senha_hash,
         status,
         perfil_id,
+        cpf: cpfOk,
+        nasc,
       }
     );
 
@@ -85,7 +92,7 @@ async function createUsuario(req, res, next) {
 async function updateUsuario(req, res, next) {
   try {
     const { id } = req.params;
-    const { nome, email, senha, status, perfil_id } = req.body || {};
+    const { nome, email, senha, status, perfil_id, cpf, data_nascimento } = req.body || {};
     const targetId = Number(id);
     const isSelf = targetId === Number(req.user.id);
 
@@ -121,7 +128,15 @@ async function updateUsuario(req, res, next) {
     }
     if (email != null) {
       fields.push('email = :email');
-      params.email = String(email).trim().toLowerCase();
+      params.email = assertEmail(email);
+    }
+    if (cpf != null && String(cpf).trim() !== '') {
+      fields.push('cpf = :cpf');
+      params.cpf = assertCpf(cpf);
+    }
+    if (data_nascimento != null && String(data_nascimento).trim() !== '') {
+      fields.push('data_nascimento = :data_nascimento');
+      params.data_nascimento = assertAdult(data_nascimento);
     }
     if (status != null) {
       fields.push('status = :status');
@@ -139,6 +154,7 @@ async function updateUsuario(req, res, next) {
     }
     // Senha só muda se enviada com conteúdo — não regenera hash vazio
     if (senha != null && String(senha).trim() !== '') {
+      assertPassword(senha);
       fields.push('senha_hash = :senha_hash');
       params.senha_hash = await hashPassword(senha);
     }
@@ -207,12 +223,13 @@ async function resetSenha(req, res, next) {
   try {
     const { id } = req.params;
     const { senha } = req.body || {};
-    if (!senha || String(senha).length < 6) {
+    if (!senha) {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Informe uma nova senha com ao menos 6 caracteres.',
+        message: 'Informe uma nova senha.',
       });
     }
+    assertPassword(senha);
     const senha_hash = await hashPassword(senha);
     await query(`UPDATE usuarios SET senha_hash = :senha_hash WHERE id = :id`, {
       id,

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
-import { Field, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
+import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
+import { Field, TextTextarea } from '../../../components/forms/FormControls';
 import { apiRequest } from '../../../services/api';
 import { EmptyState, Panel, PrimaryButton } from '../ui';
 
@@ -175,14 +176,7 @@ export default function VistaGeralView() {
   const isAdmin = perfilId === PERFIL.ADMIN;
   const isResponsavel = perfilId === PERFIL.RESPONSAVEL;
 
-  const [pacientes, setPacientes] = useState([]);
-  const [pacienteId, setPacienteId] = useState(() => {
-    try {
-      return localStorage.getItem('vitalink-inicio-paciente-id') || '';
-    } catch {
-      return '';
-    }
-  });
+  const { pacientes, pacienteId, paciente: selectedPaciente } = usePacienteAtivo();
   const [appointments, setAppointments] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [taken, setTaken] = useState([]);
@@ -191,28 +185,6 @@ export default function VistaGeralView() {
   const [msg, setMsg] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const [busyMed, setBusyMed] = useState(null);
-
-  const selectedPaciente = pacientes.find((p) => String(p.id) === String(pacienteId));
-
-  useEffect(() => {
-    apiRequest('/pacientes', { query: { pageSize: 200, status: 'ativo' } })
-      .then((res) => {
-        const list = res.data || [];
-        setPacientes(list);
-        if (!pacienteId && list.length === 1) {
-          setPacienteId(String(list[0].id));
-        }
-      })
-      .catch(() => setPacientes([]));
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (pacienteId) localStorage.setItem('vitalink-inicio-paciente-id', String(pacienteId));
-    } catch {
-      /* ignore */
-    }
-  }, [pacienteId]);
 
   const loadCareData = useCallback(async () => {
     const { de, ate } = weekRange();
@@ -352,35 +324,23 @@ export default function VistaGeralView() {
         </h1>
       </div>
 
-      {isResponsavel ? (
+      {pacienteId ? (
+        <p className="mb-4 text-sm text-slate-health">
+          Paciente ativo:{' '}
+          <Link
+            to={`/pacientes?edit=${pacienteId}`}
+            className="font-semibold text-aqua hover:underline"
+          >
+            {selectedPaciente?.nome || 'ficha'}
+          </Link>
+        </p>
+      ) : pacientes.length === 0 ? (
         <Panel className="mb-4">
-          <Field label="Pacientes">
-            <TextSelect
-              value={pacienteId}
-              onChange={(e) => setPacienteId(e.target.value)}
-            >
-              <option value="">Selecione o paciente</option>
-              {pacientes.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
-          {pacienteId ? (
-            <p className="mt-2 text-sm text-slate-health">
-              <Link
-                to={`/pacientes?edit=${pacienteId}`}
-                className="font-semibold text-aqua hover:underline"
-              >
-                Abrir ficha de {selectedPaciente?.nome || 'paciente'}
-              </Link>
-            </p>
-          ) : null}
+          <p className="text-sm text-slate-health">Nenhum paciente vinculado ao seu usuário.</p>
         </Panel>
       ) : null}
 
-      {(isResponsavel ? Boolean(pacienteId) : true) ? (
+      {pacienteId ? (
         <Panel className="mb-4">
           <form className="grid gap-3" onSubmit={handleQuickSubmit}>
             <Field
@@ -407,6 +367,8 @@ export default function VistaGeralView() {
         </Panel>
       ) : null}
 
+      {pacienteId ? (
+      <>
       <Panel className="mb-4">
         <form className="flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={handleSearchEvents}>
           <label className="grid flex-1 gap-1 text-sm">
@@ -439,7 +401,7 @@ export default function VistaGeralView() {
               {appointments.slice(0, 8).map((item) => (
                 <li key={item.id}>
                   <Link
-                    to="/agenda"
+                    to="/inicio/agenda"
                     className="block rounded-xl bg-[#f4fbfa] px-3 py-2 text-sm hover:bg-aqua-soft"
                   >
                     <strong className="text-ink">{item.titulo}</strong>
@@ -518,6 +480,8 @@ export default function VistaGeralView() {
           </h2>
           <RedeDirectory pacienteId={pacienteId || undefined} />
         </div>
+      ) : null}
+      </>
       ) : null}
     </div>
   );

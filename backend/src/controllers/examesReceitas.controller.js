@@ -1,6 +1,7 @@
 const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit, buildAuditDiff } = require('../services/audit.service');
 const { createCrudController, pick, requireFields } = require('../utils/crudFactory');
+const { applyPacienteScope } = require('../services/pacienteScope.service');
 
 const table = 'exames_receitas';
 const recurso = 'exames_receitas';
@@ -83,6 +84,11 @@ async function list(req, res, next) {
         return `${col} ILIKE :q${i}`;
       });
       where.push(`(${parts.join(' OR ')})`);
+    }
+    const scope = await applyPacienteScope(req.user, `${table}.paciente_id`);
+    if (scope?.sql) {
+      where.push(`(${scope.sql})`);
+      Object.assign(params, scope.params);
     }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';

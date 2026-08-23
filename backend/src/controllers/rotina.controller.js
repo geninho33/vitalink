@@ -5,6 +5,7 @@ const {
   removeAgendaEvento,
   toSqlTimestamp,
 } = require('../services/agenda.service');
+const { applyPacienteScope, assertPacienteAccess } = require('../services/pacienteScope.service');
 
 function clientMeta(req) {
   return { ip: req.ip, userAgent: req.get('user-agent') };
@@ -18,13 +19,23 @@ function combineDateTime(dateStr, timeStr) {
 
 async function listRotinas(req, res, next) {
   try {
+    const where = [];
+    const params = {};
+    const scope = await applyPacienteScope(req.user, 'r.paciente_id');
+    if (scope?.sql) {
+      where.push(`(${scope.sql})`);
+      Object.assign(params, scope.params);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const rows = await query(
       `SELECT r.*, p.nome AS paciente_nome, m.nome_comercial AS remedio_nome
        FROM atendimentos_rotina r
        INNER JOIN pacientes p ON p.id = r.paciente_id
        LEFT JOIN remedios m ON m.id = r.remedio_id
+       ${whereSql}
        ORDER BY r.id DESC
-       LIMIT 200`
+       LIMIT 200`,
+      params
     );
     return res.json({ data: rows, pagination: { page: 1, pageSize: 200, total: rows.length } });
   } catch (err) {
@@ -41,6 +52,7 @@ async function createRotina(req, res, next) {
         message: 'Campos obrigatórios: paciente_id, horario, data_inicio.',
       });
     }
+    await assertPacienteAccess(req.user, b.paciente_id);
     const tipo = b.tipo && b.tipo !== 'medicamento' ? b.tipo : 'outro';
     const titulo = b.titulo || String(tipo).charAt(0).toUpperCase() + String(tipo).slice(1);
     const result = await query(
@@ -171,6 +183,11 @@ async function listExecucoesHoje(req, res, next) {
     if (pacienteId) {
       where.push('e.paciente_id = :pacienteId');
       params.pacienteId = pacienteId;
+    }
+    const scope = await applyPacienteScope(req.user, 'e.paciente_id');
+    if (scope?.sql) {
+      where.push(`(${scope.sql})`);
+      Object.assign(params, scope.params);
     }
     const rows = await query(
       `SELECT e.*, r.titulo, r.tipo, p.nome AS paciente_nome

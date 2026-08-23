@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Field, TextInput } from '../../../components/forms/FormControls';
+import { DateBrInput, Field, TextInput } from '../../../components/forms/FormControls';
 import { formatDateBr, storageGet, storageSet } from '../localStore';
 import { EmptyState, PageTitle, Panel, PrimaryButton } from '../ui';
 
@@ -64,9 +64,9 @@ export default function AgendaView() {
   return (
     <div>
       <PageTitle
-        eyebrow="Planejamento"
-        title="Agenda médica"
-        description="Tenha seus cuidados sempre à vista."
+        eyebrow="Especialistas"
+        title="Especialistas"
+        description="Consultas, exames e profissionais de saúde do paciente."
       />
 
       <Panel className="mb-5">
@@ -96,11 +96,10 @@ export default function AgendaView() {
             />
           </Field>
           <Field label="Data" required>
-            <TextInput
-              type="date"
+            <DateBrInput
               required
               value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              onChange={(date) => setForm({ ...form, date })}
             />
           </Field>
           <Field label="Horário">
@@ -126,7 +125,7 @@ export default function AgendaView() {
           </Field>
           <div className="sm:col-span-2">
             <PrimaryButton type="submit" className="w-full">
-              Adicionar à agenda
+              Adicionar especialista / consulta
             </PrimaryButton>
           </div>
         </form>

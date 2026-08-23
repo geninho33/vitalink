@@ -1,260 +1,320 @@
-import { useEffect, useState } from 'react';
-import { Field, TextInput, TextSelect } from '../../../components/forms/FormControls';
-import { storageGet, storageSet } from '../localStore';
+import { useCallback, useEffect, useState } from 'react';
+import { DateBrInput, Field, MoneyInput, Modal, TextInput, TextSelect } from '../../../components/forms/FormControls';
+import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
+import { apiRequest } from '../../../services/api';
+import { formatDateBr, formatMoneyBr } from '../../../utils/validation';
 import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
 
 const empty = () => ({
-  period: 'Manhã',
-  name: '',
-  dosage: '',
-  quantity: '',
-  stockQty: '',
-  dailyUse: '',
-  stockDate: '',
-  purchaseLead: '7',
-  purpose: '',
-  doctor: '',
+  periodo_horario: 'manha',
+  hora_exata: '',
+  nome_comercial: '',
+  quantidade_administrar: '',
+  quantidade_estoque: '',
+  consumo_diario: '1',
+  indicacao: '',
+  farmacia_id: '',
+  valor: null,
 });
 
-function getInventoryStatus(medicine) {
-  const stock = Number(medicine.stockQty);
-  const daily = Number(medicine.dailyUse);
-  if (
-    medicine.stockQty === '' ||
-    medicine.stockQty === undefined ||
-    !Number.isFinite(stock) ||
-    !Number.isFinite(daily) ||
-    stock < 0 ||
-    daily <= 0
-  ) {
-    return null;
-  }
-  const start = medicine.stockDate
-    ? new Date(`${medicine.stockDate}T12:00:00`)
-    : new Date();
-  const days = Math.ceil(stock / daily);
-  const end = new Date(start);
-  end.setDate(end.getDate() + days);
-  const buy = new Date(end);
-  buy.setDate(buy.getDate() - Number(medicine.purchaseLead ?? 7));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const week = new Date(today);
-  week.setDate(week.getDate() + 7);
-  const status = buy <= today ? 'Comprar agora' : buy <= week ? 'Comprar esta semana' : 'Em dia';
-  return { end, buy, status, stock, daily };
-}
+const emptyCompra = () => ({
+  quantidade: '',
+  valor: null,
+  data_compra: '',
+  farmacia_id: '',
+});
 
-function fmt(date) {
-  return date ? date.toLocaleDateString('pt-BR') : '—';
+function fmtDate(value) {
+  return formatDateBr(value) || '—';
 }
 
 export default function MedsView() {
+  const { pacienteId, paciente } = usePacienteAtivo();
   const [form, setForm] = useState(empty);
   const [list, setList] = useState([]);
+  const [farmacias, setFarmacias] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [quickFarm, setQuickFarm] = useState(null);
+  const [comprasOf, setComprasOf] = useState(null);
+  const [compras, setCompras] = useState([]);
+  const [compraForm, setCompraForm] = useState(emptyCompra);
+  const [compraOpen, setCompraOpen] = useState(null);
 
-  function refresh() {
-    setList(storageGet('medicines', []));
-  }
-
-  useEffect(() => {
-    refresh();
+  const loadFarmacias = useCallback(async () => {
+    try {
+      const res = await apiRequest('/inicio/farmacias');
+      setFarmacias(res.data || []);
+    } catch {
+      setFarmacias([]);
+    }
   }, []);
 
-  function persist(next) {
-    storageSet('medicines', next);
-    setList(next);
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-    const next = [
-      ...storageGet('medicines', []),
-      {
-        id: Date.now(),
-        createdAt: new Date().toISOString(),
-        ...form,
-        name: form.name.trim(),
-        dosage: form.dosage.trim(),
-        quantity: form.quantity.trim(),
-        purpose: form.purpose.trim(),
-        doctor: form.doctor.trim(),
-      },
-    ];
-    persist(next);
-    setForm(empty());
-  }
-
-  function updateField(id, field, value) {
-    const next = storageGet('medicines', []).map((m) =>
-      String(m.id) === String(id) ? { ...m, [field]: value } : m
-    );
-    persist(next);
-  }
-
-  function remove(id) {
-    persist(storageGet('medicines', []).filter((m) => m.id !== id));
-    setConfirmId(null);
-  }
-
-  function printShopping() {
-    const week = storageGet('medicines', []).filter((m) => {
-      const inv = getInventoryStatus(m);
-      return inv && inv.status !== 'Em dia';
+  const refresh = useCallback(async () => {
+    if (!pacienteId) {
+      setList([]);
+      return;
+    }
+    const res = await apiRequest('/inicio/medicamentos', {
+      query: { paciente_id: pacienteId },
     });
-    const rows = week.length
-      ? week
-          .map((m) => {
-            const inv = getInventoryStatus(m);
-            return `<tr><td>${m.name}</td><td>${fmt(inv.buy)}</td><td>${inv.stock} un.</td><td>${inv.daily} un./dia</td></tr>`;
-          })
-          .join('')
-      : '<tr><td colspan="4">Nenhum medicamento precisa ser comprado nesta semana.</td></tr>';
-    const popup = window.open('', '_blank');
-    if (!popup) return;
-    popup.document.write(
-      `<!doctype html><html lang="pt-BR"><head><title>VitaLink - Lista de compras</title><style>body{font-family:Arial,sans-serif;padding:32px}table{width:100%;border-collapse:collapse}th,td{padding:10px;border:1px solid #cfe0e0}th{background:#e7f7f5}</style></head><body><h1>VitaLink · Compras da semana</h1><table><thead><tr><th>Medicamento</th><th>Data para compra</th><th>Estoque</th><th>Consumo</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
-    );
-    popup.document.close();
-    popup.focus();
-    popup.print();
+    setList(res.data || []);
+  }, [pacienteId]);
+
+  useEffect(() => {
+    loadFarmacias();
+  }, [loadFarmacias]);
+
+  useEffect(() => {
+    refresh().catch(() => setList([]));
+  }, [refresh]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!pacienteId) return;
+    setSaving(true);
+    setError('');
+    try {
+      await apiRequest('/inicio/medicamentos', {
+        method: 'POST',
+        body: {
+          ...form,
+          paciente_id: Number(pacienteId),
+          farmacia_id: Number(form.farmacia_id),
+          quantidade_estoque: Number(form.quantidade_estoque),
+          consumo_diario: Number(form.consumo_diario) || 1,
+        },
+      });
+      setForm(empty());
+      await refresh();
+    } catch (err) {
+      setError(err.message || 'Não foi possível salvar o medicamento.');
+    } finally {
+      setSaving(false);
+    }
   }
+
+  async function remove(id) {
+    try {
+      await apiRequest(`/inicio/medicamentos/${id}`, { method: 'DELETE' });
+      setConfirmId(null);
+      await refresh();
+    } catch (err) {
+      window.alert(err.message || 'Não foi possível excluir.');
+    }
+  }
+
+  async function openHistorico(med) {
+    setComprasOf(med);
+    try {
+      const res = await apiRequest(`/inicio/medicamentos/${med.id}/compras`);
+      setCompras(res.data || []);
+    } catch {
+      setCompras([]);
+    }
+  }
+
+  async function saveQuickFarm(e) {
+    e.preventDefault();
+    if (!quickFarm?.nome?.trim()) return;
+    try {
+      const created = await apiRequest('/inicio/farmacia-rapida', {
+        method: 'POST',
+        body: { nome_fantasia: quickFarm.nome.trim(), telefone_principal: quickFarm.telefone || '00000000000' },
+      });
+      await loadFarmacias();
+      if (compraOpen) {
+        setCompraForm((f) => ({ ...f, farmacia_id: created.id }));
+      } else {
+        setForm((f) => ({ ...f, farmacia_id: created.id }));
+      }
+      setQuickFarm(null);
+    } catch (err) {
+      window.alert(err.message || 'Não foi possível cadastrar a farmácia.');
+    }
+  }
+
+  async function submitCompra(e) {
+    e.preventDefault();
+    if (!compraOpen) return;
+    try {
+      await apiRequest(`/inicio/medicamentos/${compraOpen.id}/compras`, {
+        method: 'POST',
+        body: {
+          quantidade: Number(compraForm.quantidade),
+          valor: compraForm.valor,
+          data_compra: compraForm.data_compra,
+          farmacia_id: compraForm.farmacia_id || compraOpen.farmacia_id,
+        },
+      });
+      setCompraOpen(null);
+      setCompraForm(emptyCompra());
+      await refresh();
+      if (comprasOf?.id === compraOpen.id) await openHistorico(compraOpen);
+    } catch (err) {
+      window.alert(err.message || 'Não foi possível registrar a compra.');
+    }
+  }
+
+  const alertas = list.filter((m) => m.alerta_reposicao);
 
   return (
     <div>
       <PageTitle
         eyebrow="Rotina"
         title="Medicamentos"
-        description="Controle os medicamentos, doses e responsáveis pela prescrição."
+        description={
+          paciente
+            ? `Cadastro, estoque e projeção na agenda de ${paciente.nome}.`
+            : 'Selecione um paciente no topo para gerenciar os medicamentos.'
+        }
       />
+
+      {alertas.length ? (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>Reposição em até 3 dias:</strong>{' '}
+          {alertas.map((m) => `${m.nome_comercial} (acaba em ${fmtDate(m.data_fim_estoque)})`).join(' · ')}
+          . Realize uma nova compra.
+        </div>
+      ) : null}
 
       <Panel className="mb-5">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
+          <Field label="Farmácia" required>
+            <div className="flex gap-2">
+              <TextSelect
+                required
+                value={form.farmacia_id}
+                onChange={(e) => setForm({ ...form, farmacia_id: e.target.value })}
+              >
+                <option value="">Selecione</option>
+                {farmacias.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nome_fantasia}
+                  </option>
+                ))}
+              </TextSelect>
+              <SecondaryButton type="button" onClick={() => setQuickFarm({ nome: '', telefone: '' })}>
+                Nova
+              </SecondaryButton>
+            </div>
+          </Field>
+          <Field label="Valor do medicamento" required>
+            <MoneyInput
+              required
+              value={form.valor}
+              onChange={(valor) => setForm({ ...form, valor })}
+            />
+          </Field>
           <Field label="Período">
             <TextSelect
-              value={form.period}
-              onChange={(e) => setForm({ ...form, period: e.target.value })}
+              value={form.periodo_horario}
+              onChange={(e) => setForm({ ...form, periodo_horario: e.target.value })}
             >
-              <option>Manhã</option>
-              <option>Tarde</option>
-              <option>Noite</option>
-              <option>Conforme necessário</option>
+              <option value="manha">Manhã</option>
+              <option value="tarde">Tarde</option>
+              <option value="noite">Noite</option>
+              <option value="personalizado">Horário personalizado</option>
             </TextSelect>
           </Field>
-          <div className="sm:col-span-2 sm:col-start-1">
+          {form.periodo_horario === 'personalizado' ? (
+            <Field label="Hora" required>
+              <TextInput
+                type="time"
+                required
+                value={form.hora_exata}
+                onChange={(e) => setForm({ ...form, hora_exata: e.target.value })}
+              />
+            </Field>
+          ) : (
+            <div />
+          )}
+          <div className="sm:col-span-2">
             <Field label="Medicamento" required>
               <TextInput
                 required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                value={form.nome_comercial}
+                onChange={(e) => setForm({ ...form, nome_comercial: e.target.value })}
                 placeholder="Nome do medicamento"
               />
             </Field>
           </div>
-          <Field label="Dosagem">
+          <Field label="Dosagem / quantidade por dose" required>
             <TextInput
-              value={form.dosage}
-              onChange={(e) => setForm({ ...form, dosage: e.target.value })}
-              placeholder="Ex.: 500 mg"
+              required
+              value={form.quantidade_administrar}
+              onChange={(e) => setForm({ ...form, quantidade_administrar: e.target.value })}
+              placeholder="Ex.: 1 comprimido de 500 mg"
             />
           </Field>
-          <Field label="Quantidade por dose">
-            <TextInput
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-              placeholder="Ex.: 1 comprimido"
-            />
-          </Field>
-          <Field label="Estoque disponível">
+          <Field label="Estoque disponível" required>
             <TextInput
               type="number"
               min="0"
-              value={form.stockQty}
-              onChange={(e) => setForm({ ...form, stockQty: e.target.value })}
+              required
+              value={form.quantidade_estoque}
+              onChange={(e) => setForm({ ...form, quantidade_estoque: e.target.value })}
             />
           </Field>
-          <Field label="Consumo por dia">
+          <Field label="Consumo por dia" required>
             <TextInput
               type="number"
               min="0.25"
               step="0.25"
-              value={form.dailyUse}
-              onChange={(e) => setForm({ ...form, dailyUse: e.target.value })}
+              required
+              value={form.consumo_diario}
+              onChange={(e) => setForm({ ...form, consumo_diario: e.target.value })}
             />
           </Field>
-          <Field label="Data do estoque">
+          <Field label="Indicação">
             <TextInput
-              type="date"
-              value={form.stockDate}
-              onChange={(e) => setForm({ ...form, stockDate: e.target.value })}
+              value={form.indicacao}
+              onChange={(e) => setForm({ ...form, indicacao: e.target.value })}
+              placeholder="Ex.: Controle da pressão"
             />
           </Field>
-          <Field label="Antecedência para compra (dias)">
-            <TextInput
-              type="number"
-              min="0"
-              value={form.purchaseLead}
-              onChange={(e) => setForm({ ...form, purchaseLead: e.target.value })}
-            />
-          </Field>
+          {error ? <p className="sm:col-span-2 text-sm text-red-600">{error}</p> : null}
           <div className="sm:col-span-2">
-            <Field label="Indicação">
-              <TextInput
-                value={form.purpose}
-                onChange={(e) => setForm({ ...form, purpose: e.target.value })}
-                placeholder="Ex.: Controle da pressão"
-              />
-            </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <Field label="Médico(a)">
-              <TextInput
-                value={form.doctor}
-                onChange={(e) => setForm({ ...form, doctor: e.target.value })}
-                placeholder="Nome do profissional"
-              />
-            </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <PrimaryButton type="submit" className="w-full">
-              Adicionar medicamento
+            <PrimaryButton type="submit" className="w-full" disabled={saving || !pacienteId}>
+              {saving ? 'Salvando...' : 'Adicionar medicamento'}
             </PrimaryButton>
           </div>
         </form>
       </Panel>
 
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <SecondaryButton type="button" onClick={printShopping}>
-          Imprimir compras da semana
-        </SecondaryButton>
-        <span className="text-xs text-slate-health">
-          Itens com compra prevista para os próximos 7 dias.
-        </span>
-      </div>
-
       {list.length === 0 ? (
-        <EmptyState>Nenhum medicamento cadastrado.</EmptyState>
+        <EmptyState>Nenhum medicamento cadastrado para este paciente.</EmptyState>
       ) : (
-        <div className="space-y-3 md:hidden">
-          {list.map((m) => {
-            const inv = getInventoryStatus(m);
-            return (
-              <article key={m.id} className="rounded-2xl border border-[#d7e8e7] bg-white p-4">
-                <span className="rounded-full bg-aqua-soft px-2 py-0.5 text-[11px] font-bold text-aqua-deep">
-                  {m.period}
-                </span>
-                <strong className="mt-2 block text-ink">{m.name}</strong>
-                <p className="text-sm text-slate-health">
-                  {m.dosage || '—'} · {m.quantity || '—'}
-                </p>
-                <p className="text-xs text-slate-health">{m.purpose || 'Sem indicação'}</p>
-                {inv ? (
-                  <p className="mt-2 text-xs font-semibold text-aqua-deep">{inv.status}</p>
-                ) : null}
+        <div className="space-y-3">
+          {list.map((m) => (
+            <article key={m.id} className="rounded-2xl border border-[#d7e8e7] bg-white p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-aqua-deep"
+                    onClick={() => {
+                      setCompraOpen(m);
+                      setCompraForm({
+                        ...emptyCompra(),
+                        farmacia_id: m.farmacia_id || '',
+                        valor: m.valor != null ? Number(m.valor) : null,
+                      });
+                    }}
+                  >
+                    Registrar nova compra
+                  </button>
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-slate-health"
+                    onClick={() => openHistorico(m)}
+                  >
+                    Histórico
+                  </button>
+                </div>
                 {confirmId === m.id ? (
-                  <div className="mt-2 flex gap-2">
+                  <div className="flex gap-2">
                     <button type="button" className="text-sm" onClick={() => setConfirmId(null)}>
                       Cancelar
                     </button>
@@ -269,88 +329,122 @@ export default function MedsView() {
                 ) : (
                   <button
                     type="button"
-                    className="mt-2 text-sm font-semibold text-red-600"
+                    className="text-sm font-semibold text-red-600"
                     onClick={() => setConfirmId(m.id)}
                   >
                     Excluir
                   </button>
                 )}
-              </article>
-            );
-          })}
+              </div>
+              <strong className="block text-ink">{m.nome_comercial}</strong>
+              <p className="text-sm text-slate-health">
+                {m.quantidade_administrar || '—'} · {formatMoneyBr(m.valor) || '—'} · {m.farmacia_nome || 'Sem farmácia'}
+              </p>
+              <p className="mt-1 text-xs text-slate-health">
+                Estoque {m.quantidade_estoque ?? '—'} · {m.consumo_diario} un./dia · acaba em {fmtDate(m.data_fim_estoque)}
+              </p>
+              {m.alerta_reposicao ? (
+                <p className="mt-2 text-xs font-semibold text-amber-700">
+                  Alerta: compre até {fmtDate(m.data_alerta_reposicao)}.
+                </p>
+              ) : null}
+            </article>
+          ))}
         </div>
       )}
 
-      {list.length > 0 ? (
-        <div className="hidden overflow-x-auto rounded-2xl border border-[#e2eeee] md:block">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#eaf7f6] text-xs uppercase text-aqua-deep">
-              <tr>
-                <th className="px-3 py-3">Período</th>
-                <th className="px-3 py-3">Medicamento</th>
-                <th className="px-3 py-3">Dosagem</th>
-                <th className="px-3 py-3">Estoque</th>
-                <th className="px-3 py-3">Consumo/dia</th>
-                <th className="px-3 py-3">Status</th>
-                <th className="px-3 py-3">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((m) => {
-                const inv = getInventoryStatus(m);
-                return (
-                  <tr key={m.id} className="border-t border-[#e8f1f0]">
-                    <td className="px-3 py-2">{m.period}</td>
-                    <td className="px-3 py-2 font-semibold">{m.name}</td>
-                    <td className="px-3 py-2">{m.dosage || '—'}</td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min="0"
-                        className="w-20 rounded-lg border border-[#cfe0df] px-2 py-1"
-                        value={m.stockQty ?? ''}
-                        onChange={(e) => updateField(m.id, 'stockQty', e.target.value)}
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min="0.25"
-                        step="0.25"
-                        className="w-20 rounded-lg border border-[#cfe0df] px-2 py-1"
-                        value={m.dailyUse ?? ''}
-                        onChange={(e) => updateField(m.id, 'dailyUse', e.target.value)}
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-xs font-semibold">
-                      {inv ? inv.status : '—'}
-                    </td>
-                    <td className="px-3 py-2">
-                      {confirmId === m.id ? (
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-red-600"
-                          onClick={() => remove(m.id)}
-                        >
-                          Confirmar
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="text-lg text-slate-health"
-                          onClick={() => setConfirmId(m.id)}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+      <Modal open={Boolean(quickFarm)} title="Cadastrar farmácia" onClose={() => setQuickFarm(null)}>
+        {quickFarm ? (
+          <form className="grid gap-3" onSubmit={saveQuickFarm}>
+            <Field label="Nome da farmácia" required>
+              <TextInput
+                required
+                value={quickFarm.nome}
+                onChange={(e) => setQuickFarm({ ...quickFarm, nome: e.target.value })}
+              />
+            </Field>
+            <Field label="Telefone">
+              <TextInput
+                value={quickFarm.telefone}
+                onChange={(e) => setQuickFarm({ ...quickFarm, telefone: e.target.value })}
+              />
+            </Field>
+            <PrimaryButton type="submit">Salvar farmácia</PrimaryButton>
+          </form>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(compraOpen)}
+        title={compraOpen ? `Nova compra · ${compraOpen.nome_comercial}` : 'Nova compra'}
+        onClose={() => setCompraOpen(null)}
+      >
+        {compraOpen ? (
+          <form className="grid gap-3" onSubmit={submitCompra}>
+            <Field label="Data da compra" required>
+              <DateBrInput
+                required
+                value={compraForm.data_compra}
+                onChange={(data_compra) => setCompraForm({ ...compraForm, data_compra })}
+              />
+            </Field>
+            <Field label="Quantidade" required>
+              <TextInput
+                type="number"
+                min="1"
+                required
+                value={compraForm.quantidade}
+                onChange={(e) => setCompraForm({ ...compraForm, quantidade: e.target.value })}
+              />
+            </Field>
+            <Field label="Valor" required>
+              <MoneyInput
+                required
+                value={compraForm.valor}
+                onChange={(valor) => setCompraForm({ ...compraForm, valor })}
+              />
+            </Field>
+            <Field label="Farmácia">
+              <div className="flex gap-2">
+                <TextSelect
+                  value={compraForm.farmacia_id}
+                  onChange={(e) => setCompraForm({ ...compraForm, farmacia_id: e.target.value })}
+                >
+                  <option value="">Mesma farmácia</option>
+                  {farmacias.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome_fantasia}
+                    </option>
+                  ))}
+                </TextSelect>
+                <SecondaryButton type="button" onClick={() => setQuickFarm({ nome: '', telefone: '' })}>
+                  Nova
+                </SecondaryButton>
+              </div>
+            </Field>
+            <PrimaryButton type="submit">Registrar e atualizar agenda</PrimaryButton>
+          </form>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(comprasOf)}
+        title={comprasOf ? `Histórico · ${comprasOf.nome_comercial}` : 'Histórico'}
+        onClose={() => setComprasOf(null)}
+      >
+        {compras.length === 0 ? (
+          <p className="text-sm text-slate-health">Nenhuma compra registrada.</p>
+        ) : (
+          <ul className="grid gap-2 text-sm">
+            {compras.map((c) => (
+              <li key={c.id} className="rounded-xl border border-[#e2eeee] px-3 py-2">
+                <strong>{fmtDate(c.data_compra)}</strong> · {c.quantidade} un. · {formatMoneyBr(c.valor) || '—'}
+                <span className="block text-xs text-slate-health">{c.farmacia_nome || '—'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </div>
   );
 }
