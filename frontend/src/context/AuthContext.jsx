@@ -19,6 +19,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => loadSession());
+  const [sessionChecked, setSessionChecked] = useState(() => !loadSession()?.token);
   const navigate = useNavigate();
 
   const logout = useCallback(
@@ -31,6 +32,40 @@ export function AuthProvider({ children }) {
     },
     [navigate]
   );
+
+  useEffect(() => {
+    if (!session?.token) {
+      setSessionChecked(true);
+      return undefined;
+    }
+    let cancelled = false;
+    refreshSessionRequest({ skipAuthRedirect: true })
+      .then((data) => {
+        if (cancelled) return;
+        setSession((prev) => {
+          if (!prev?.token) return prev;
+          return {
+            token: prev.token,
+            usuario: data.usuario || prev.usuario,
+            menus: data.menus || [],
+            papeis: data.papeis ?? prev.papeis ?? [],
+          };
+        });
+        setSessionChecked(true);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err?.status === 401) {
+          clearSession();
+          setSession(null);
+          navigate('/login', { replace: true });
+        }
+        setSessionChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     return onUnauthorized((message) => {
@@ -91,6 +126,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       session,
+      sessionChecked,
       isAuthenticated: Boolean(session?.token),
       usuario: session?.usuario || null,
       menus: session?.menus || [],
@@ -101,7 +137,7 @@ export function AuthProvider({ children }) {
       refreshSession,
       switchContext,
     }),
-    [session, login, logout, refreshSession, switchContext]
+    [session, sessionChecked, login, logout, refreshSession, switchContext]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

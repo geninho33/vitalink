@@ -27,7 +27,7 @@ export default function AppShell() {
   }, [location.pathname, reload]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#eef6f7]">
+    <div className="min-h-screen bg-[#eef6f7]">
       <Sidebar
         menus={visibleMenus}
         collapsed={collapsed}
@@ -38,7 +38,7 @@ export default function AppShell() {
       />
 
       <div
-        className={`flex min-h-screen flex-col overflow-x-hidden transition-all duration-300 ${
+        className={`flex min-h-screen flex-col transition-all duration-300 ${
           collapsed ? 'lg:pl-[78px]' : 'lg:pl-[272px]'
         }`}
       >

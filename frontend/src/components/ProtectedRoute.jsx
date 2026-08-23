@@ -16,9 +16,13 @@ function canAccessPath(pathname, menus) {
 }
 
 export default function ProtectedRoute() {
-  const { isAuthenticated, requerOnboarding, menus, usuario } = useAuth();
+  const { isAuthenticated, sessionChecked, requerOnboarding, menus, usuario } = useAuth();
   const { pacientes, loading: loadingPacientes } = usePacienteAtivo();
   const location = useLocation();
+
+  if (!sessionChecked) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;

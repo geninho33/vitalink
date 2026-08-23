@@ -82,7 +82,7 @@ export default function Header({ onOpenMobile, usuario, locked }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 min-w-0 items-center justify-between gap-2 overflow-x-hidden border-b border-[#d7e8e7] bg-white/90 px-3 backdrop-blur-md sm:gap-3 sm:px-6">
+    <header className="sticky top-0 z-[70] flex h-16 min-w-0 items-center justify-between gap-2 border-b border-[#d7e8e7] bg-white/90 px-3 backdrop-blur-md sm:gap-3 sm:px-6">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -128,7 +128,7 @@ export default function Header({ onOpenMobile, usuario, locked }) {
         </label>
       ) : null}
 
-      <div className="relative" ref={menuRef}>
+      <div className="relative z-[80] shrink-0" ref={menuRef}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -152,20 +152,20 @@ export default function Header({ onOpenMobile, usuario, locked }) {
         </button>
 
         <div
-          className={`absolute right-0 mt-2 w-72 origin-top-right overflow-hidden rounded-2xl border border-[#d7e8e7] bg-white shadow-panel transition-all duration-200 ${
+          className={`absolute right-0 mt-2 flex w-72 max-h-[min(28rem,70vh)] origin-top-right flex-col overflow-hidden rounded-2xl border border-[#d7e8e7] bg-white shadow-panel transition-all duration-200 ${
             open
-              ? 'pointer-events-auto scale-100 opacity-100'
-              : 'pointer-events-none scale-95 opacity-0'
+              ? 'pointer-events-auto visible scale-100 opacity-100'
+              : 'pointer-events-none invisible scale-95 opacity-0'
           }`}
           role="menu"
         >
-          <div className="border-b border-[#e8f1f0] px-4 py-3">
+          <div className="shrink-0 border-b border-[#e8f1f0] px-4 py-3">
             <p className="truncate text-sm font-semibold text-ink">{nome}</p>
             <p className="truncate text-xs text-slate-health">{perfilAtivo}</p>
           </div>
 
           {multiPerfil ? (
-            <div className="border-b border-[#e8f1f0] p-1.5">
+            <div className="min-h-0 flex-1 overflow-y-auto border-b border-[#e8f1f0] p-1.5">
               <p className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-health">
                 Trocar perfil
               </p>
@@ -201,11 +201,11 @@ export default function Header({ onOpenMobile, usuario, locked }) {
             </div>
           ) : null}
 
-          <div className="p-1.5">
+          <div className="sticky bottom-0 shrink-0 bg-white p-1.5">
             <button
               type="button"
               role="menuitem"
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-ink transition hover:bg-aqua-soft"
+              className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-ink transition hover:bg-aqua-soft"
               onClick={() => {
                 setOpen(false);
                 navigate('/meus-dados');
@@ -217,7 +217,7 @@ export default function Header({ onOpenMobile, usuario, locked }) {
             <button
               type="button"
               role="menuitem"
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-red-700 transition hover:bg-red-50"
+              className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-700 transition hover:bg-red-50"
               onClick={handleLogout}
             >
               <Icon name="logout" className="h-4 w-4" />

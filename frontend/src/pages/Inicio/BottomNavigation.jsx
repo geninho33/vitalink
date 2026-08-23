@@ -14,7 +14,7 @@ function NavItem({ item, onNavigate, compact }) {
       onClick={onNavigate}
       className={({ isActive }) =>
         `flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 transition ${
-          compact ? 'min-h-14 flex-row justify-start gap-3 px-3' : ''
+          compact ? 'min-h-14 flex-none flex-row justify-start gap-3 px-3' : ''
         } ${isActive ? 'text-aqua-deep' : 'text-[#8a9aa0] hover:text-aqua'}`
       }
     >
@@ -73,14 +73,14 @@ export default function BottomNavigation() {
       {moreOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-ink/40"
+          className="fixed inset-0 z-40 bg-ink/40 lg:hidden"
           aria-label="Fechar menu"
           onClick={() => setMoreOpen(false)}
         />
       ) : null}
 
       <div
-        className={`fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto w-full max-w-3xl px-2 transition ${
+        className={`fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 mx-auto w-full max-w-3xl px-2 transition lg:hidden ${
           moreOpen ? 'pointer-events-auto' : 'pointer-events-none'
         }`}
       >
@@ -105,7 +105,13 @@ export default function BottomNavigation() {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-[#d8e4e4] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(24,59,66,0.06)]"
         aria-label="Navegação principal"
       >
-        <nav className="mx-auto flex w-full max-w-3xl items-stretch justify-between gap-0.5 px-1 pt-1 pb-1 sm:px-2">
+        <nav className="mx-auto hidden w-full max-w-5xl items-stretch justify-between gap-0.5 px-2 pt-1 pb-1 lg:flex">
+          {BOTTOM_NAV_ITEMS.map((item) => (
+            <NavItem key={item.id} item={item} />
+          ))}
+        </nav>
+
+        <nav className="mx-auto flex w-full max-w-3xl items-stretch justify-between gap-0.5 px-1 pt-1 pb-1 sm:px-2 lg:hidden">
           {primary.map((item) => (
             <NavItem key={item.id} item={item} />
           ))}

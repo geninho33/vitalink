@@ -14,7 +14,7 @@ function readStoredId() {
 }
 
 export function PacienteAtivoProvider({ children }) {
-  const { isAuthenticated, usuario } = useAuth();
+  const { isAuthenticated, sessionChecked, usuario } = useAuth();
   const [pacientes, setPacientes] = useState([]);
   const [pacienteId, setPacienteIdState] = useState(readStoredId);
   const [loading, setLoading] = useState(false);
@@ -60,8 +60,9 @@ export function PacienteAtivoProvider({ children }) {
   }, [isAuthenticated, usuario?.paciente_ativo_id]);
 
   useEffect(() => {
+    if (!sessionChecked) return;
     reload();
-  }, [reload]);
+  }, [reload, sessionChecked]);
 
   const paciente = useMemo(
     () => pacientes.find((p) => String(p.id) === String(pacienteId)) || null,

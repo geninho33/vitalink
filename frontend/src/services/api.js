@@ -196,8 +196,8 @@ export async function onboardingRequest(body) {
 }
 
 /** Atualiza menus/usuário/papéis no storage mantendo o token atual. */
-export async function refreshSessionRequest() {
-  const data = await apiRequest('/menus/me');
+export async function refreshSessionRequest(options = {}) {
+  const data = await apiRequest('/menus/me', options);
   const current = loadSession();
   if (!current?.token) return data;
   persistSession({

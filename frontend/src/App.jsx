@@ -40,10 +40,17 @@ import {
 import TermosPage from './pages/TermosPage';
 
 function PublicOnly({ children }) {
-  const { isAuthenticated, requerOnboarding } = useAuth();
+  const { isAuthenticated, sessionChecked, requerOnboarding } = useAuth();
+  if (!sessionChecked) return null;
   if (isAuthenticated && requerOnboarding) return <Navigate to="/onboarding" replace />;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return children;
+}
+
+function CatchAll() {
+  const { isAuthenticated, sessionChecked } = useAuth();
+  if (!sessionChecked) return null;
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />;
 }
 
 export default function App() {
@@ -116,7 +123,7 @@ export default function App() {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<CatchAll />} />
     </Routes>
   );
 }
