@@ -144,7 +144,7 @@ export default function EntityCrudPage({
   const totalPages = Math.max(1, Math.ceil((pagination.total || 0) / pagination.pageSize));
 
   return (
-    <div>
+    <div className="min-w-0 overflow-x-hidden">
       <PageHeader title={title} description={description} />
 
       <PlaceholderCard>

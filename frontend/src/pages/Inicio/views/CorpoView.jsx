@@ -1,214 +1,188 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Field, TextSelect } from '../../../components/forms/FormControls';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Field, Modal, TextInput, TextTextarea } from '../../../components/forms/FormControls';
+import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
-import { storageGet } from '../localStore';
-import { PageTitle, Panel } from '../ui';
+import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
 
-/** Posições anatômicas (vista frontal). left/top em % do container. */
-const BODY_AREAS = [
-  {
-    match: /neurolog|neurocirurg|psiquiatr/,
-    top: '8%',
-    left: '50%',
-    label: 'cabeça e sistema nervoso',
-  },
-  {
-    match: /oftalm|otorrino|cabeça e pescoço/,
-    top: '12%',
-    left: '50%',
-    label: 'cabeça e sentidos',
-  },
-  {
-    match: /cardi|vascular|angiologia/,
-    top: '28%',
-    left: '38%',
-    label: 'coração e circulação (lado esquerdo)',
-  },
-  {
-    match: /pneum|torácica|toracica/,
-    top: '30%',
-    left: '58%',
-    label: 'pulmões e tórax',
-  },
-  {
-    match: /gastro|digestivo|coloprocto|endoscopia|hepat/,
-    top: '46%',
-    left: '50%',
-    label: 'abdômen',
-  },
-  {
-    match: /uro|nefrolog|ginecologia/,
-    top: '58%',
-    left: '50%',
-    label: 'região pélvica',
-  },
-  {
-    match: /ortopedia|reumatologia|esportiva|traumatolog/,
-    top: '72%',
-    left: '32%',
-    label: 'articulações',
-  },
-  {
-    match: /dermatolog/,
-    top: '40%',
-    left: '68%',
-    label: 'pele',
-  },
-];
-
-function getBodyArea(specialty) {
-  const normalized = String(specialty || '').toLocaleLowerCase('pt-BR');
-  return BODY_AREAS.find((area) => area.match.test(normalized));
+function isMale(sexo) {
+  const s = String(sexo || '').toLowerCase();
+  return s === 'm' || s === 'masculino' || s === 'male';
 }
 
 export default function CorpoView() {
-  const profile = storageGet('profile', {});
-  const [pacientes, setPacientes] = useState([]);
-  const [pacienteId, setPacienteId] = useState('');
-  const [specialties, setSpecialties] = useState(
-    Array.isArray(profile.specialties) ? profile.specialties : []
-  );
-  const [sexo, setSexo] = useState(profile.gender || 'Feminino');
+  const { pacienteId, paciente } = usePacienteAtivo();
+  const [marcas, setMarcas] = useState([]);
+  const [pending, setPending] = useState(null);
+  const [form, setForm] = useState({ titulo: '', descricao: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    apiRequest('/pacientes', { query: { pageSize: 200, status: 'ativo' } })
-      .then((res) => setPacientes(res.data || []))
-      .catch(() => setPacientes([]));
-  }, []);
-
-  useEffect(() => {
-    if (!pacienteId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [pacRes, medRes] = await Promise.all([
-          apiRequest(`/pacientes/${pacienteId}`),
-          apiRequest('/medicos', { query: { pageSize: 200, status: 'ativo' } }),
-        ]);
-        if (cancelled) return;
-        const pac = pacRes.data || pacRes;
-        if (pac.sexo) {
-          setSexo(pac.sexo === 'M' || pac.sexo === 'Masculino' ? 'Masculino' : 'Feminino');
-        }
-        let medicoIds = pac.medico_ids;
-        if (typeof medicoIds === 'string') {
-          try {
-            medicoIds = JSON.parse(medicoIds);
-          } catch {
-            medicoIds = [];
-          }
-        }
-        const ids = new Set((Array.isArray(medicoIds) ? medicoIds : []).map(Number));
-        const meds = (medRes.data || []).filter((m) => ids.has(Number(m.id)));
-        const esps = [
-          ...new Set(meds.map((m) => m.especialidade).filter(Boolean)),
-        ];
-        if (esps.length) setSpecialties(esps);
-      } catch {
-        /* mantém specialties locais */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pacienteId]);
-
-  const male = sexo === 'Masculino';
+  const male = isMale(paciente?.sexo);
   const bodySrc = male
     ? `${import.meta.env.BASE_URL}Sexo%20Masculino.png`
     : `${import.meta.env.BASE_URL}Sexo%20Feminino.png`;
 
-  const mapped = useMemo(
-    () => specialties.map((name) => ({ name, area: getBodyArea(name) })),
-    [specialties]
-  );
+  const load = useCallback(async () => {
+    if (!pacienteId) {
+      setMarcas([]);
+      return;
+    }
+    try {
+      const res = await apiRequest('/inicio/corpo-marcas', {
+        query: { paciente_id: pacienteId },
+      });
+      setMarcas(res.data || []);
+    } catch {
+      setMarcas([]);
+    }
+  }, [pacienteId]);
 
-  const anatomical = mapped.filter((m) => m.area).length;
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function handleMapClick(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos_x = Number((((e.clientX - rect.left) / rect.width) * 100).toFixed(2));
+    const pos_y = Number((((e.clientY - rect.top) / rect.height) * 100).toFixed(2));
+    setPending({ pos_x, pos_y });
+    setForm({ titulo: '', descricao: '' });
+    setError('');
+  }
+
+  async function saveMarca(e) {
+    e.preventDefault();
+    if (!pending || !pacienteId) return;
+    setSaving(true);
+    setError('');
+    try {
+      await apiRequest('/inicio/corpo-marcas', {
+        method: 'POST',
+        body: {
+          paciente_id: Number(pacienteId),
+          pos_x: pending.pos_x,
+          pos_y: pending.pos_y,
+          titulo: form.titulo.trim(),
+          descricao: form.descricao.trim(),
+        },
+      });
+      setPending(null);
+      await load();
+    } catch (err) {
+      setError(err.message || 'Não foi possível salvar a marca.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeMarca(id) {
+    try {
+      await apiRequest(`/inicio/corpo-marcas/${id}`, { method: 'DELETE' });
+      await load();
+    } catch (err) {
+      window.alert(err.message || 'Não foi possível excluir.');
+    }
+  }
+
+  const mapped = useMemo(() => marcas, [marcas]);
 
   return (
     <div>
       <PageTitle
         eyebrow="Visão geral"
         title="Mapa corporal"
-        description="Os marcadores refletem as especialidades do paciente. Passe o mouse para ver o nome e abra a pasta de exames."
+        description="Toque no desenho para marcar a região afetada e vincular o sintoma ou a doença."
       />
-
-      <Panel className="mb-4">
-        <Field label="Paciente (opcional — carrega especialidades da ficha)">
-          <TextSelect value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
-            <option value="">Usar perfil local / todas</option>
-            {pacientes.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </TextSelect>
-        </Field>
-      </Panel>
 
       <Panel>
         <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
           <div className="flex flex-col items-center">
-            <div className="relative w-full max-w-[220px] overflow-hidden rounded-2xl border border-[#cfe0df] bg-white">
+            <button
+              type="button"
+              onClick={handleMapClick}
+              className="relative w-full max-w-[220px] cursor-crosshair overflow-hidden rounded-2xl border border-[#cfe0df] bg-white p-0"
+              aria-label="Mapa corporal — clique para marcar"
+            >
               <img
                 src={bodySrc}
-                alt={
-                  male
-                    ? 'Mapa frontal do corpo masculino'
-                    : 'Mapa frontal do corpo feminino'
-                }
-                className="mx-auto block h-auto w-full object-contain object-top"
+                alt={male ? 'Mapa corporal masculino' : 'Mapa corporal feminino'}
+                className="pointer-events-none mx-auto block h-auto w-full object-contain object-top"
               />
-              {mapped
-                .filter((item) => item.area)
-                .map((item) => (
-                  <Link
-                    key={item.name}
-                    to={`/exames-receitas?especialidade=${encodeURIComponent(item.name)}${
-                      pacienteId ? `&paciente_id=${pacienteId}` : ''
-                    }`}
-                    title={`${item.name} — ${item.area.label}`}
-                    className="absolute z-10 grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-aqua text-[10px] font-bold text-white shadow transition hover:scale-110 hover:bg-vita"
-                    style={{ top: item.area.top, left: item.area.left }}
-                  >
-                    ●
-                  </Link>
-                ))}
-            </div>
+              {mapped.map((item) => (
+                <span
+                  key={item.id}
+                  title={item.titulo}
+                  className="pointer-events-none absolute z-10 grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-vita text-[10px] font-bold text-white shadow"
+                  style={{ top: `${item.pos_y}%`, left: `${item.pos_x}%` }}
+                >
+                  ●
+                </span>
+              ))}
+            </button>
             <span className="mt-2 text-xs text-slate-health">
               Mapa {male ? 'masculino' : 'feminino'} · vista frontal
             </span>
           </div>
 
           <div>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {mapped.length === 0 ? (
-                <span className="text-sm text-slate-health">
-                  Nenhuma especialidade cadastrada. Vincule profissionais na ficha do paciente.
-                </span>
-              ) : (
-                mapped.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={`/exames-receitas?especialidade=${encodeURIComponent(item.name)}${
-                      pacienteId ? `&paciente_id=${pacienteId}` : ''
-                    }`}
-                    className="rounded-full border border-aqua/40 bg-aqua-soft px-3 py-1 text-xs font-semibold text-aqua-deep hover:bg-aqua hover:text-white"
-                    title={item.area?.label || item.name}
-                  >
-                    {item.name}
-                  </Link>
-                ))
-              )}
-            </div>
-            <p className="text-sm text-slate-health">
-              {anatomical} ponto(s) mapeados anatomicamente. Clique no ponto ou no nome para abrir a
-              pasta da especialidade em Exames/Receitas.
-            </p>
+            {mapped.length === 0 ? (
+              <EmptyState>Nenhuma região marcada. Toque no corpo para registrar um sintoma.</EmptyState>
+            ) : (
+              <ul className="space-y-2">
+                {mapped.map((item) => (
+                  <li key={item.id} className="rounded-xl border border-[#e2eeee] bg-[#f8fcfc] px-3 py-2">
+                    <strong className="text-ink">{item.titulo}</strong>
+                    {item.descricao ? (
+                      <p className="text-sm text-slate-health">{item.descricao}</p>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="mt-1 text-xs font-semibold text-red-600"
+                      onClick={() => removeMarca(item.id)}
+                    >
+                      Remover
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </Panel>
+
+      <Modal
+        open={Boolean(pending)}
+        title="Marcar região afetada"
+        onClose={() => setPending(null)}
+      >
+        <form className="grid gap-3" onSubmit={saveMarca}>
+          <Field label="Doença ou sintoma" required>
+            <TextInput
+              required
+              value={form.titulo}
+              onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+              placeholder="Ex.: Dor lombar, hipertensão, ferida"
+            />
+          </Field>
+          <Field label="Descrição">
+            <TextTextarea
+              rows={3}
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              placeholder="Observações sobre o local e a intensidade"
+            />
+          </Field>
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <div className="flex gap-2">
+            <PrimaryButton type="submit" disabled={saving} className="flex-1">
+              {saving ? 'Salvando...' : 'Vincular ao paciente'}
+            </PrimaryButton>
+            <SecondaryButton type="button" onClick={() => setPending(null)}>
+              Cancelar
+            </SecondaryButton>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

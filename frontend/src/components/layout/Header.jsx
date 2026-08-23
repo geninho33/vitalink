@@ -5,6 +5,7 @@ import Icon from '../Icon';
 import { getInitials } from '../../utils/menuTree';
 import { useAuth } from '../../context/AuthContext';
 import { usePacienteAtivo } from '../../context/PacienteAtivoContext';
+import { pacienteGateTarget } from '../../utils/pacienteGate';
 
 function labelPapel(papel) {
   if (!papel) return 'Sem perfil';
@@ -13,7 +14,7 @@ function labelPapel(papel) {
   return base;
 }
 
-export default function Header({ onOpenMobile, usuario }) {
+export default function Header({ onOpenMobile, usuario, locked }) {
   const { logout, papeis, switchContext } = useAuth();
   const { pacientes, pacienteId, setPacienteId, paciente } = usePacienteAtivo();
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ export default function Header({ onOpenMobile, usuario }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-[#d7e8e7] bg-white/90 px-4 backdrop-blur-md sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 min-w-0 items-center justify-between gap-2 overflow-x-hidden border-b border-[#d7e8e7] bg-white/90 px-3 backdrop-blur-md sm:gap-3 sm:px-6">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -100,8 +101,16 @@ export default function Header({ onOpenMobile, usuario }) {
         </div>
       </div>
 
-      {showPacienteSelector ? (
-        <label className="flex min-w-0 max-w-[16rem] flex-1 items-center gap-2 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-3 py-1.5 sm:max-w-xs">
+      {locked ? (
+        <button
+          type="button"
+          onClick={() => navigate(pacienteGateTarget(usuario))}
+          className="min-w-0 truncate rounded-2xl bg-vita px-3 py-2 text-xs font-semibold text-white sm:text-sm"
+        >
+          Cadastrar paciente
+        </button>
+      ) : showPacienteSelector ? (
+        <label className="flex min-w-0 max-w-[11rem] flex-1 items-center gap-2 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-2 py-1.5 sm:max-w-xs sm:px-3">
           <Icon name="user" className="h-4 w-4 shrink-0 text-vita" />
           <span className="sr-only">Paciente ativo</span>
           <select

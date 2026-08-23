@@ -103,6 +103,7 @@ export default function Sidebar({
   menus,
   collapsed,
   mobileOpen,
+  locked,
   onCloseMobile,
   onToggleCollapse,
 }) {
@@ -155,7 +156,12 @@ export default function Sidebar({
           )}
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4">
+          {locked ? (
+            <p className="mb-3 rounded-xl bg-white/10 px-3 py-2 text-xs leading-relaxed text-white/85">
+              Cadastre um paciente para liberar os demais módulos.
+            </p>
+          ) : null}
           {tree.map((item) => (
             <NavItem
               key={item.id}

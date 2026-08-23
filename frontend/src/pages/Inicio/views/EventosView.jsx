@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { DateBrInput, Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
+import { ComboCreate, DateBrInput, Field, Modal, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
+import { addCatalogItem, loadCatalog, optionize } from '../catalog';
 import { apiRequest } from '../../../services/api';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { todayKey } from '../localStore';
@@ -35,6 +36,10 @@ export default function EventosView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState(null);
+  const [medicos, setMedicos] = useState([]);
+  const [diagnosticos, setDiagnosticos] = useState(loadCatalog('diagnosticos'));
+  const [quick, setQuick] = useState(null);
+  const [quickValue, setQuickValue] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +64,12 @@ export default function EventosView() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    apiRequest('/medicos', { query: { pageSize: 200, status: 'ativo' } })
+      .then((res) => setMedicos(res.data || []))
+      .catch(() => setMedicos([]));
+  }, []);
 
   function startEdit(row) {
     setEditingId(row.id);
@@ -188,20 +199,28 @@ export default function EventosView() {
               />
             </Field>
           </div>
-          <Field label="Médico(a)">
-            <TextInput
-              value={form.doctor}
-              onChange={(e) => setForm({ ...form, doctor: e.target.value })}
-              placeholder="Nome do profissional"
-            />
-          </Field>
-          <Field label="Diagnóstico">
-            <TextInput
-              value={form.diagnosis}
-              onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
-              placeholder="Ex.: Hipertensão arterial"
-            />
-          </Field>
+          <ComboCreate
+            label="Médico(a)"
+            value={form.doctor}
+            onChange={(doctor) => setForm({ ...form, doctor })}
+            options={[...optionize(medicos, 'nome', 'nome'), ...loadCatalog('medicos-locais')]}
+            placeholder="Selecione"
+            onCreate={() => {
+              setQuick('doctor');
+              setQuickValue('');
+            }}
+          />
+          <ComboCreate
+            label="Diagnóstico"
+            value={form.diagnosis}
+            onChange={(diagnosis) => setForm({ ...form, diagnosis })}
+            options={diagnosticos}
+            placeholder="Selecione"
+            onCreate={() => {
+              setQuick('diagnosis');
+              setQuickValue('');
+            }}
+          />
           <div className="sm:col-span-2">
             <Field label="Exames solicitados / orientações">
               <TextTextarea
@@ -291,6 +310,34 @@ export default function EventosView() {
           ))}
         </div>
       )}
+
+      <Modal
+        open={Boolean(quick)}
+        title={quick === 'doctor' ? 'Novo médico' : 'Novo diagnóstico'}
+        onClose={() => setQuick(null)}
+      >
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const value = quickValue.trim();
+            if (!value) return;
+            if (quick === 'doctor') {
+              addCatalogItem('medicos-locais', { value, label: value });
+              setForm((f) => ({ ...f, doctor: value }));
+            } else {
+              setDiagnosticos(addCatalogItem('diagnosticos', { value, label: value }));
+              setForm((f) => ({ ...f, diagnosis: value }));
+            }
+            setQuick(null);
+          }}
+        >
+          <Field label="Nome" required>
+            <TextInput required value={quickValue} onChange={(e) => setQuickValue(e.target.value)} />
+          </Field>
+          <PrimaryButton type="submit">Salvar e selecionar</PrimaryButton>
+        </form>
+      </Modal>
     </div>
   );
 }

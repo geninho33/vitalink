@@ -15,6 +15,7 @@ const empty = () => ({
   indicacao: '',
   farmacia_id: '',
   valor: null,
+  intervalo_horas: '8',
 });
 
 const emptyCompra = () => ({
@@ -84,6 +85,7 @@ export default function MedsView() {
           farmacia_id: Number(form.farmacia_id),
           quantidade_estoque: Number(form.quantidade_estoque),
           consumo_diario: Number(form.consumo_diario) || 1,
+          intervalo_horas: Number(form.intervalo_horas) || null,
         },
       });
       setForm(empty());
@@ -181,6 +183,16 @@ export default function MedsView() {
 
       <Panel className="mb-5">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="sm:col-span-2">
+            <Field label="Nome do medicamento" required>
+              <TextInput
+                required
+                value={form.nome_comercial}
+                onChange={(e) => setForm({ ...form, nome_comercial: e.target.value })}
+                placeholder="Nome do medicamento"
+              />
+            </Field>
+          </div>
           <Field label="Farmácia" required>
             <div className="flex gap-2">
               <TextSelect
@@ -219,7 +231,7 @@ export default function MedsView() {
             </TextSelect>
           </Field>
           {form.periodo_horario === 'personalizado' ? (
-            <Field label="Hora" required>
+            <Field label="Hora inicial" required>
               <TextInput
                 type="time"
                 required
@@ -227,19 +239,19 @@ export default function MedsView() {
                 onChange={(e) => setForm({ ...form, hora_exata: e.target.value })}
               />
             </Field>
-          ) : (
-            <div />
-          )}
-          <div className="sm:col-span-2">
-            <Field label="Medicamento" required>
-              <TextInput
-                required
-                value={form.nome_comercial}
-                onChange={(e) => setForm({ ...form, nome_comercial: e.target.value })}
-                placeholder="Nome do medicamento"
-              />
-            </Field>
-          </div>
+          ) : null}
+          <Field label="Intervalo entre doses" required>
+            <TextSelect
+              value={form.intervalo_horas}
+              onChange={(e) => setForm({ ...form, intervalo_horas: e.target.value })}
+            >
+              <option value="4">De 4 em 4 horas</option>
+              <option value="6">De 6 em 6 horas</option>
+              <option value="8">De 8 em 8 horas</option>
+              <option value="12">De 12 em 12 horas</option>
+              <option value="24">Uma vez ao dia (24h)</option>
+            </TextSelect>
+          </Field>
           <Field label="Dosagem / quantidade por dose" required>
             <TextInput
               required
@@ -248,7 +260,7 @@ export default function MedsView() {
               placeholder="Ex.: 1 comprimido de 500 mg"
             />
           </Field>
-          <Field label="Estoque disponível" required>
+          <Field label="Total de comprimidos / Total em mL" required>
             <TextInput
               type="number"
               min="0"
@@ -289,11 +301,12 @@ export default function MedsView() {
         <div className="space-y-3">
           {list.map((m) => (
             <article key={m.id} className="rounded-2xl border border-[#d7e8e7] bg-white p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <strong className="block text-lg text-ink">{m.nome_comercial}</strong>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="text-sm font-semibold text-aqua-deep"
+                    className="min-h-10 text-sm font-semibold text-aqua-deep"
                     onClick={() => {
                       setCompraOpen(m);
                       setCompraForm({
@@ -307,7 +320,7 @@ export default function MedsView() {
                   </button>
                   <button
                     type="button"
-                    className="text-sm font-semibold text-slate-health"
+                    className="min-h-10 text-sm font-semibold text-slate-health"
                     onClick={() => openHistorico(m)}
                   >
                     Histórico
@@ -336,12 +349,12 @@ export default function MedsView() {
                   </button>
                 )}
               </div>
-              <strong className="block text-ink">{m.nome_comercial}</strong>
               <p className="text-sm text-slate-health">
                 {m.quantidade_administrar || '—'} · {formatMoneyBr(m.valor) || '—'} · {m.farmacia_nome || 'Sem farmácia'}
               </p>
               <p className="mt-1 text-xs text-slate-health">
-                Estoque {m.quantidade_estoque ?? '—'} · {m.consumo_diario} un./dia · acaba em {fmtDate(m.data_fim_estoque)}
+                Total compr./mL {m.quantidade_estoque ?? '—'} · {m.consumo_diario} un./dia
+                {m.intervalo_horas ? ` · a cada ${m.intervalo_horas}h` : ''} · acaba em {fmtDate(m.data_fim_estoque)}
               </p>
               {m.alerta_reposicao ? (
                 <p className="mt-2 text-xs font-semibold text-amber-700">

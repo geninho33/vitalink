@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DateBrInput } from '../components/forms/FormControls';
 import { useAuth } from '../context/AuthContext';
+import { usePacienteAtivo } from '../context/PacienteAtivoContext';
 import { isValidCpf, maskCpf, onlyDigits } from '../hooks/useCep';
 import { onboardingRequest } from '../services/api';
 
@@ -9,6 +10,7 @@ const emptyPaciente = () => ({ nome: '', data_nascimento: '', cpf: '', telefone:
 
 export default function OnboardingPage() {
   const { usuario, refreshSession, switchContext } = useAuth();
+  const { reload } = usePacienteAtivo();
   const navigate = useNavigate();
   const [tipo, setTipo] = useState('');
   const [dados, setDados] = useState({
@@ -21,6 +23,13 @@ export default function OnboardingPage() {
   const [pacientes, setPacientes] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const perfilId = Number(usuario?.perfil?.id || usuario?.perfil_id);
+    if (perfilId === 4) setTipo('cuidador');
+    if (perfilId === 5) setTipo('responsavel');
+    setPacientes((prev) => (prev.length ? prev : [emptyPaciente()]));
+  }, [usuario?.perfil?.id, usuario?.perfil_id]);
 
   function addPaciente() {
     if (pacientes.length >= 2) return;
@@ -41,6 +50,10 @@ export default function OnboardingPage() {
       setError('Há um CPF de paciente inválido.');
       return;
     }
+    if (!pacientes.some((p) => p.nome && p.data_nascimento && p.cpf)) {
+      setError('Cadastre ao menos um paciente para continuar.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -50,6 +63,7 @@ export default function OnboardingPage() {
         pacientes: pacientes.filter((p) => p.nome && p.data_nascimento && p.cpf),
       });
       await refreshSession();
+      await reload();
       await switchContext({
         perfil_id: res.perfil_id,
         paciente_id: res.pacientes?.[0]?.id || null,
@@ -146,7 +160,7 @@ export default function OnboardingPage() {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-bold uppercase tracking-wider text-slate-health">
-                Pacientes iniciais (opcional)
+                Paciente inicial (obrigatório)
               </h2>
               <button
                 type="button"

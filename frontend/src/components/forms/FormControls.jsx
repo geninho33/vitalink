@@ -238,28 +238,66 @@ export function AddressFields({ values, onChange, required = true }) {
   );
 }
 
-export function Modal({ open, title, onClose, children, wide }) {
+export function Modal({ open, title, onClose, children, wide, footer }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/40 p-3 sm:items-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center overflow-x-hidden bg-ink/40 p-2 sm:items-center sm:p-3">
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Fechar" onClick={onClose} />
       <div
-        className={`relative max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-[#d7e8e7] bg-white shadow-panel ${
-          wide ? 'max-w-3xl' : 'max-w-xl'
+        className={`relative flex max-h-[92vh] w-full max-w-full flex-col overflow-hidden rounded-2xl border border-[#d7e8e7] bg-white shadow-panel ${
+          wide ? 'sm:max-w-3xl' : 'sm:max-w-xl'
         }`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e8f1f0] bg-white px-5 py-4">
-          <h2 className="font-display text-lg font-bold text-ink">{title}</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-[#e8f1f0] bg-white px-4 py-3 sm:px-5 sm:py-4">
+          <h2 className="min-w-0 truncate font-display text-base font-bold text-ink sm:text-lg">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-2 py-1 text-slate-health hover:bg-aqua-soft hover:text-ink"
+            className="min-h-10 shrink-0 rounded-lg px-3 py-1 text-slate-health hover:bg-aqua-soft hover:text-ink"
           >
             Fechar
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5">{children}</div>
+        {footer ? (
+          <div className="sticky bottom-0 z-10 flex flex-wrap gap-2 border-t border-[#e8f1f0] bg-white px-4 py-3 sm:px-5">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+export function ComboCreate({
+  label,
+  required,
+  value,
+  onChange,
+  options = [],
+  placeholder = 'Selecione',
+  onCreate,
+  createLabel = 'Novo',
+}) {
+  return (
+    <Field label={label} required={required}>
+      <div className="flex min-w-0 gap-2">
+        <TextSelect value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{placeholder}</option>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </TextSelect>
+        <button
+          type="button"
+          onClick={onCreate}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-aqua px-3 text-sm font-semibold text-aqua-deep hover:bg-aqua-soft"
+        >
+          {createLabel}
+        </button>
+      </div>
+    </Field>
   );
 }

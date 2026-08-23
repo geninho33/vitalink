@@ -26,5 +26,5 @@ export const BOTTOM_NAV_ITEMS = [
   { id: 'corpo', label: 'Corpo', icon: 'target', path: '/inicio/corpo' },
   { id: 'timeline', label: 'Linha', icon: 'arrow-up-right', path: '/inicio/linha' },
   { id: 'medicamentos', label: 'Medicamentos', icon: 'pill', path: '/inicio/meds' },
-  { id: 'documentos', label: 'Docs', icon: 'file-list', path: '/inicio/docs' },
+  { id: 'documentos', label: 'Exames/Receitas', icon: 'file-list', path: '/inicio/docs' },
 ];

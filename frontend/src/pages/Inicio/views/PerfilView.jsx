@@ -1,77 +1,109 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DateBrInput, Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
-import { calculateAge, storageGet, storageSet } from '../localStore';
-import { PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
+import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
+import { apiRequest } from '../../../services/api';
+import { calculateAge } from '../localStore';
+import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
 
-const BLOOD = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const CFM_SPECIALTIES = [
-  'Cardiologia',
-  'Dermatologia',
-  'Endocrinologia e metabologia',
-  'Geriatria',
-  'Neurologia',
-  'Ortopedia e traumatologia',
-  'Psiquiatria',
-  'Urologia',
-  'Clínica médica',
-  'Oftalmologia',
-  'Pneumologia',
-  'Reumatologia',
-];
+const BLOOD = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'NI'];
 
-const emptyProfile = () => ({
-  name: '',
-  email: '',
-  gender: '',
-  birthDate: '',
-  blood: '',
-  notes: '',
-  specialties: [],
-  specialtyDetails: [],
-});
+function emptyForm() {
+  return {
+    nome: '',
+    email: '',
+    sexo: '',
+    data_nascimento: '',
+    tipo_sanguineo: '',
+    telefone_principal: '',
+    alergias: '',
+    observacoes: '',
+    diagnostico_principal: '',
+  };
+}
+
+function mapPaciente(p) {
+  if (!p) return emptyForm();
+  return {
+    nome: p.nome || '',
+    email: p.email || '',
+    sexo: p.sexo || '',
+    data_nascimento: p.data_nascimento ? String(p.data_nascimento).slice(0, 10) : '',
+    tipo_sanguineo: p.tipo_sanguineo || '',
+    telefone_principal: p.telefone_principal || '',
+    alergias: p.alergias || '',
+    observacoes: p.observacoes || '',
+    diagnostico_principal: p.diagnostico_principal || '',
+  };
+}
 
 export default function PerfilView() {
-  const [form, setForm] = useState(emptyProfile);
-  const [specialtySelect, setSpecialtySelect] = useState('');
-  const [details, setDetails] = useState([]);
+  const { pacienteId, paciente, reload } = usePacienteAtivo();
+  const [form, setForm] = useState(emptyForm);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
+
+  const fill = useCallback(async () => {
+    if (!pacienteId) {
+      setForm(emptyForm());
+      return;
+    }
+    try {
+      const res = await apiRequest(`/pacientes/${pacienteId}`);
+      setForm(mapPaciente(res.data || res));
+    } catch {
+      setForm(mapPaciente(paciente));
+    }
+  }, [pacienteId, paciente]);
 
   useEffect(() => {
-    const saved = storageGet('profile', {});
-    setForm({ ...emptyProfile(), ...saved });
-    const list = Array.isArray(saved.specialtyDetails)
-      ? saved.specialtyDetails
-      : (saved.specialties || []).map((name) => ({ name, doctor: '', clinic: '', contact: '' }));
-    setDetails(list);
-  }, []);
+    fill();
+    setEditing(false);
+    setMsg('');
+  }, [fill]);
 
-  const age = useMemo(() => calculateAge(form.birthDate), [form.birthDate]);
+  const age = useMemo(() => calculateAge(form.data_nascimento), [form.data_nascimento]);
 
-  function addSpecialty() {
-    if (!specialtySelect || details.some((d) => d.name === specialtySelect)) return;
-    setDetails((prev) => [{ name: specialtySelect, doctor: '', clinic: '', contact: '' }, ...prev]);
-    setSpecialtySelect('');
-  }
-
-  function removeSpecialty(name) {
-    setDetails((prev) => prev.filter((d) => d.name !== name));
-  }
-
-  function updateDetail(name, field, value) {
-    setDetails((prev) =>
-      prev.map((d) => (d.name === name ? { ...d, [field]: value } : d))
-    );
-  }
-
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
-    const payload = {
-      ...form,
-      specialties: details.map((d) => d.name),
-      specialtyDetails: details,
-    };
-    storageSet('profile', payload);
-    setMsg('Informações salvas neste dispositivo.');
+    if (!pacienteId) return;
+    setSaving(true);
+    setError('');
+    setMsg('');
+    try {
+      await apiRequest(`/pacientes/${pacienteId}`, {
+        method: 'PUT',
+        body: {
+          nome: form.nome,
+          email: form.email || null,
+          sexo: form.sexo || null,
+          data_nascimento: form.data_nascimento,
+          tipo_sanguineo: form.tipo_sanguineo || 'NI',
+          telefone_principal: form.telefone_principal || null,
+          alergias: form.alergias || null,
+          observacoes: form.observacoes || null,
+          diagnostico_principal: form.diagnostico_principal || null,
+        },
+      });
+      await reload();
+      await fill();
+      setEditing(false);
+      setMsg('Ficha atualizada.');
+    } catch (err) {
+      setError(err.message || 'Não foi possível salvar.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!pacienteId) {
+    return (
+      <div>
+        <PageTitle eyebrow="Dados pessoais" title="Ficha do paciente" />
+        <EmptyState>Cadastre um paciente para visualizar a ficha.</EmptyState>
+      </div>
+    );
   }
 
   return (
@@ -79,40 +111,45 @@ export default function PerfilView() {
       <PageTitle
         eyebrow="Dados pessoais"
         title="Ficha do paciente"
-        description="Informações importantes para o seu cuidado."
+        description="Dados do paciente ativo, carregados automaticamente."
       />
 
       <Panel>
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSave}>
-          <Field label="Nome completo">
+          <Field label="Nome completo" required>
             <TextInput
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Nome completo"
+              required
+              disabled={!editing}
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
             />
           </Field>
           <Field label="E-mail">
             <TextInput
               type="email"
+              disabled={!editing}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="seu@email.com"
             />
           </Field>
           <Field label="Sexo">
             <TextSelect
-              value={form.gender}
-              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+              disabled={!editing}
+              value={form.sexo}
+              onChange={(e) => setForm({ ...form, sexo: e.target.value })}
             >
               <option value="">Selecione</option>
-              <option value="Feminino">Feminino</option>
-              <option value="Masculino">Masculino</option>
+              <option value="feminino">Feminino</option>
+              <option value="masculino">Masculino</option>
+              <option value="outro">Outro</option>
+              <option value="nao_informado">Não informado</option>
             </TextSelect>
           </Field>
           <Field label="Data de nascimento">
             <DateBrInput
-              value={form.birthDate}
-              onChange={(birthDate) => setForm({ ...form, birthDate })}
+              disabled={!editing}
+              value={form.data_nascimento}
+              onChange={(data_nascimento) => setForm({ ...form, data_nascimento })}
             />
           </Field>
           <div className="rounded-xl bg-[#f4fbfa] px-3 py-2.5 sm:col-span-2">
@@ -123,8 +160,9 @@ export default function PerfilView() {
           </div>
           <Field label="Tipo sanguíneo">
             <TextSelect
-              value={form.blood}
-              onChange={(e) => setForm({ ...form, blood: e.target.value })}
+              disabled={!editing}
+              value={form.tipo_sanguineo}
+              onChange={(e) => setForm({ ...form, tipo_sanguineo: e.target.value })}
             >
               <option value="">Selecione</option>
               {BLOOD.map((b) => (
@@ -134,92 +172,65 @@ export default function PerfilView() {
               ))}
             </TextSelect>
           </Field>
-
+          <Field label="Telefone">
+            <TextInput
+              disabled={!editing}
+              value={form.telefone_principal}
+              onChange={(e) => setForm({ ...form, telefone_principal: e.target.value })}
+            />
+          </Field>
           <div className="sm:col-span-2">
-            <p className="mb-2 text-sm font-semibold text-ink">Especialidades em acompanhamento</p>
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-              <TextSelect
-                value={specialtySelect}
-                onChange={(e) => setSpecialtySelect(e.target.value)}
-              >
-                <option value="">Selecione uma especialidade</option>
-                {CFM_SPECIALTIES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </TextSelect>
-              <SecondaryButton type="button" onClick={addSpecialty}>
-                Adicionar
-              </SecondaryButton>
-            </div>
-            <div className="space-y-3">
-              {details.length === 0 ? (
-                <p className="text-sm text-slate-health">Nenhuma especialidade selecionada.</p>
-              ) : (
-                details.map((item) => (
-                  <article
-                    key={item.name}
-                    className="rounded-xl border border-[#e2eeee] bg-[#f8fcfc] p-3"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <strong className="text-ink">{item.name}</strong>
-                      <button
-                        type="button"
-                        className="text-lg text-slate-health hover:text-red-600"
-                        onClick={() => removeSpecialty(item.name)}
-                        aria-label={`Remover ${item.name}`}
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Field label="Nome do médico">
-                        <TextInput
-                          value={item.doctor || ''}
-                          onChange={(e) => updateDetail(item.name, 'doctor', e.target.value)}
-                          placeholder="Ex.: Dra. Ana Silva"
-                        />
-                      </Field>
-                      <Field label="Clínica / local">
-                        <TextInput
-                          value={item.clinic || ''}
-                          onChange={(e) => updateDetail(item.name, 'clinic', e.target.value)}
-                          placeholder="Ex.: Clínica Vita"
-                        />
-                      </Field>
-                      <div className="sm:col-span-2">
-                        <Field label="Contato">
-                          <TextInput
-                            value={item.contact || ''}
-                            onChange={(e) => updateDetail(item.name, 'contact', e.target.value)}
-                            placeholder="Telefone, WhatsApp ou e-mail"
-                          />
-                        </Field>
-                      </div>
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
+            <Field label="Diagnóstico principal">
+              <TextInput
+                disabled={!editing}
+                value={form.diagnostico_principal}
+                onChange={(e) => setForm({ ...form, diagnostico_principal: e.target.value })}
+              />
+            </Field>
           </div>
-
+          <div className="sm:col-span-2">
+            <Field label="Alergias">
+              <TextTextarea
+                rows={2}
+                disabled={!editing}
+                value={form.alergias}
+                onChange={(e) => setForm({ ...form, alergias: e.target.value })}
+              />
+            </Field>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Observações médicas">
               <TextTextarea
                 rows={3}
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Ex.: Alérgico a dipirona; condições, cuidados e outras informações relevantes."
+                disabled={!editing}
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
               />
             </Field>
           </div>
-
-          <div className="sm:col-span-2">
-            <PrimaryButton type="submit" className="w-full">
-              Salvar informações
-            </PrimaryButton>
-            {msg ? <p className="mt-2 text-sm text-aqua-deep">{msg}</p> : null}
+          {error ? <p className="sm:col-span-2 text-sm text-red-600">{error}</p> : null}
+          {msg ? <p className="sm:col-span-2 text-sm text-aqua-deep">{msg}</p> : null}
+          <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
+            {editing ? (
+              <>
+                <PrimaryButton type="submit" disabled={saving} className="sm:flex-1">
+                  {saving ? 'Salvando...' : 'Salvar alterações'}
+                </PrimaryButton>
+                <SecondaryButton
+                  type="button"
+                  onClick={() => {
+                    setEditing(false);
+                    fill();
+                  }}
+                >
+                  Cancelar
+                </SecondaryButton>
+              </>
+            ) : (
+              <PrimaryButton type="button" className="sm:flex-1" onClick={() => setEditing(true)}>
+                Editar ficha
+              </PrimaryButton>
+            )}
           </div>
         </form>
       </Panel>

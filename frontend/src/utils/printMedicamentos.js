@@ -10,8 +10,8 @@ export function printMedicamentos(rows = [], { mode = 'lista', pacienteNome = ''
 
   const headCols =
     mode === 'estoque'
-      ? `<th>Medicamento</th><th>Dose</th><th>Estoque</th><th>Uso/dia*</th><th>Dias restantes</th><th>Reposição</th>`
-      : `<th>#</th><th>Medicamento</th><th>Princípio</th><th>Dose</th><th>Estoque</th><th>Indicação</th><th>Prescritor</th>`;
+      ? `<th>Medicamento</th><th>Dose</th><th>Total de comprimidos / Total em mL</th><th>Uso/dia*</th><th>Dias restantes</th><th>Reposição</th>`
+      : `<th>#</th><th>Medicamento</th><th>Princípio</th><th>Dose</th><th>Total de comprimidos / Total em mL</th><th>Indicação</th><th>Prescritor</th>`;
 
   const body = (rows || [])
     .slice(0, 20)

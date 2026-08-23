@@ -460,7 +460,7 @@ export default function VistaGeralView() {
                           {m.periodo_horario || 'Horário'}
                           {m.quantidade_administrar ? ` · ${m.quantidade_administrar}` : ''}
                           {m.quantidade_estoque != null
-                            ? ` · estoque ${m.quantidade_estoque}`
+                            ? ` · total ${m.quantidade_estoque} compr./mL`
                             : ''}
                         </small>
                       </span>

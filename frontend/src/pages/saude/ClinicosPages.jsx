@@ -956,7 +956,7 @@ export function RemediosPage() {
         },
         { key: 'laboratorio', label: 'Laboratório', render: (r) => r.laboratorio || '—' },
         { key: 'quantidade_administrar', label: 'Qtd. administrar' },
-        { key: 'quantidade_estoque', label: 'Estoque' },
+        { key: 'quantidade_estoque', label: 'Total de comprimidos / Total em mL' },
         { key: 'indicacao', label: 'Indicação', render: (r) => r.indicacao || '—' },
         { key: 'medico_prescritor_nome', label: 'Prescritor' },
         {
@@ -1068,7 +1068,7 @@ export function RemediosPage() {
               placeholder="Ex.: 1 comprimido"
             />
           </Field>
-          <Field label="Quantidade em estoque" required>
+          <Field label="Total de comprimidos / Total em mL" required>
             <TextInput
               type="number"
               min={0}

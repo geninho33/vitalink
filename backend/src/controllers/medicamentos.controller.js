@@ -140,10 +140,12 @@ async function create(req, res, next) {
       `INSERT INTO remedios
         (nome_comercial, principio_ativo, quantidade_administrar, quantidade_estoque,
          indicacao, laboratorio, periodo_horario, hora_exata, uso_continuo, status,
-         farmacia_id, valor, paciente_id, consumo_diario, medico_prescritor_id, instrucoes_uso)
+         farmacia_id, valor, paciente_id, consumo_diario, medico_prescritor_id,
+         instrucoes_uso, intervalo_horas)
        VALUES
         (:nome, :principio, :dose, :estoque, :indicacao, :laboratorio, :periodo, :hora,
-         :continuo, 'ativo', :farmaciaId, :valor, :pacienteId, :consumo, :medico, :instrucoes)`,
+         :continuo, 'ativo', :farmaciaId, :valor, :pacienteId, :consumo, :medico,
+         :instrucoes, :intervalo)`,
       {
         nome,
         principio: String(b.principio_ativo || nome).trim(),
@@ -160,6 +162,7 @@ async function create(req, res, next) {
         consumo: Number(b.consumo_diario) > 0 ? Number(b.consumo_diario) : null,
         medico: b.medico_prescritor_id || null,
         instrucoes: b.instrucoes_uso || null,
+        intervalo: Number(b.intervalo_horas) > 0 ? Number(b.intervalo_horas) : null,
       }
     );
 

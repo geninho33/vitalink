@@ -363,6 +363,7 @@ const remedios = createCrudController({
     'valor',
     'paciente_id',
     'consumo_diario',
+    'intervalo_horas',
   ],
   normalize: (p) => {
     const n = { ...p };
@@ -384,6 +385,8 @@ const remedios = createCrudController({
     else n.paciente_id = Number(n.paciente_id);
     if (n.valor != null && n.valor !== '') n.valor = Number(n.valor);
     if (n.consumo_diario != null && n.consumo_diario !== '') n.consumo_diario = Number(n.consumo_diario);
+    if (n.intervalo_horas === '' || n.intervalo_horas == null) n.intervalo_horas = null;
+    else n.intervalo_horas = Number(n.intervalo_horas);
     return n;
   },
   selectExtra: ', mp.nome AS medico_prescritor_nome, f.nome_fantasia AS farmacia_nome',

@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const controller = require('../controllers/inicio.controller');
 const medicamentos = require('../controllers/medicamentos.controller');
+const corpoMarcas = require('../controllers/corpoMarcas.controller');
 const { authenticate } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 
@@ -16,6 +17,9 @@ router.post('/medicamentos', requirePermission(rota, 'criar'), medicamentos.crea
 router.get('/medicamentos/:id/compras', requirePermission(rota, 'ler'), medicamentos.listCompras);
 router.post('/medicamentos/:id/compras', requirePermission(rota, 'criar'), medicamentos.createCompra);
 router.delete('/medicamentos/:id', requirePermission(rota, 'deletar'), medicamentos.remove);
+router.get('/corpo-marcas', requirePermission(rota, 'ler'), corpoMarcas.list);
+router.post('/corpo-marcas', requirePermission(rota, 'criar'), corpoMarcas.create);
+router.delete('/corpo-marcas/:id', requirePermission(rota, 'deletar'), corpoMarcas.remove);
 router.get('/:id', requirePermission(rota, 'ler'), controller.getById);
 router.post('/', requirePermission(rota, 'criar'), controller.create);
 router.put('/:id', requirePermission(rota, 'editar'), controller.update);
