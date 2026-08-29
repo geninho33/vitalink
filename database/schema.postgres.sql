@@ -502,7 +502,8 @@ INSERT INTO perfis (id, nome, descricao) VALUES
   (3, 'Atendente', 'Acesso operacional limitado'),
   (4, 'Cuidador', 'Execução de rotinas e confirmação de doses'),
   (5, 'Responsável', 'Acompanhamento familiar do paciente'),
-  (6, 'Paciente', 'Acesso à própria saúde e módulo Início');
+  (6, 'Paciente', 'Acesso à própria saúde e módulo Início'),
+  (7, 'Autocuidado', 'Gestão da própria saúde, sem dependência de terceiros');
 
 SELECT setval(pg_get_serial_sequence('perfis', 'id'), (SELECT MAX(id) FROM perfis));
 
@@ -593,3 +594,11 @@ SELECT 6, id, TRUE,
        CASE WHEN rota = '/inicio' THEN TRUE ELSE FALSE END,
        CASE WHEN rota = '/inicio' THEN TRUE ELSE FALSE END
 FROM menus WHERE id IN (1, 2);
+
+-- Autocuidado (CRUD da própria saúde)
+INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)
+SELECT 7, id, TRUE,
+       CASE WHEN rota IN ('/inicio','/remedios','/medicos','/farmacias','/hospitais','/exames-receitas','/agenda','/consultas','/rotina','/timeline','/termos') THEN TRUE ELSE FALSE END,
+       CASE WHEN rota IN ('/inicio','/remedios','/medicos','/farmacias','/hospitais','/exames-receitas','/agenda','/consultas','/rotina','/timeline') THEN TRUE ELSE FALSE END,
+       CASE WHEN rota IN ('/inicio','/remedios','/exames-receitas','/consultas','/rotina') THEN TRUE ELSE FALSE END
+FROM menus WHERE id IN (1, 2, 30, 32, 33, 34, 35, 38, 40, 50, 51, 52, 53, 54);

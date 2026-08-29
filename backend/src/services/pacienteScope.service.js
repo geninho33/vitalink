@@ -7,6 +7,7 @@ const PERFIL = {
   CUIDADOR: 4,
   RESPONSAVEL: 5,
   PACIENTE: 6,
+  AUTOCUIDADO: 7,
 };
 
 const UNRESTRICTED = new Set([PERFIL.ADMIN, PERFIL.MEDICO, PERFIL.ATENDENTE]);
@@ -80,7 +81,7 @@ async function listAllowedPacienteIds(user) {
        ) x`,
       { uid }
     );
-  } else if (perfilId === PERFIL.PACIENTE) {
+  } else if (perfilId === PERFIL.PACIENTE || perfilId === PERFIL.AUTOCUIDADO) {
     rows = await query(
       `SELECT DISTINCT up.paciente_id
        FROM usuario_perfis up

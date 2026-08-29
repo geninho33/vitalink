@@ -22,6 +22,7 @@ const examesReceitas = require('./controllers/examesReceitas.controller');
 const empresasCuidadoras = require('./controllers/empresasCuidadoras.controller');
 const { mountRemediosRoutes } = require('./routes/remedios.routes');
 const { mountPacienteVinculosRoutes } = require('./routes/pacienteVinculos.routes');
+const vinculoPaciente = require('./controllers/vinculoPaciente.controller');
 const { ensureUploadDir, UPLOAD_ROOT } = require('./controllers/arquivos.controller');
 
 function createApp() {
@@ -60,17 +61,24 @@ function createApp() {
   api.use('/menus', menusRoutes);
   api.get('/me/pacientes', authenticate, meController.listMeusPacientes);
   api.get('/my-patients', authenticate, meController.listMeusPacientes);
+  api.post('/me/pacientes/vincular', authenticate, vinculoPaciente.vincularMeuPaciente);
+  api.get('/pacientes/por-cpf/:cpf', authenticate, vinculoPaciente.buscarPorCpf);
+  api.post(
+    '/pacientes/:pacienteId/vincular-responsavel',
+    authenticate,
+    vinculoPaciente.vincularResponsavel
+  );
   api.use('/usuarios', usuariosRoutes);
   api.use('/perfis', perfisRoutes);
   api.use('/inicio', inicioRoutes);
   api.use('/arquivos', arquivosRoutes);
   api.use('/hospitais', mountCrud(hospitais));
   api.use('/farmacias', mountCrud(farmacias));
-  api.use('/cuidadores', mountCrud(cuidadores));
+  api.use('/cuidadores', mountCrud(cuidadores, { denyCreatePerfilIds: [7], denyDeletePerfilIds: [7] }));
   // Responsável (perfil 5): sem criar/excluir responsáveis
   api.use(
     '/responsaveis',
-    mountCrud(responsaveis, { denyCreatePerfilIds: [5], denyDeletePerfilIds: [5] })
+    mountCrud(responsaveis, { denyCreatePerfilIds: [5, 7], denyDeletePerfilIds: [5, 7] })
   );
   api.use('/medicos', mountCrud(medicos));
   api.use('/empresas-cuidadoras', mountCrud(empresasCuidadoras));
@@ -83,8 +91,8 @@ function createApp() {
   api.use(
     '/pacientes',
     mountCrud(pacientes, {
-      denyCreatePerfilIds: [4],
-      denyDeletePerfilIds: [4],
+      denyCreatePerfilIds: [4, 7],
+      denyDeletePerfilIds: [4, 7],
     })
   );
   api.use('/remedios', mountRemediosRoutes());

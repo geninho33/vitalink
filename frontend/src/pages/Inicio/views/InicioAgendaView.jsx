@@ -4,6 +4,8 @@ import { Field, Modal, TextInput, TextSelect, TextTextarea } from '../../../comp
 import { apiRequest } from '../../../services/api';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { EmptyState, PageTitle, Panel, PrimaryButton } from '../ui';
+import GoogleCalendarButton from '../../../components/GoogleCalendarButton';
+import { rotinaToCalendarEvent } from '../../../utils/googleCalendar';
 
 const ATIVIDADES = [
   { value: 'medicamento', label: 'Tomar remédio', tipo: 'medicamento' },
@@ -57,6 +59,9 @@ function PeriodList({ days, events }) {
                       {eventTime(e.data_hora_inicio)}
                       {e.tipo ? ` · ${e.tipo}` : ''}
                     </span>
+                    <div className="mt-1">
+                      <GoogleCalendarButton compact event={rotinaToCalendarEvent(e)} />
+                    </div>
                   </li>
                 ))}
               </ul>

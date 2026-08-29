@@ -278,6 +278,25 @@ async function applyPatchOnda3(client) {
   }
 }
 
+async function applyPatchAutocuidado(client) {
+  if (!cfg.runMigrations) return;
+
+  const patchFile = path.join(SQL_DIR, 'patch_autocuidado.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch Autocuidado não encontrado: ${patchFile}`);
+    return;
+  }
+
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  const sql = fs.readFileSync(patchFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Patch Autocuidado OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch Autocuidado: ${err.code || ''} ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -289,6 +308,7 @@ async function main() {
     await applyPatchOnda2(client);
     await applyPatchEmpresasCuidadores(client);
     await applyPatchOnda3(client);
+    await applyPatchAutocuidado(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

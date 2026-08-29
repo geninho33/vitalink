@@ -7,6 +7,12 @@ const {
   syncRemedioAgenda,
   clearFutureDoses,
 } = require('../services/medicamentoAgenda.service');
+const {
+  findPacienteByCpf,
+  resolveResponsavelIds,
+  linkResponsavelPaciente,
+  attachDualRoleIfSameCpf,
+} = require('../services/vinculoPaciente.service');
 
 async function syncMedicoEstabelecimentos(medicoId, estabelecimentoIds) {
   if (!Array.isArray(estabelecimentoIds)) return;
@@ -69,7 +75,7 @@ async function syncPacienteResponsaveis(pacienteId, responsavelIds) {
   }
 }
 
-function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, normalize, afterSave }) {
+function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, normalize, afterSave, onDuplicate }) {
   async function create(req, res, next) {
     try {
       const body = req.body || {};
@@ -97,6 +103,16 @@ function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, nor
 
       return res.status(201).json({ id: result.insertId });
     } catch (err) {
+      if (isDuplicateKey(err) && typeof onDuplicate === 'function') {
+        try {
+          const handled = await onDuplicate(req);
+          if (handled) {
+            return res.status(handled.status || 200).json(handled.body);
+          }
+        } catch (handledErr) {
+          return next(handledErr);
+        }
+      }
       if (isDuplicateKey(err)) {
         err.status = 409;
         err.message = 'Registro duplicado.';
@@ -330,6 +346,37 @@ const pacientes = wrapCreateUpdate(pacientesBase, {
     if (Array.isArray(body.responsavel_ids)) {
       await syncPacienteResponsaveis(pacienteId, body.responsavel_ids);
     }
+    if (body.cpf) {
+      await attachDualRoleIfSameCpf(pacienteId, body.cpf);
+    }
+  },
+  onDuplicate: async (req) => {
+    const existing = await findPacienteByCpf(req.body?.cpf);
+    if (!existing) return null;
+    const ids = await resolveResponsavelIds(req.user, req.body || {});
+    if (!ids.length) {
+      const err = new Error(
+        'Este CPF já está cadastrado como paciente. Vincule o responsável à ficha existente em vez de criar outro cadastro.'
+      );
+      err.status = 409;
+      err.code = 'duplicate_cpf';
+      throw err;
+    }
+    for (const rid of ids) {
+      await linkResponsavelPaciente(existing.id, rid);
+    }
+    if (Array.isArray(req.body?.medico_ids)) {
+      await syncPacienteMedicos(existing.id, req.body.medico_ids);
+    }
+    await attachDualRoleIfSameCpf(existing.id, req.body.cpf);
+    return {
+      status: 200,
+      body: {
+        id: existing.id,
+        vinculado: true,
+        message: `Paciente ${existing.nome} já existia e foi vinculado ao responsável.`,
+      },
+    };
   },
 });
 

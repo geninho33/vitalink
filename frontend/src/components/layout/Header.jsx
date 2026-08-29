@@ -6,6 +6,7 @@ import { getInitials } from '../../utils/menuTree';
 import { useAuth } from '../../context/AuthContext';
 import { usePacienteAtivo } from '../../context/PacienteAtivoContext';
 import { pacienteGateTarget } from '../../utils/pacienteGate';
+import { isAutocuidado } from '../../utils/perfis';
 
 function labelPapel(papel) {
   if (!papel) return 'Sem perfil';
@@ -18,7 +19,8 @@ export default function Header({ onOpenMobile, usuario, locked }) {
   const { logout, papeis, switchContext } = useAuth();
   const { pacientes, pacienteId, setPacienteId, paciente } = usePacienteAtivo();
   const navigate = useNavigate();
-  const showPacienteSelector = pacientes.length > 0;
+  const showPacienteSelector = !isAutocuidado(usuario) && pacientes.length > 0;
+  const showPacienteChip = isAutocuidado(usuario) && paciente;
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const menuRef = useRef(null);
@@ -107,8 +109,12 @@ export default function Header({ onOpenMobile, usuario, locked }) {
           onClick={() => navigate(pacienteGateTarget(usuario))}
           className="min-w-0 truncate rounded-2xl bg-vita px-3 py-2 text-xs font-semibold text-white sm:text-sm"
         >
-          Cadastrar paciente
+          {isAutocuidado(usuario) ? 'Completar cadastro' : 'Cadastrar paciente'}
         </button>
+      ) : showPacienteChip ? (
+        <span className="min-w-0 max-w-[11rem] truncate rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-3 py-2 text-sm font-semibold text-ink sm:max-w-xs">
+          {paciente.nome}
+        </span>
       ) : showPacienteSelector ? (
         <label className="flex min-w-0 max-w-[11rem] flex-1 items-center gap-2 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-2 py-1.5 sm:max-w-xs sm:px-3">
           <Icon name="user" className="h-4 w-4 shrink-0 text-vita" />

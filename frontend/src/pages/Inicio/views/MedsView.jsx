@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { DateBrInput, Field, MoneyInput, Modal, TextInput, TextSelect } from '../../../components/forms/FormControls';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
+import { printMedicamentos } from '../../../utils/printMedicamentos';
+import { medicamentoToCalendarEvent } from '../../../utils/googleCalendar';
+import GoogleCalendarButton from '../../../components/GoogleCalendarButton';
 import { formatDateBr, formatMoneyBr } from '../../../utils/validation';
 import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
 
@@ -42,6 +45,22 @@ export default function MedsView() {
   const [compras, setCompras] = useState([]);
   const [compraForm, setCompraForm] = useState(emptyCompra);
   const [compraOpen, setCompraOpen] = useState(null);
+  const [printing, setPrinting] = useState(null);
+
+  function handlePrint(mode) {
+    if (!list.length) {
+      window.alert('Não há medicamentos para imprimir.');
+      return;
+    }
+    setPrinting(mode);
+    try {
+      printMedicamentos(list, { mode, pacienteNome: paciente?.nome || '' });
+    } catch (err) {
+      window.alert(err.message || 'Falha ao preparar impressão.');
+    } finally {
+      setPrinting(null);
+    }
+  }
 
   const loadFarmacias = useCallback(async () => {
     try {
@@ -163,15 +182,33 @@ export default function MedsView() {
 
   return (
     <div>
-      <PageTitle
-        eyebrow="Rotina"
-        title="Medicamentos"
-        description={
-          paciente
-            ? `Cadastro, estoque e projeção na agenda de ${paciente.nome}.`
-            : 'Selecione um paciente no topo para gerenciar os medicamentos.'
-        }
-      />
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <PageTitle
+          eyebrow="Rotina"
+          title="Medicamentos"
+          description={
+            paciente
+              ? `Cadastro, estoque e projeção na agenda de ${paciente.nome}.`
+              : 'Selecione um paciente no topo para gerenciar os medicamentos.'
+          }
+        />
+        <div className="flex flex-wrap gap-2 sm:pt-6">
+          <SecondaryButton
+            type="button"
+            disabled={!list.length || Boolean(printing)}
+            onClick={() => handlePrint('lista')}
+          >
+            {printing === 'lista' ? 'Preparando…' : 'Imprimir lista'}
+          </SecondaryButton>
+          <PrimaryButton
+            type="button"
+            disabled={!list.length || Boolean(printing)}
+            onClick={() => handlePrint('estoque')}
+          >
+            {printing === 'estoque' ? 'Preparando…' : 'Imprimir estoque'}
+          </PrimaryButton>
+        </div>
+      </div>
 
       {alertas.length ? (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -318,13 +355,14 @@ export default function MedsView() {
                   >
                     Registrar nova compra
                   </button>
-                  <button
+                    <button
                     type="button"
                     className="min-h-10 text-sm font-semibold text-slate-health"
                     onClick={() => openHistorico(m)}
                   >
                     Histórico
                   </button>
+                  <GoogleCalendarButton compact event={medicamentoToCalendarEvent(m)} />
                 </div>
                 {confirmId === m.id ? (
                   <div className="flex gap-2">

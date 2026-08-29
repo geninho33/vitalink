@@ -1,8 +1,100 @@
 /**
- * Abre janela de impressão paisagem para lista ou estoque de medicamentos.
- * mode: 'lista' | 'estoque'
+ * Impressão da lista/estoque de medicamentos.
+ * Evita window.open(..., 'noopener') — o Chrome devolve null e o diálogo nunca abre.
+ * Quando os dados ainda precisam ser carregados, abre a janela no clique (gesto do usuário)
+ * e só então preenche o HTML, para o bloqueador de pop-up não interceptar.
  */
-export function printMedicamentos(rows = [], { mode = 'lista', pacienteNome = '' } = {}) {
+export function printMedicamentos(rows = [], options = {}) {
+  const html = buildPrintHtml(rows, options);
+  deliverPrintHtml(html);
+}
+
+export async function printMedicamentosFromLoader(loadRows, options = {}) {
+  const preview = window.open('', '_blank', 'width=1100,height=700');
+  if (preview && !preview.closed) {
+    try {
+      preview.document.write(
+        '<p style="font-family:Segoe UI,Arial,sans-serif;padding:24px;color:#334155">Preparando impressão…</p>'
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  try {
+    const rows = await loadRows();
+    const html = buildPrintHtml(rows, options);
+    if (preview && !preview.closed) {
+      preview.document.open();
+      preview.document.write(html);
+      preview.document.close();
+      return;
+    }
+    deliverPrintHtml(html);
+  } catch (err) {
+    if (preview && !preview.closed) preview.close();
+    throw err;
+  }
+}
+
+function deliverPrintHtml(html) {
+  const preview = window.open('', '_blank', 'width=1100,height=700');
+  if (preview && !preview.closed) {
+    try {
+      preview.document.open();
+      preview.document.write(html);
+      preview.document.close();
+      return;
+    } catch {
+      try {
+        preview.close();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  printViaIframe(html);
+}
+
+function printViaIframe(html) {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText =
+    'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
+    window.alert('Não foi possível abrir a impressão. Verifique o bloqueador de pop-ups.');
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const win = iframe.contentWindow;
+  const cleanup = () => {
+    setTimeout(() => iframe.remove(), 500);
+  };
+  const trigger = () => {
+    try {
+      win.focus();
+      win.print();
+    } catch {
+      window.alert('Não foi possível abrir a impressão. Verifique o bloqueador de pop-ups.');
+    }
+    if (win.onafterprint !== undefined) {
+      win.onafterprint = cleanup;
+    }
+    setTimeout(cleanup, 60_000);
+  };
+  if (win.document.readyState === 'complete') {
+    setTimeout(trigger, 250);
+  } else {
+    iframe.onload = () => setTimeout(trigger, 250);
+  }
+}
+
+function buildPrintHtml(rows = [], { mode = 'lista', pacienteNome = '' } = {}) {
   const now = new Date().toLocaleString('pt-BR');
   const title =
     mode === 'estoque' ? 'Estoque de Medicamentos' : 'Lista de Medicamentos';
@@ -50,7 +142,7 @@ export function printMedicamentos(rows = [], { mode = 'lista', pacienteNome = ''
     })
     .join('');
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -93,18 +185,9 @@ export function printMedicamentos(rows = [], { mode = 'lista', pacienteNome = ''
     <span>VitaLink — cuidado contínuo</span>
     <span>Página 1 · até 20 itens</span>
   </footer>
-  <script>window.onload = () => { window.print(); };</script>
+  <script>window.onload = function () { window.focus(); window.print(); };</script>
 </body>
 </html>`;
-
-  const w = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=700');
-  if (!w) {
-    window.alert('Permita pop-ups para imprimir.');
-    return;
-  }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
 }
 
 function esc(v) {

@@ -132,6 +132,7 @@ export function AuthProvider({ children }) {
       menus: session?.menus || [],
       papeis: session?.papeis || [],
       requerOnboarding: session?.usuario?.onboarding_concluido === false,
+      isAutocuidado: Number(session?.usuario?.perfil?.id) === 7,
       login,
       logout,
       refreshSession,

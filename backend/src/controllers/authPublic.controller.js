@@ -13,9 +13,11 @@ const {
   isValidCpf,
   parseIsoDate,
 } = require('../utils/validation');
+const { upsertPacienteOnboarding, upsertPacienteAutocuidado } = require('../services/vinculoPaciente.service');
 
 const PERFIL_CUIDADOR = 4;
 const PERFIL_RESPONSAVEL = 5;
+const PERFIL_AUTOCUIDADO = 7;
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -239,14 +241,19 @@ function defaultAddress(payload) {
 async function onboarding(req, res, next) {
   try {
     const tipo = String(req.body?.tipo || '').toLowerCase();
-    if (tipo !== 'cuidador' && tipo !== 'responsavel') {
+    if (tipo !== 'cuidador' && tipo !== 'responsavel' && tipo !== 'autocuidado') {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Selecione o perfil: cuidador ou responsável.',
+        message: 'Selecione o perfil: cuidador, responsável ou autocuidado.',
       });
     }
 
-    const perfilId = tipo === 'cuidador' ? PERFIL_CUIDADOR : PERFIL_RESPONSAVEL;
+    const perfilId =
+      tipo === 'cuidador'
+        ? PERFIL_CUIDADOR
+        : tipo === 'autocuidado'
+          ? PERFIL_AUTOCUIDADO
+          : PERFIL_RESPONSAVEL;
     const dados = req.body?.dados || {};
     const pacientes = Array.isArray(req.body?.pacientes) ? req.body.pacientes.slice(0, 2) : [];
 
@@ -259,6 +266,47 @@ async function onboarding(req, res, next) {
       });
     }
     const cpf = assertCpf(dados.cpf);
+
+    if (tipo === 'autocuidado') {
+      const pNasc = parseIsoDate(dados.data_nascimento);
+      if (!pNasc) {
+        return res.status(400).json({
+          error: 'validation_error',
+          message: 'Informe sua data de nascimento no formato DD/MM/AAAA.',
+        });
+      }
+      const self = await upsertPacienteAutocuidado({
+        usuarioId: req.user.id,
+        nome,
+        cpf,
+        telefone,
+        dataNascimento: pNasc,
+      });
+
+      await query(
+        `UPDATE usuarios
+         SET perfil_id = :perfilId, onboarding_concluido = TRUE, status = 'ativo'
+         WHERE id = :id`,
+        { perfilId, id: req.user.id }
+      );
+      await syncUsuarioPerfilPadrao(req.user.id, perfilId);
+
+      await writeAudit({
+        usuarioId: req.user.id,
+        acao: 'onboarding_concluido',
+        recurso: 'auth',
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+        metadados: { tipo, pacientes: 1 },
+      });
+
+      return res.json({
+        ok: true,
+        perfil_id: perfilId,
+        pacientes: [self],
+        message: 'Onboarding de autocuidado concluído.',
+      });
+    }
 
     const addr = defaultAddress(addressNormalize({ ...dados }));
     const table = tipo === 'cuidador' ? 'cuidadores' : 'responsaveis';
@@ -312,71 +360,47 @@ async function onboarding(req, res, next) {
     const createdPacientes = [];
     for (const p of pacientes) {
       const pNome = String(p.nome || '').trim();
-      const pNasc = parseIsoDate(p.data_nascimento);
-      if (!pNome || !p.data_nascimento || !p.cpf) continue;
-      if (!isValidCpf(p.cpf)) {
-        return res.status(400).json({
-          error: 'validation_error',
-          message: `CPF inválido para o paciente ${pNome}.`,
-        });
-      }
-      if (!pNasc) {
-        return res.status(400).json({
-          error: 'validation_error',
-          message: `Informe a data de nascimento de ${pNome} no formato DD/MM/AAAA.`,
-        });
-      }
       const pCpf = onlyDigits(p.cpf);
+      const existingId = p.paciente_id ? Number(p.paciente_id) : null;
+      if (!existingId && pCpf.length !== 11) continue;
+      if (pCpf.length === 11 && !isValidCpf(p.cpf)) {
+        return res.status(400).json({
+          error: 'validation_error',
+          message: `CPF inválido para o paciente ${pNome || pCpf}.`,
+        });
+      }
+      let pNasc = null;
+      if (p.data_nascimento) {
+        pNasc = parseIsoDate(p.data_nascimento);
+        if (!pNasc && !existingId) {
+          return res.status(400).json({
+            error: 'validation_error',
+            message: `Informe a data de nascimento de ${pNome || 'paciente'} no formato DD/MM/AAAA.`,
+          });
+        }
+      }
 
-      const result = await query(
-        `INSERT INTO pacientes
-          (nome, data_nascimento, cpf, telefone_principal, responsavel_id, cuidador_id, status)
-         VALUES
-          (:nome, :data_nascimento, :cpf, :telefone, :responsavel_id, :cuidador_id, 'ativo')`,
-        {
+      const upserted = await upsertPacienteOnboarding({
+        p: {
+          ...p,
           nome: pNome,
-          data_nascimento: pNasc,
           cpf: pCpf,
-          telefone: p.telefone || null,
-          responsavel_id: tipo === 'responsavel' ? pessoaId : null,
-          cuidador_id: tipo === 'cuidador' ? pessoaId : null,
-        }
-      );
-      const pacienteId = result.insertId;
-      if (tipo === 'responsavel') {
-        await query(
-          `INSERT INTO paciente_responsaveis (paciente_id, responsavel_id)
-           VALUES (:pacienteId, :pessoaId) ON CONFLICT DO NOTHING`,
-          { pacienteId, pessoaId }
-        );
-      }
-      if (tipo === 'cuidador') {
-        await query(
-          `INSERT INTO paciente_cuidador_vinculos
-            (paciente_id, tipo, cuidador_id, ativo, data_inicio)
-           VALUES (:pacienteId, 'pf', :pessoaId, TRUE, CURRENT_DATE)
-           ON CONFLICT DO NOTHING`,
-          { pacienteId, pessoaId }
-        ).catch(() => {});
-      }
-      await query(
-        `INSERT INTO usuario_perfis (usuario_id, perfil_id, paciente_id, rotulo, ativo, is_default)
-         VALUES (:uid, :perfilId, :pacienteId, :rotulo, TRUE, FALSE)
-         ON CONFLICT DO NOTHING`,
-        {
-          uid: req.user.id,
-          perfilId,
-          pacienteId,
-          rotulo: `${tipo === 'cuidador' ? 'Cuidador' : 'Responsável'} · ${pNome}`,
-        }
-      ).catch(() => {});
-      await query(
-        `INSERT INTO usuario_paciente (usuario_id, paciente_id, papel)
-         VALUES (:uid, :pacienteId, :papel)
-         ON CONFLICT DO NOTHING`,
-        { uid: req.user.id, pacienteId, papel: tipo }
-      ).catch(() => {});
-      createdPacientes.push({ id: pacienteId, nome: pNome });
+          data_nascimento: pNasc,
+          paciente_id: existingId,
+        },
+        tipo,
+        pessoaId,
+        usuarioId: req.user.id,
+        pessoaCpf: cpf,
+      });
+      if (upserted) createdPacientes.push(upserted);
+    }
+
+    if (!createdPacientes.length) {
+      return res.status(400).json({
+        error: 'validation_error',
+        message: 'Informe ao menos um paciente (novo ou já cadastrado, pelo CPF).',
+      });
     }
 
     await query(
@@ -405,7 +429,8 @@ async function onboarding(req, res, next) {
   } catch (err) {
     if (isDuplicateKey(err)) {
       err.status = 409;
-      err.message = 'CPF já cadastrado.';
+      err.message =
+        'Este CPF já está em uso neste cadastro. Se o paciente já existe, informe o CPF para vincular a ficha em vez de criar outra.';
     }
     return next(err);
   }

@@ -1,5 +1,6 @@
 const { createCrudController, addressNormalize } = require('../utils/crudFactory');
 const { isValidCpf, isValidEmail } = require('../utils/validation');
+const { linkPacientesComMesmoCpfAoResponsavel } = require('../services/vinculoPaciente.service');
 
 function assertPessoaDocs(n) {
   if (n.cpf && !isValidCpf(n.cpf)) {
@@ -98,6 +99,11 @@ const responsaveis = createCrudController({
   },
   selectExtra: ', u.email AS usuario_email, u.nome AS usuario_nome',
   joins: 'LEFT JOIN usuarios u ON u.id = responsaveis.usuario_id',
+  afterSave: async (responsavelId, payload) => {
+    if (payload?.cpf) {
+      await linkPacientesComMesmoCpfAoResponsavel(responsavelId, payload.cpf);
+    }
+  },
 });
 
 module.exports = { cuidadores, responsaveis };

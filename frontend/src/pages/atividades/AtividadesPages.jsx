@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AgendaDocsLinks from '../../components/AgendaDocsLinks';
+import GoogleCalendarButton from '../../components/GoogleCalendarButton';
+import { useAuth } from '../../context/AuthContext';
+import { isAutocuidado } from '../../utils/perfis';
+import {
+  consultaToCalendarEvent,
+  rotinaToCalendarEvent,
+} from '../../utils/googleCalendar';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import MonthCalendar from '../../components/MonthCalendar';
 import TimelineRail from '../../components/TimelineRail';
@@ -122,9 +129,10 @@ function MedicoAutocomplete({ value, medicoId, onSelect, required }) {
   );
 }
 
-function ConsultaFormFields({ form, setForm, pacientes }) {
+function ConsultaFormFields({ form, setForm, pacientes, hidePaciente }) {
   return (
     <>
+      {hidePaciente ? null : (
       <Field label="Paciente" required>
         <TextSelect
           value={form.paciente_id}
@@ -138,6 +146,7 @@ function ConsultaFormFields({ form, setForm, pacientes }) {
           ))}
         </TextSelect>
       </Field>
+      )}
       <MedicoAutocomplete
         value={form.profissional_nome}
         medicoId={form.medico_id}
@@ -220,6 +229,8 @@ function usePacientes() {
 
 export function AgendaPage() {
   const pacientes = usePacientes();
+  const { usuario } = useAuth();
+  const autocuidado = isAutocuidado(usuario);
   const [events, setEvents] = useState([]);
   const [pacienteId, setPacienteId] = useState('');
   const [status, setStatus] = useState('');
@@ -295,6 +306,7 @@ export function AgendaPage() {
       />
       <PlaceholderCard>
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          {autocuidado ? null : (
           <Field label="Paciente">
             <TextSelect value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
               <option value="">Todos</option>
@@ -305,6 +317,7 @@ export function AgendaPage() {
               ))}
             </TextSelect>
           </Field>
+          )}
           <Field label="Status">
             <TextSelect value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">Todos</option>
@@ -496,6 +509,9 @@ export function AgendaPage() {
               ) : null}
             </dl>
             <AgendaDocsLinks event={selectedEvent} />
+            <div className="mt-3">
+              <GoogleCalendarButton event={rotinaToCalendarEvent(selectedEvent)} />
+            </div>
           </>
         ) : null}
       </Modal>
@@ -505,6 +521,8 @@ export function AgendaPage() {
 
 export function ConsultasPage() {
   const pacientes = usePacientes();
+  const { usuario } = useAuth();
+  const autocuidado = isAutocuidado(usuario);
   const [rows, setRows] = useState([]);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -521,7 +539,10 @@ export function ConsultasPage() {
 
   function openCreate() {
     setEditingId(null);
-    setForm({ ...EMPTY_CONSULTA_FORM });
+    setForm({
+      ...EMPTY_CONSULTA_FORM,
+      paciente_id: autocuidado && pacientes[0]?.id ? String(pacientes[0].id) : '',
+    });
     setOpen(true);
   }
 
@@ -612,6 +633,7 @@ export function ConsultasPage() {
                 <span className="truncate text-[11px] text-slate-health">{r.paciente_nome}</span>
                 <span className={statusChip(r.status)}>{r.status}</span>
                 <div className="flex shrink-0 flex-wrap gap-1">
+                  <GoogleCalendarButton compact event={consultaToCalendarEvent(r)} />
                   <button
                     type="button"
                     onClick={() => openEdit(r)}
@@ -655,7 +677,12 @@ export function ConsultasPage() {
         wide
       >
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={save}>
-          <ConsultaFormFields form={form} setForm={setForm} pacientes={pacientes} />
+          <ConsultaFormFields
+            form={form}
+            setForm={setForm}
+            pacientes={pacientes}
+            hidePaciente={autocuidado}
+          />
           <button
             type="submit"
             className="min-h-12 rounded-xl bg-aqua font-semibold text-white sm:col-span-2"
@@ -670,6 +697,8 @@ export function ConsultasPage() {
 
 export function RotinaPage() {
   const pacientes = usePacientes();
+  const { usuario } = useAuth();
+  const autocuidado = isAutocuidado(usuario);
   const [rotinas, setRotinas] = useState([]);
   const [hoje, setHoje] = useState([]);
   const [pacienteId, setPacienteId] = useState('');
@@ -708,7 +737,10 @@ export function RotinaPage() {
 
   function openCreate() {
     setEditingRotinaId(null);
-    setForm(emptyForm());
+    setForm({
+      ...emptyForm(),
+      paciente_id: autocuidado && pacientes[0]?.id ? String(pacientes[0].id) : '',
+    });
     setOpen(true);
   }
 
@@ -763,6 +795,9 @@ export function RotinaPage() {
       />
       <PlaceholderCard>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          {autocuidado ? (
+            <p className="text-sm text-slate-health">Rotinas da sua saúde.</p>
+          ) : (
           <Field label="Filtrar paciente">
             <TextSelect value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
               <option value="">Todos</option>
@@ -773,6 +808,7 @@ export function RotinaPage() {
               ))}
             </TextSelect>
           </Field>
+          )}
           <button
             type="button"
             onClick={openCreate}
@@ -835,6 +871,7 @@ export function RotinaPage() {
                   <p className="truncate text-[11px] text-slate-health">{item.paciente_nome}</p>
                 </div>
                 <span className={statusChip(item.status)}>{item.status}</span>
+                <GoogleCalendarButton compact event={rotinaToCalendarEvent(item)} />
                 {actionable ? (
                   <button
                     type="button"
@@ -871,6 +908,7 @@ export function RotinaPage() {
               <span className="text-slate-health">{r.paciente_nome}</span>
               <span className="capitalize text-slate-health">{r.tipo}</span>
               <div className="ml-auto flex gap-1">
+                <GoogleCalendarButton compact event={rotinaToCalendarEvent(r)} />
                 <button
                   type="button"
                   onClick={() => openEditRotina(r)}
@@ -901,6 +939,7 @@ export function RotinaPage() {
         wide
       >
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={save}>
+          {autocuidado ? null : (
           <Field label="Paciente" required>
             <TextSelect
               value={form.paciente_id}
@@ -915,6 +954,7 @@ export function RotinaPage() {
               ))}
             </TextSelect>
           </Field>
+          )}
           <Field label="Tipo">
             <TextSelect
               value={form.tipo}
@@ -965,6 +1005,8 @@ export function RotinaPage() {
 export function TimelinePage() {
   const navigate = useNavigate();
   const pacientes = usePacientes();
+  const { usuario } = useAuth();
+  const autocuidado = isAutocuidado(usuario);
   const [searchParams, setSearchParams] = useSearchParams();
   const [pacienteId, setPacienteId] = useState(searchParams.get('paciente_id') || '');
   const [q, setQ] = useState(searchParams.get('q') || '');
@@ -976,7 +1018,10 @@ export function TimelinePage() {
     const qUrl = searchParams.get('q') || '';
     if (fromUrl) setPacienteId(fromUrl);
     if (qUrl) setQ(qUrl);
-  }, [searchParams]);
+    if (autocuidado && !fromUrl && pacientes[0]?.id) {
+      setPacienteId(String(pacientes[0].id));
+    }
+  }, [searchParams, autocuidado, pacientes]);
 
   useEffect(() => {
     if (!pacienteId) {
@@ -1041,6 +1086,7 @@ export function TimelinePage() {
       />
       <PlaceholderCard>
         <div className="grid gap-3 sm:grid-cols-2">
+          {autocuidado ? null : (
           <Field label="Paciente">
             <TextSelect
               value={pacienteId}
@@ -1060,6 +1106,7 @@ export function TimelinePage() {
               ))}
             </TextSelect>
           </Field>
+          )}
           <Field label="Busca por palavras-chave">
             <TextInput
               value={q}

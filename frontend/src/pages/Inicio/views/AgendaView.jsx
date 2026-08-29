@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ComboCreate, DateBrInput, Field, Modal, TextInput } from '../../../components/forms/FormControls';
+import GoogleCalendarButton from '../../../components/GoogleCalendarButton';
+import { consultaToCalendarEvent } from '../../../utils/googleCalendar';
 import { apiRequest } from '../../../services/api';
 import { addCatalogItem, loadCatalog, optionize } from '../catalog';
 import { formatDateBr, storageGet, storageSet } from '../localStore';
@@ -203,6 +205,9 @@ export default function AgendaView() {
                     {a.contact ? ` · ${a.contact}` : ''}
                   </p>
                 ) : null}
+                <div className="mt-2">
+                  <GoogleCalendarButton compact event={consultaToCalendarEvent(a)} />
+                </div>
                 {confirmId === a.id ? (
                   <div className="mt-2 flex gap-2">
                     <button type="button" className="text-sm font-semibold text-slate-health" onClick={() => setConfirmId(null)}>

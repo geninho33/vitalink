@@ -11,6 +11,7 @@ import {
   TextTextarea,
 } from '../../components/forms/FormControls';
 import { apiRequest } from '../../services/api';
+import { VincularPacientePorCpf } from '../../components/VincularPacientePorCpf';
 import {
   isValidCpf,
   isValidEmail,
@@ -310,17 +311,29 @@ export function ResponsaveisPage() {
       columns={[...baseColumns, { key: 'grau_parentesco', label: 'Parentesco' }]}
       emptyForm={() => personEmpty({ grau_parentesco: '' })}
       mapRow={(row) => ({ ...personEmpty({ grau_parentesco: '' }), ...row })}
-      renderForm={(form, setForm) => (
+      renderForm={(form, setForm, { editing }) => (
         <PersonForm
           form={form}
           setForm={setForm}
           extraFields={
-            <Field label="Grau de parentesco">
-              <TextInput
-                value={form.grau_parentesco || ''}
-                onChange={(e) => setForm({ ...form, grau_parentesco: e.target.value })}
-              />
-            </Field>
+            <>
+              <Field label="Grau de parentesco">
+                <TextInput
+                  value={form.grau_parentesco || ''}
+                  onChange={(e) => setForm({ ...form, grau_parentesco: e.target.value })}
+                />
+              </Field>
+              {editing?.id ? (
+                <VincularPacientePorCpf
+                  responsavelId={editing.id}
+                  hint="Informe o CPF de um paciente já cadastrado (ex.: Juarez) para associá-lo a este responsável, sem criar um novo registro."
+                />
+              ) : (
+                <p className="sm:col-span-2 text-xs text-slate-health">
+                  Depois de salvar o responsável, você poderá vincular pacientes já existentes pelo CPF.
+                </p>
+              )}
+            </>
           }
         />
       )}

@@ -14,6 +14,11 @@ import {
   TextTextarea,
 } from '../../components/forms/FormControls';
 import { apiRequest } from '../../services/api';
+import { printMedicamentosFromLoader } from '../../utils/printMedicamentos';
+import {
+  buscarPacientePorCpf,
+  PacienteExistenteAviso,
+} from '../../components/VincularPacientePorCpf';
 import {
   isValidCpf,
   isValidEmail,
@@ -452,6 +457,8 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
   const [tab, setTab] = useState('gerais');
   const [cpfError, setCpfError] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [cpfExistente, setCpfExistente] = useState(null);
+  const [cpfChecking, setCpfChecking] = useState(false);
 
   useEffect(() => {
     if (!editing?.id) {
@@ -462,6 +469,39 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
       .then((r) => setForm((prev) => ({ ...prev, anamnese: r.data || {} })))
       .catch(() => {});
   }, [editing?.id]);
+
+  useEffect(() => {
+    const digits = onlyDigits(form.cpf);
+    if (editing?.id || digits.length !== 11 || !isValidCpf(digits)) {
+      setCpfExistente(null);
+      setCpfChecking(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setCpfChecking(true);
+    buscarPacientePorCpf(digits)
+      .then((row) => {
+        if (cancelled) return;
+        setCpfExistente(row);
+        if (row) {
+          setForm((prev) => ({
+            ...prev,
+            nome: prev.nome || row.nome || '',
+            data_nascimento: prev.data_nascimento || (row.data_nascimento ? String(row.data_nascimento).slice(0, 10) : ''),
+            telefone_principal: prev.telefone_principal || row.telefone_principal || '',
+          }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCpfExistente(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCpfChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.cpf, editing?.id]);
 
   const tabs = [
     { id: 'gerais', label: 'Dados Gerais' },
@@ -534,6 +574,11 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
               inputMode="numeric"
             />
           </Field>
+          {!editing?.id ? (
+            <div className="sm:col-span-2">
+              <PacienteExistenteAviso found={cpfExistente} checking={cpfChecking} />
+            </div>
+          ) : null}
           <Field label="Alergias">
             <TextInput
               value={form.alergias || ''}
@@ -857,6 +902,45 @@ export function PacientesPage() {
   );
 }
 
+function PrintRemediosButtons() {
+  const [busy, setBusy] = useState(null);
+
+  async function run(mode) {
+    setBusy(mode);
+    try {
+      await printMedicamentosFromLoader(async () => {
+        const res = await apiRequest('/remedios', { query: { pageSize: 100, status: 'ativo' } });
+        return res.data || [];
+      }, { mode });
+    } catch (err) {
+      window.alert(err.message || 'Falha ao preparar impressão.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        disabled={Boolean(busy)}
+        onClick={() => run('lista')}
+        className="inline-flex min-h-12 items-center justify-center rounded-xl border border-aqua px-5 text-sm font-semibold text-aqua transition hover:bg-aqua-soft disabled:opacity-60"
+      >
+        {busy === 'lista' ? 'Preparando…' : 'Imprimir Lista'}
+      </button>
+      <button
+        type="button"
+        disabled={Boolean(busy)}
+        onClick={() => run('estoque')}
+        className="inline-flex min-h-12 items-center justify-center rounded-xl bg-aqua px-5 text-sm font-semibold text-white transition hover:bg-aqua-deep disabled:opacity-60"
+      >
+        {busy === 'estoque' ? 'Preparando…' : 'Imprimir estoque'}
+      </button>
+    </div>
+  );
+}
+
 export function RemediosPage() {
   const medicos = useOptions('/medicos');
   const farmacias = useOptions('/farmacias');
@@ -882,50 +966,12 @@ export function RemediosPage() {
     consumo_diario: '',
   });
 
-  async function loadForPrint() {
-    const res = await apiRequest('/remedios', { query: { pageSize: 100, status: 'ativo' } });
-    return res.data || [];
-  }
-
   return (
     <EntityCrudPage
       title="Medicamentos"
       description="Controle de medicamentos, estoque e administração."
       endpoint="/remedios"
-      extraActions={
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const rows = await loadForPrint();
-                const { printMedicamentos } = await import('../../utils/printMedicamentos');
-                printMedicamentos(rows, { mode: 'lista' });
-              } catch (err) {
-                window.alert(err.message || 'Falha ao preparar impressão.');
-              }
-            }}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-aqua px-5 text-sm font-semibold text-aqua transition hover:bg-aqua-soft"
-          >
-            Imprimir Lista
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const rows = await loadForPrint();
-                const { printMedicamentos } = await import('../../utils/printMedicamentos');
-                printMedicamentos(rows, { mode: 'estoque' });
-              } catch (err) {
-                window.alert(err.message || 'Falha ao preparar impressão.');
-              }
-            }}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-aqua px-5 text-sm font-semibold text-white transition hover:bg-aqua-deep"
-          >
-            Imprimir estoque
-          </button>
-        </div>
-      }
+      extraActions={<PrintRemediosButtons />}
       extraRowActions={(row, { reload }) => (
         <button
           type="button"
