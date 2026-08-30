@@ -107,6 +107,14 @@ function assertPassword(senha) {
   return senha;
 }
 
+function assertTelefone(telefone) {
+  const digits = onlyDigits(telefone);
+  if (digits.length < 10 || digits.length > 11) {
+    validationError('Informe um telefone válido com DDD.');
+  }
+  return digits;
+}
+
 module.exports = {
   onlyDigits,
   isValidEmail,
@@ -118,5 +126,6 @@ module.exports = {
   assertEmail,
   assertCpf,
   assertPassword,
+  assertTelefone,
   validationError,
 };

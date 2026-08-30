@@ -50,7 +50,9 @@ export default function PerfilView() {
       return;
     }
     try {
-      const res = await apiRequest(`/pacientes/${pacienteId}`);
+      const res = await apiRequest('/me/paciente').catch(() =>
+        apiRequest(`/pacientes/${pacienteId}`)
+      );
       setForm(mapPaciente(res.data || res));
     } catch {
       setForm(mapPaciente(paciente));
@@ -72,7 +74,7 @@ export default function PerfilView() {
     setError('');
     setMsg('');
     try {
-      await apiRequest(`/pacientes/${pacienteId}`, {
+      await apiRequest('/me/paciente', {
         method: 'PUT',
         body: {
           nome: form.nome,

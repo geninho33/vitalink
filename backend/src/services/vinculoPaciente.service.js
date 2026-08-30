@@ -238,6 +238,13 @@ async function upsertPacienteAutocuidado({
     );
     paciente = { id: result.insertId, nome };
     created = true;
+  } else if (telefone) {
+    await query(
+      `UPDATE pacientes
+       SET telefone_principal = COALESCE(NULLIF(TRIM(telefone_principal), ''), :telefone)
+       WHERE id = :id`,
+      { telefone, id: paciente.id }
+    );
   }
 
   const pacienteId = Number(paciente.id);

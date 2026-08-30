@@ -1,7 +1,11 @@
 const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit, buildAuditDiff } = require('../services/audit.service');
 const { createCrudController, addressNormalize, pick, requireFields } = require('../utils/crudFactory');
-const { pacientesScopeForCrud } = require('../services/pacienteScope.service');
+const {
+  pacientesScopeForCrud,
+  medicosScopeForCrud,
+  remediosScopeForCrud,
+} = require('../services/pacienteScope.service');
 const { parseIsoDate, isValidCpf, isValidEmail } = require('../utils/validation');
 const {
   syncRemedioAgenda,
@@ -75,12 +79,23 @@ async function syncPacienteResponsaveis(pacienteId, responsavelIds) {
   }
 }
 
-function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, normalize, afterSave, onDuplicate }) {
+function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, normalize, afterSave, onDuplicate, buildScope }) {
+  async function scopeWhere(req, params) {
+    if (typeof buildScope !== 'function') return '';
+    const scope = await buildScope(req);
+    if (!scope?.sql) return '';
+    Object.assign(params, scope.params || {});
+    return ` AND (${scope.sql})`;
+  }
+
   async function create(req, res, next) {
     try {
       const body = req.body || {};
       let payload = pick(body, allFields);
       if (normalize) payload = normalize(payload, 'create');
+      if (allFields.includes('usuario_id') && (payload.usuario_id == null || payload.usuario_id === '')) {
+        payload.usuario_id = req.user?.id || null;
+      }
       requireFields(payload, requiredCreate);
 
       const cols = Object.keys(payload);
@@ -134,9 +149,9 @@ function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, nor
         });
       }
 
-      const beforeRows = await query(`SELECT * FROM ${table} WHERE id = :id LIMIT 1`, {
-        id: req.params.id,
-      });
+      const params = { id: req.params.id };
+      const scopeSql = await scopeWhere(req, params);
+      const beforeRows = await query(`SELECT * FROM ${table} WHERE id = :id${scopeSql} LIMIT 1`, params);
       const before = beforeRows[0] || {};
       if (!before.id) {
         return res.status(404).json({ error: 'not_found', message: 'Registro não encontrado.' });
@@ -144,9 +159,9 @@ function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, nor
 
       if (cols.length) {
         const sets = cols.map((c) => `${c} = :${c}`).join(', ');
-        await query(`UPDATE ${table} SET ${sets} WHERE id = :id`, {
+        await query(`UPDATE ${table} SET ${sets} WHERE id = :id${scopeSql}`, {
           ...payload,
-          id: req.params.id,
+          ...params,
         });
       }
 
@@ -223,6 +238,7 @@ const medicosConfig = {
      JOIN hospitais_clinicas h ON h.id = me.hospital_clinica_id
      WHERE me.medico_id = medicos.id) AS estabelecimentos`,
   joins: '',
+  buildScope: medicosScopeForCrud,
 };
 
 const medicosAllFields = [...new Set([...medicosConfig.requiredCreate, ...medicosConfig.optional])];
@@ -233,6 +249,7 @@ const medicos = wrapCreateUpdate(medicosBase, {
   allFields: medicosAllFields,
   requiredCreate: medicosConfig.requiredCreate,
   normalize: medicosConfig.normalize,
+  buildScope: medicosScopeForCrud,
   afterSave: async (medicoId, body) => {
     if (Array.isArray(body.estabelecimento_ids)) {
       await syncMedicoEstabelecimentos(medicoId, body.estabelecimento_ids);
@@ -339,6 +356,7 @@ const pacientes = wrapCreateUpdate(pacientesBase, {
   allFields: pacientesAllFields,
   requiredCreate: pacientesConfig.requiredCreate,
   normalize: pacientesConfig.normalize,
+  buildScope: pacientesScopeForCrud,
   afterSave: async (pacienteId, body) => {
     if (Array.isArray(body.medico_ids)) {
       await syncPacienteMedicos(pacienteId, body.medico_ids);
@@ -448,6 +466,7 @@ const remedios = createCrudController({
   beforeDelete: async (id) => {
     await clearFutureDoses(id);
   },
+  buildScope: remediosScopeForCrud,
 });
 
 function parseQuantidadeDecrement(value) {
@@ -546,12 +565,32 @@ async function administrarRemedio(req, res, next) {
 
 async function listAdministracoesHoje(req, res, next) {
   try {
+    const { applyPacienteScope, assertPacienteAccess } = require('../services/pacienteScope.service');
+    const pacienteId = req.query.paciente_id != null ? Number(req.query.paciente_id) : null;
+    if (pacienteId) await assertPacienteAccess(req.user, pacienteId);
+
+    const where = [
+      `(ma.created_at AT TIME ZONE 'America/Sao_Paulo')::date
+       = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`,
+    ];
+    const params = {};
+    if (pacienteId) {
+      where.push('r.paciente_id = :pacienteId');
+      params.pacienteId = pacienteId;
+    }
+    const scope = await applyPacienteScope(req.user, 'r.paciente_id');
+    if (scope?.sql) {
+      where.push(`(${scope.sql})`);
+      Object.assign(params, scope.params);
+    }
+
     const rows = await query(
-      `SELECT remedio_id, MAX(id) AS id
-       FROM medicamento_administracoes
-       WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date
-             = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-       GROUP BY remedio_id`
+      `SELECT ma.remedio_id, MAX(ma.id) AS id
+       FROM medicamento_administracoes ma
+       INNER JOIN remedios r ON r.id = ma.remedio_id
+       WHERE ${where.join(' AND ')}
+       GROUP BY ma.remedio_id`,
+      params
     );
     return res.json({ data: rows });
   } catch (err) {

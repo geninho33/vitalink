@@ -1,7 +1,10 @@
 const { query } = require('../config/database');
 
+const PERFIL_AUTOCUIDADO = 7;
+const AUTOCUIDADO_MENU_IDS = new Set([1, 2, 40]);
+
 async function getMenusByPerfil(perfilId) {
-  const rows = await query(
+  let rows = await query(
     `SELECT m.id, m.titulo, m.rota, m.icone, m.ordem, m.menu_pai_id,
             pa.pode_ler, pa.pode_criar, pa.pode_editar, pa.pode_deletar
      FROM permissoes_acesso pa
@@ -12,6 +15,10 @@ async function getMenusByPerfil(perfilId) {
      ORDER BY m.ordem ASC, m.id ASC`,
     { perfilId }
   );
+
+  if (Number(perfilId) === PERFIL_AUTOCUIDADO) {
+    rows = rows.filter((r) => AUTOCUIDADO_MENU_IDS.has(Number(r.id)));
+  }
 
   const byId = new Map(rows.map((r) => [r.id, r]));
   const missingParents = [
@@ -37,7 +44,10 @@ async function getMenusByPerfil(perfilId) {
     .sort((a, b) => a.ordem - b.ordem || a.id - b.id)
     .map((row) => ({
       id: row.id,
-      titulo: row.titulo,
+      titulo:
+        Number(perfilId) === PERFIL_AUTOCUIDADO && row.rota === '/inicio'
+          ? 'Sua saúde'
+          : row.titulo,
       rota: row.rota,
       icone: row.icone,
       ordem: row.ordem,

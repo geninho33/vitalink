@@ -4,7 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { Field, TextTextarea } from '../../../components/forms/FormControls';
 import { apiRequest } from '../../../services/api';
-import { EmptyState, Panel, PrimaryButton } from '../ui';
+import { Panel, PrimaryButton } from '../ui';
 
 const PERFIL = { ADMIN: 1, CUIDADOR: 4, RESPONSAVEL: 5, PACIENTE: 6 };
 
@@ -197,8 +197,14 @@ export default function VistaGeralView() {
             ate,
           },
         }),
-        apiRequest('/remedios', { query: { pageSize: 100, status: 'ativo' } }),
-        apiRequest('/remedios/administracoes-hoje').catch(() => ({ data: [] })),
+        pacienteId
+          ? apiRequest('/inicio/medicamentos', { query: { paciente_id: pacienteId } })
+          : Promise.resolve({ data: [] }),
+        pacienteId
+          ? apiRequest('/remedios/administracoes-hoje', {
+              query: { paciente_id: pacienteId },
+            }).catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] }),
       ]);
       setAppointments(agendaRes.data || []);
       setMedicines(medsRes.data || []);
@@ -384,7 +390,9 @@ export default function VistaGeralView() {
         </form>
       </Panel>
 
+      {appointments.length > 0 || medicines.length > 0 ? (
       <div className="grid gap-4 sm:grid-cols-2">
+        {appointments.length > 0 ? (
         <Panel>
           <div className="mb-2 flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-aqua-soft text-aqua-deep">
@@ -394,34 +402,32 @@ export default function VistaGeralView() {
               Compromissos da semana
             </small>
           </div>
-          {appointments.length === 0 ? (
-            <p className="text-sm text-slate-health">Nenhum compromisso nesta semana.</p>
-          ) : (
-            <ul className="space-y-2">
-              {appointments.slice(0, 8).map((item) => (
-                <li key={item.id}>
-                  <Link
-                    to="/inicio/agenda"
-                    className="block rounded-xl bg-[#f4fbfa] px-3 py-2 text-sm hover:bg-aqua-soft"
-                  >
-                    <strong className="text-ink">{item.titulo}</strong>
-                    <span className="mt-0.5 block text-xs text-slate-health">
-                      {item.data_hora_inicio
-                        ? new Date(item.data_hora_inicio).toLocaleString('pt-BR')
-                        : '—'}
-                      {item.consulta_especialidade
-                        ? ` · ${item.consulta_especialidade}`
-                        : item.tipo
-                          ? ` · ${item.tipo}`
-                          : ''}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="space-y-2">
+            {appointments.slice(0, 8).map((item) => (
+              <li key={item.id}>
+                <Link
+                  to="/inicio/agenda"
+                  className="block rounded-xl bg-[#f4fbfa] px-3 py-2 text-sm hover:bg-aqua-soft"
+                >
+                  <strong className="text-ink">{item.titulo}</strong>
+                  <span className="mt-0.5 block text-xs text-slate-health">
+                    {item.data_hora_inicio
+                      ? new Date(item.data_hora_inicio).toLocaleString('pt-BR')
+                      : '—'}
+                    {item.consulta_especialidade
+                      ? ` · ${item.consulta_especialidade}`
+                      : item.tipo
+                        ? ` · ${item.tipo}`
+                        : ''}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </Panel>
+        ) : null}
 
+        {medicines.length > 0 ? (
         <Panel>
           <div className="mb-2 flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#fff1ed] text-[#e07a5f]">
@@ -431,47 +437,42 @@ export default function VistaGeralView() {
               Medicamentos de hoje
             </small>
           </div>
-          {medicines.length === 0 ? (
-            <>
-              <p className="text-sm text-slate-health">Nenhum medicamento cadastrado.</p>
-              <EmptyState>Cadastre em Medicamentos</EmptyState>
-            </>
-          ) : (
-            <ul className="space-y-2">
-              {medicines.map((m) => {
-                const checked = taken.includes(String(m.id));
-                return (
-                  <li key={m.id}>
-                    <label
-                      className={`flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2 text-sm ${
-                        checked ? 'bg-mint-soft/60 opacity-80' : 'bg-[#f4fbfa]'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={checked}
-                        disabled={busyMed === String(m.id)}
-                        onChange={() => toggleTaken(m)}
-                      />
-                      <span>
-                        <strong className="text-ink">{m.nome_comercial}</strong>
-                        <small className="mt-0.5 block text-xs text-slate-health">
-                          {m.periodo_horario || 'Horário'}
-                          {m.quantidade_administrar ? ` · ${m.quantidade_administrar}` : ''}
-                          {m.quantidade_estoque != null
-                            ? ` · total ${m.quantidade_estoque} compr./mL`
-                            : ''}
-                        </small>
-                      </span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <ul className="space-y-2">
+            {medicines.map((m) => {
+              const checked = taken.includes(String(m.id));
+              return (
+                <li key={m.id}>
+                  <label
+                    className={`flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2 text-sm ${
+                      checked ? 'bg-mint-soft/60 opacity-80' : 'bg-[#f4fbfa]'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={checked}
+                      disabled={busyMed === String(m.id)}
+                      onChange={() => toggleTaken(m)}
+                    />
+                    <span>
+                      <strong className="text-ink">{m.nome_comercial}</strong>
+                      <small className="mt-0.5 block text-xs text-slate-health">
+                        {m.periodo_horario || 'Horário'}
+                        {m.quantidade_administrar ? ` · ${m.quantidade_administrar}` : ''}
+                        {m.quantidade_estoque != null
+                          ? ` · total ${m.quantidade_estoque} compr./mL`
+                          : ''}
+                      </small>
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
         </Panel>
+        ) : null}
       </div>
+      ) : null}
 
       {!isAdmin ? (
         <div className="mt-6">

@@ -110,7 +110,7 @@ export default function OnboardingPage() {
   const [dados, setDados] = useState({
     nome: usuario?.nome || '',
     cpf: usuario?.cpf || '',
-    telefone: '',
+    telefone: usuario?.telefone || '',
     grau_parentesco: '',
     turno: '',
     data_nascimento: usuario?.data_nascimento
@@ -130,7 +130,10 @@ export default function OnboardingPage() {
     if (usuario?.cpf && !dados.cpf) {
       setDados((prev) => ({ ...prev, cpf: onlyDigits(usuario.cpf) }));
     }
-  }, [usuario?.perfil?.id, usuario?.perfil_id, usuario?.cpf]);
+    if (usuario?.telefone && !dados.telefone) {
+      setDados((prev) => ({ ...prev, telefone: onlyDigits(usuario.telefone) }));
+    }
+  }, [usuario?.perfil?.id, usuario?.perfil_id, usuario?.cpf, usuario?.telefone]);
 
   function addPaciente() {
     if (pacientes.length >= 2) return;
@@ -283,15 +286,17 @@ export default function OnboardingPage() {
                 onChange={(e) => setDados({ ...dados, cpf: onlyDigits(e.target.value).slice(0, 11) })}
               />
             </label>
+            {tipo === 'autocuidado' && onlyDigits(dados.telefone).length >= 10 ? null : (
             <label className="grid gap-1 text-sm">
               <span className="font-semibold">Telefone</span>
               <input
-                required
+                required={tipo !== 'autocuidado'}
                 className="min-h-11 rounded-xl border border-[#cfe0df] px-3"
                 value={dados.telefone}
                 onChange={(e) => setDados({ ...dados, telefone: e.target.value })}
               />
             </label>
+            )}
             {tipo === 'responsavel' ? (
               <label className="grid gap-1 text-sm">
                 <span className="font-semibold">Parentesco</span>

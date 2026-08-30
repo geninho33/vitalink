@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DateBrInput } from '../components/forms/FormControls';
-import { isValidCpf, isValidEmail, maskCpf, onlyDigits } from '../hooks/useCep';
+import { isValidCpf, isValidEmail, maskCpf, maskPhone, onlyDigits } from '../hooks/useCep';
 import { registroRequest } from '../services/api';
-import { isAdult, PASSWORD_HINT, validateStrongPassword } from '../utils/validation';
+import { isAdult, isValidPhone, PASSWORD_HINT, validateStrongPassword } from '../utils/validation';
 
 export default function Registro() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
+  const [telefone, setTelefone] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(null);
@@ -24,6 +25,10 @@ export default function Registro() {
     }
     if (!isValidCpf(cpf)) {
       setError('CPF inválido.');
+      return;
+    }
+    if (!isValidPhone(telefone)) {
+      setError('Informe um telefone válido com DDD.');
       return;
     }
     if (!isAdult(dataNascimento)) {
@@ -43,6 +48,7 @@ export default function Registro() {
         senha,
         cpf: onlyDigits(cpf),
         data_nascimento: dataNascimento,
+        telefone: onlyDigits(telefone),
       });
       setDone(res);
     } catch (err) {
@@ -98,6 +104,17 @@ export default function Registro() {
                 className="min-h-11 rounded-xl border border-[#cfe0df] px-3"
                 value={maskCpf(cpf)}
                 onChange={(e) => setCpf(onlyDigits(e.target.value).slice(0, 11))}
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-semibold text-ink">Telefone</span>
+              <input
+                required
+                type="tel"
+                inputMode="numeric"
+                className="min-h-11 rounded-xl border border-[#cfe0df] px-3"
+                value={maskPhone(telefone)}
+                onChange={(e) => setTelefone(onlyDigits(e.target.value).slice(0, 11))}
               />
             </label>
             <label className="grid gap-1 text-sm">

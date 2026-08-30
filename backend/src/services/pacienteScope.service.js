@@ -126,6 +126,81 @@ async function pacientesScopeForCrud(req) {
   return applyPacienteScope(req.user, 'pacientes.id');
 }
 
+function ownerOrLinkedScope(user, ownerSql, linkedParts = []) {
+  const perfilId = Number(user?.perfilId);
+  if (UNRESTRICTED.has(perfilId)) return Promise.resolve(null);
+  return listAllowedPacienteIds(user).then((ids) => {
+    const params = { scopeOwnerId: Number(user.id) };
+    const parts = [ownerSql];
+    if (ids && ids.length) {
+      parts.push(...linkedParts);
+      params.scopePacienteIds = ids;
+    }
+    return { sql: parts.join(' OR '), params };
+  });
+}
+
+async function medicosScopeForCrud(req) {
+  return ownerOrLinkedScope(req.user, 'medicos.usuario_id = :scopeOwnerId', [
+    `medicos.id IN (SELECT pm.medico_id FROM paciente_medicos pm WHERE pm.paciente_id = ANY(:scopePacienteIds))`,
+    `medicos.id IN (SELECT p.medico_id FROM pacientes p WHERE p.id = ANY(:scopePacienteIds) AND p.medico_id IS NOT NULL)`,
+  ]);
+}
+
+async function remediosScopeForCrud(req) {
+  return applyPacienteScope(req.user, 'remedios.paciente_id');
+}
+
+async function hospitaisScopeForCrud(req) {
+  return ownerOrLinkedScope(req.user, 'hospitais_clinicas.usuario_id = :scopeOwnerId', [
+    `hospitais_clinicas.id IN (
+      SELECT m.hospital_clinica_id FROM medicos m
+      WHERE m.hospital_clinica_id IS NOT NULL AND (
+        m.usuario_id = :scopeOwnerId
+        OR m.id IN (SELECT pm.medico_id FROM paciente_medicos pm WHERE pm.paciente_id = ANY(:scopePacienteIds))
+        OR m.id IN (SELECT p.medico_id FROM pacientes p WHERE p.id = ANY(:scopePacienteIds) AND p.medico_id IS NOT NULL)
+      )
+    )`,
+    `hospitais_clinicas.id IN (
+      SELECT me.hospital_clinica_id FROM medico_estabelecimentos me
+      INNER JOIN medicos m ON m.id = me.medico_id
+      WHERE m.usuario_id = :scopeOwnerId
+         OR m.id IN (SELECT pm.medico_id FROM paciente_medicos pm WHERE pm.paciente_id = ANY(:scopePacienteIds))
+    )`,
+  ]);
+}
+
+async function farmaciasScopeForCrud(req) {
+  return ownerOrLinkedScope(req.user, 'farmacias.usuario_id = :scopeOwnerId', [
+    `farmacias.id IN (
+      SELECT r.farmacia_id FROM remedios r
+      WHERE r.farmacia_id IS NOT NULL AND r.paciente_id = ANY(:scopePacienteIds)
+    )`,
+  ]);
+}
+
+async function cuidadoresScopeForCrud(req) {
+  return ownerOrLinkedScope(req.user, 'cuidadores.usuario_id = :scopeOwnerId', [
+    `cuidadores.id IN (
+      SELECT p.cuidador_id FROM pacientes p
+      WHERE p.cuidador_id IS NOT NULL AND p.id = ANY(:scopePacienteIds)
+    )`,
+  ]);
+}
+
+async function responsaveisScopeForCrud(req) {
+  return ownerOrLinkedScope(req.user, 'responsaveis.usuario_id = :scopeOwnerId', [
+    `responsaveis.id IN (
+      SELECT p.responsavel_id FROM pacientes p
+      WHERE p.responsavel_id IS NOT NULL AND p.id = ANY(:scopePacienteIds)
+    )`,
+    `responsaveis.id IN (
+      SELECT pr.responsavel_id FROM paciente_responsaveis pr
+      WHERE pr.paciente_id = ANY(:scopePacienteIds)
+    )`,
+  ]);
+}
+
 module.exports = {
   PERFIL,
   listAllowedPacienteIds,
@@ -133,4 +208,10 @@ module.exports = {
   applyPacienteScope,
   assertPacienteAccess,
   pacientesScopeForCrud,
+  medicosScopeForCrud,
+  remediosScopeForCrud,
+  hospitaisScopeForCrud,
+  farmaciasScopeForCrud,
+  cuidadoresScopeForCrud,
+  responsaveisScopeForCrud,
 };

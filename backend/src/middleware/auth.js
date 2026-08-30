@@ -38,7 +38,8 @@ async function authenticate(req, res, next) {
     try {
       rows = await query(
         `SELECT u.id, u.nome, u.email, u.status, u.perfil_id, p.nome AS perfil_nome,
-                COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido
+                COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido,
+                u.telefone, u.cpf, u.data_nascimento
          FROM usuarios u
          INNER JOIN perfis p ON p.id = u.perfil_id
          WHERE u.id = :id
@@ -110,6 +111,9 @@ async function authenticate(req, res, next) {
       id: Number(user.id),
       nome: user.nome,
       email: user.email,
+      telefone: user.telefone || '',
+      cpf: user.cpf || '',
+      dataNascimento: user.data_nascimento || null,
       perfilId: Number(perfilId),
       perfilNome,
       pacienteId: pacienteId != null && Number.isFinite(pacienteId) ? pacienteId : null,

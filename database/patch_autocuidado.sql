@@ -15,23 +15,24 @@ SELECT setval(
 
 DELETE FROM permissoes_acesso WHERE perfil_id = 7;
 
--- Dashboard, Início, Saúde (catálogos úteis), Atividades, Termos.
--- Sem Pacientes, Cuidadores, Responsáveis, Empresas, Administração.
+-- Permissões de API (Início e catálogos da própria saúde).
+-- O menu lateral do Autocuidado é filtrado no backend (Dashboard, Sua saúde, Termos).
+-- Inclui Pacientes (31) só para GET/PUT da própria ficha — não aparece no menu.
 INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)
 SELECT 7, m.id, TRUE,
-  CASE WHEN m.rota IN (
-    '/inicio', '/remedios', '/medicos', '/farmacias', '/hospitais',
-    '/exames-receitas', '/agenda', '/consultas', '/rotina', '/timeline', '/termos'
-  ) THEN TRUE ELSE FALSE END,
   CASE WHEN m.rota IN (
     '/inicio', '/remedios', '/medicos', '/farmacias', '/hospitais',
     '/exames-receitas', '/agenda', '/consultas', '/rotina', '/timeline'
   ) THEN TRUE ELSE FALSE END,
   CASE WHEN m.rota IN (
+    '/inicio', '/remedios', '/medicos', '/farmacias', '/hospitais',
+    '/exames-receitas', '/agenda', '/consultas', '/rotina', '/timeline', '/pacientes'
+  ) THEN TRUE ELSE FALSE END,
+  CASE WHEN m.rota IN (
     '/inicio', '/remedios', '/exames-receitas', '/consultas', '/rotina'
   ) THEN TRUE ELSE FALSE END
 FROM menus m
-WHERE m.id IN (1, 2, 30, 32, 33, 34, 35, 38, 40, 50, 51, 52, 53, 54);
+WHERE m.id IN (1, 2, 30, 31, 32, 33, 34, 35, 38, 40, 50, 51, 52, 53, 54);
 
 INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)
 SELECT 1, id, TRUE, TRUE, TRUE, TRUE FROM menus

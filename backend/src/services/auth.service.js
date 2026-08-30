@@ -23,6 +23,9 @@ function buildSessionPayload(user, papel, menus) {
       id: user.id,
       nome: user.nome,
       email: user.email,
+      telefone: user.telefone || '',
+      cpf: user.cpf || '',
+      data_nascimento: user.data_nascimento || null,
       perfil: {
         id: papel.perfil_id,
         nome: papel.perfil_nome,
@@ -44,7 +47,8 @@ function buildSessionPayload(user, papel, menus) {
 async function login({ email, senha, ip, userAgent }) {
   const rows = await query(
     `SELECT u.id, u.nome, u.email, u.senha_hash, u.status, u.perfil_id, p.nome AS perfil_nome,
-            COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido
+            COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido,
+            u.telefone, u.cpf, u.data_nascimento
      FROM usuarios u
      INNER JOIN perfis p ON p.id = u.perfil_id
      WHERE u.email = :email
@@ -115,7 +119,8 @@ async function login({ email, senha, ip, userAgent }) {
 async function switchContext({ usuarioId, papelId, perfilId, pacienteId, ip, userAgent }) {
   const users = await query(
     `SELECT u.id, u.nome, u.email, u.status, u.perfil_id,
-            COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido
+            COALESCE(u.onboarding_concluido, TRUE) AS onboarding_concluido,
+            u.telefone, u.cpf, u.data_nascimento
      FROM usuarios u
      WHERE u.id = :id AND u.status = 'ativo'
      LIMIT 1`,

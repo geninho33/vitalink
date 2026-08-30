@@ -50,6 +50,11 @@ export function ageFromIso(iso) {
   return age;
 }
 
+export function isValidPhone(value) {
+  const digits = onlyDigits(value);
+  return digits.length === 10 || digits.length === 11;
+}
+
 export function isAdult(value) {
   const iso = parseDateBr(value);
   const age = ageFromIso(iso);

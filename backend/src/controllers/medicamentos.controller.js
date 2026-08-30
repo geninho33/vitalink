@@ -1,6 +1,10 @@
 const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit } = require('../services/audit.service');
-const { applyPacienteScope, assertPacienteAccess } = require('../services/pacienteScope.service');
+const {
+  applyPacienteScope,
+  assertPacienteAccess,
+  farmaciasScopeForCrud,
+} = require('../services/pacienteScope.service');
 const {
   syncRemedioAgenda,
   daysRemaining,
@@ -68,13 +72,21 @@ async function list(req, res, next) {
   }
 }
 
-async function listFarmacias(_req, res, next) {
+async function listFarmacias(req, res, next) {
   try {
+    const where = [`farmacias.status = 'ativo'`];
+    const params = {};
+    const scope = await farmaciasScopeForCrud(req);
+    if (scope?.sql) {
+      where.push(`(${scope.sql})`);
+      Object.assign(params, scope.params);
+    }
     const rows = await query(
       `SELECT id, nome_fantasia, telefone_principal
        FROM farmacias
-       WHERE status = 'ativo'
-       ORDER BY nome_fantasia ASC`
+       WHERE ${where.join(' AND ')}
+       ORDER BY nome_fantasia ASC`,
+      params
     );
     return res.json({ data: rows });
   } catch (err) {

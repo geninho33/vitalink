@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import Icon from '../../components/Icon';
+import { useAuth } from '../../context/AuthContext';
+import { isAutocuidado } from '../../utils/perfis';
 import { BOTTOM_NAV_ITEMS } from './navItems';
 
 const PRIMARY_IDS = ['inicio', 'agenda', 'medicamentos', 'documentos'];
@@ -39,15 +41,25 @@ function NavItem({ item, onNavigate, compact }) {
 
 export default function BottomNavigation() {
   const location = useLocation();
+  const { usuario } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
+  const items = useMemo(
+    () =>
+      BOTTOM_NAV_ITEMS.map((item) =>
+        item.id === 'inicio' && isAutocuidado(usuario)
+          ? { ...item, label: 'Sua saúde' }
+          : item
+      ),
+    [usuario]
+  );
 
   const primary = useMemo(
-    () => BOTTOM_NAV_ITEMS.filter((item) => PRIMARY_IDS.includes(item.id)),
-    []
+    () => items.filter((item) => PRIMARY_IDS.includes(item.id)),
+    [items]
   );
   const moreItems = useMemo(
-    () => BOTTOM_NAV_ITEMS.filter((item) => !PRIMARY_IDS.includes(item.id)),
-    []
+    () => items.filter((item) => !PRIMARY_IDS.includes(item.id)),
+    [items]
   );
   const moreActive = moreItems.some((item) =>
     item.end
@@ -106,7 +118,7 @@ export default function BottomNavigation() {
         aria-label="Navegação principal"
       >
         <nav className="mx-auto hidden w-full max-w-5xl items-stretch justify-between gap-0.5 px-2 pt-1 pb-1 lg:flex">
-          {BOTTOM_NAV_ITEMS.map((item) => (
+          {items.map((item) => (
             <NavItem key={item.id} item={item} />
           ))}
         </nav>

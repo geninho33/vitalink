@@ -297,6 +297,25 @@ async function applyPatchAutocuidado(client) {
   }
 }
 
+async function applyPatchRegistroEscopo(client) {
+  if (!cfg.runMigrations) return;
+
+  const patchFile = path.join(SQL_DIR, 'patch_registro_escopo.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch registro/escopo não encontrado: ${patchFile}`);
+    return;
+  }
+
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  const sql = fs.readFileSync(patchFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Patch registro/escopo OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch registro/escopo: ${err.code || ''} ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -309,6 +328,7 @@ async function main() {
     await applyPatchEmpresasCuidadores(client);
     await applyPatchOnda3(client);
     await applyPatchAutocuidado(client);
+    await applyPatchRegistroEscopo(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

@@ -1,4 +1,8 @@
 const { createCrudController, addressNormalize } = require('../utils/crudFactory');
+const {
+  hospitaisScopeForCrud,
+  farmaciasScopeForCrud,
+} = require('../services/pacienteScope.service');
 
 const addressFields = [
   'cep',
@@ -23,6 +27,7 @@ const establishmentFields = [
   ...addressFields,
   'observacoes',
   'status',
+  'usuario_id',
 ];
 
 function makeEstablishment(table, recurso, menuRota) {
@@ -70,6 +75,7 @@ function makeEstablishment(table, recurso, menuRota) {
       if (n.whatsapp != null && String(n.whatsapp).trim() === '') n.whatsapp = null;
       return n;
     },
+    buildScope: table === 'hospitais_clinicas' ? hospitaisScopeForCrud : farmaciasScopeForCrud,
   });
 }
 
@@ -92,6 +98,7 @@ const farmacias = createCrudController({
     if (n.whatsapp != null && String(n.whatsapp).trim() === '') n.whatsapp = null;
     return n;
   },
+  buildScope: farmaciasScopeForCrud,
 });
 
 module.exports = {

@@ -30,6 +30,17 @@ function requirePermission(menuRota, action = 'ler') {
         { perfilId: req.user.perfilId, rota: menuRota }
       );
 
+      const perfilId = Number(req.user.perfilId);
+      const ownPatientActions = action === 'ler' || action === 'editar';
+      const ownPatientProfile = perfilId === 6 || perfilId === 7;
+      if (
+        menuRota === '/pacientes' &&
+        ownPatientActions &&
+        ownPatientProfile
+      ) {
+        return next();
+      }
+
       if (!rows[0] || !rows[0].permitido) {
         return res.status(403).json({
           error: 'forbidden',

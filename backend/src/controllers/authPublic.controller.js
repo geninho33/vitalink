@@ -10,6 +10,7 @@ const {
   assertPassword,
   assertCpf,
   assertAdult,
+  assertTelefone,
   isValidCpf,
   parseIsoDate,
 } = require('../utils/validation');
@@ -69,24 +70,25 @@ async function consumeToken(token, tipo) {
 
 async function registro(req, res, next) {
   try {
-    const { nome, email, senha, cpf, data_nascimento } = req.body || {};
-    if (!nome || !email || !senha || !cpf || !data_nascimento) {
+    const { nome, email, senha, cpf, data_nascimento, telefone } = req.body || {};
+    if (!nome || !email || !senha || !cpf || !data_nascimento || !telefone) {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Campos obrigatórios: nome, e-mail, CPF, data de nascimento e senha.',
+        message: 'Campos obrigatórios: nome, e-mail, CPF, data de nascimento, telefone e senha.',
       });
     }
     const emailOk = assertEmail(email);
     assertPassword(senha);
     const cpfOk = assertCpf(cpf);
     const nasc = assertAdult(data_nascimento);
+    const telefoneOk = assertTelefone(telefone);
 
     const senha_hash = await hashPassword(senha);
     const result = await query(
       `INSERT INTO usuarios
-        (nome, email, senha_hash, status, perfil_id, onboarding_concluido, cpf, data_nascimento)
+        (nome, email, senha_hash, status, perfil_id, onboarding_concluido, cpf, data_nascimento, telefone)
        VALUES
-        (:nome, :email, :senha_hash, 'ativo', :perfil_id, FALSE, :cpf, :nasc)`,
+        (:nome, :email, :senha_hash, 'ativo', :perfil_id, FALSE, :cpf, :nasc, :telefone)`,
       {
         nome: String(nome).trim(),
         email: emailOk,
@@ -94,6 +96,7 @@ async function registro(req, res, next) {
         perfil_id: PERFIL_RESPONSAVEL,
         cpf: cpfOk,
         nasc,
+        telefone: telefoneOk,
       }
     );
     const usuarioId = result.insertId;
@@ -250,13 +253,23 @@ async function onboarding(req, res, next) {
     const pacientes = Array.isArray(req.body?.pacientes) ? req.body.pacientes.slice(0, 2) : [];
 
     const nome = String(dados.nome || req.user.nome || '').trim();
-    const telefone = String(dados.telefone || dados.telefone_principal || '').trim();
+    let telefone = String(dados.telefone || dados.telefone_principal || '').trim();
+    if (!telefone && req.user.telefone) {
+      telefone = String(req.user.telefone).trim();
+    }
+    if (!telefone) {
+      const stored = await query(`SELECT telefone FROM usuarios WHERE id = :id LIMIT 1`, {
+        id: req.user.id,
+      });
+      telefone = String(stored[0]?.telefone || '').trim();
+    }
     if (!nome || !telefone) {
       return res.status(400).json({
         error: 'validation_error',
         message: 'Informe nome, CPF e telefone.',
       });
     }
+    const telefoneOk = assertTelefone(telefone);
     const cpf = assertCpf(dados.cpf);
 
     if (tipo === 'autocuidado') {
@@ -271,15 +284,15 @@ async function onboarding(req, res, next) {
         usuarioId: req.user.id,
         nome,
         cpf,
-        telefone,
+        telefone: telefoneOk,
         dataNascimento: pNasc,
       });
 
       await query(
         `UPDATE usuarios
-         SET perfil_id = :perfilId, onboarding_concluido = TRUE, status = 'ativo'
+         SET perfil_id = :perfilId, onboarding_concluido = TRUE, status = 'ativo', telefone = :telefone
          WHERE id = :id`,
-        { perfilId, id: req.user.id }
+        { perfilId, id: req.user.id, telefone: telefoneOk }
       );
       await syncUsuarioPerfilPadrao(req.user.id, perfilId);
 
@@ -322,7 +335,7 @@ async function onboarding(req, res, next) {
           id: pessoaId,
           nome,
           cpf,
-          telefone,
+          telefone: telefoneOk,
           email: req.user.email,
           extra: extraVal,
           ...addr,
@@ -340,7 +353,7 @@ async function onboarding(req, res, next) {
           uid: req.user.id,
           nome,
           cpf,
-          telefone,
+          telefone: telefoneOk,
           email: req.user.email,
           extra: extraVal,
           ...addr,
@@ -397,9 +410,9 @@ async function onboarding(req, res, next) {
 
     await query(
       `UPDATE usuarios
-       SET perfil_id = :perfilId, onboarding_concluido = TRUE, status = 'ativo'
+       SET perfil_id = :perfilId, onboarding_concluido = TRUE, status = 'ativo', telefone = :telefone
        WHERE id = :id`,
-      { perfilId, id: req.user.id }
+      { perfilId, id: req.user.id, telefone: telefoneOk }
     );
     await syncUsuarioPerfilPadrao(req.user.id, perfilId);
 

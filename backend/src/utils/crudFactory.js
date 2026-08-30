@@ -41,6 +41,21 @@ function createCrudController({
 }) {
   const allFields = [...new Set([...requiredCreate, ...optional])];
 
+  function stampOwner(payload, req) {
+    if (allFields.includes('usuario_id') && (payload.usuario_id == null || payload.usuario_id === '')) {
+      payload.usuario_id = req.user?.id || null;
+    }
+    return payload;
+  }
+
+  async function scopeWhere(req, params) {
+    if (typeof buildScope !== 'function') return '';
+    const scope = await buildScope(req);
+    if (!scope?.sql) return '';
+    Object.assign(params, scope.params || {});
+    return ` AND (${scope.sql})`;
+  }
+
   async function list(req, res, next) {
     try {
       const q = String(req.query.q || '').trim();
@@ -128,6 +143,7 @@ function createCrudController({
     try {
       let payload = pick(req.body || {}, allFields);
       if (normalize) payload = normalize(payload, 'create');
+      stampOwner(payload, req);
       requireFields(payload, requiredCreate);
 
       const cols = Object.keys(payload);
@@ -172,16 +188,21 @@ function createCrudController({
         });
       }
 
+      const params = { id: req.params.id };
+      const scopeSql = await scopeWhere(req, params);
       const beforeRows = await query(
-        `SELECT * FROM ${table} WHERE id = :id LIMIT 1`,
-        { id: req.params.id }
+        `SELECT * FROM ${table} WHERE id = :id${scopeSql} LIMIT 1`,
+        params
       );
-      const before = beforeRows[0] || {};
+      if (!beforeRows[0]) {
+        return res.status(404).json({ error: 'not_found', message: 'Registro não encontrado.' });
+      }
+      const before = beforeRows[0];
 
       const sets = cols.map((c) => `${c} = :${c}`).join(', ');
-      await query(`UPDATE ${table} SET ${sets} WHERE id = :id`, {
+      await query(`UPDATE ${table} SET ${sets} WHERE id = :id${scopeSql}`, {
         ...payload,
-        id: req.params.id,
+        ...params,
       });
 
       if (typeof afterSave === 'function') {
@@ -212,10 +233,19 @@ function createCrudController({
 
   async function remove(req, res, next) {
     try {
+      const params = { id: req.params.id };
+      const scopeSql = await scopeWhere(req, params);
+      const existing = await query(
+        `SELECT id FROM ${table} WHERE id = :id${scopeSql} LIMIT 1`,
+        params
+      );
+      if (!existing[0]) {
+        return res.status(404).json({ error: 'not_found', message: 'Registro não encontrado.' });
+      }
       if (typeof beforeDelete === 'function') {
         await beforeDelete(req.params.id, req);
       }
-      await query(`DELETE FROM ${table} WHERE id = :id`, { id: req.params.id });
+      await query(`DELETE FROM ${table} WHERE id = :id${scopeSql}`, params);
       await writeAudit({
         usuarioId: req.user.id,
         acao: 'deletar',

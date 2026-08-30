@@ -60,6 +60,8 @@ function createApp() {
   api.use('/auth', authRoutes);
   api.use('/menus', menusRoutes);
   api.get('/me/pacientes', authenticate, meController.listMeusPacientes);
+  api.get('/me/paciente', authenticate, meController.getMeuPaciente);
+  api.put('/me/paciente', authenticate, meController.updateMeuPaciente);
   api.get('/my-patients', authenticate, meController.listMeusPacientes);
   api.post('/me/pacientes/vincular', authenticate, vinculoPaciente.vincularMeuPaciente);
   api.get('/pacientes/por-cpf/:cpf', authenticate, vinculoPaciente.buscarPorCpf);

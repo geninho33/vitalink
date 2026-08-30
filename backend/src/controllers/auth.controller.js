@@ -48,6 +48,9 @@ async function menusMe(req, res, next) {
         id: req.user.id,
         nome: req.user.nome,
         email: req.user.email,
+        telefone: req.user.telefone || '',
+        cpf: req.user.cpf || '',
+        data_nascimento: req.user.dataNascimento || null,
         perfil: {
           id: req.user.perfilId,
           nome: ativo?.perfil_nome || req.user.perfilNome,

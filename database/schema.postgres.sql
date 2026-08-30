@@ -47,6 +47,7 @@ CREATE TABLE usuarios (
   status TEXT NOT NULL DEFAULT 'ativo'
     CHECK (status IN ('ativo', 'inativo', 'bloqueado')),
   perfil_id INTEGER NOT NULL REFERENCES perfis (id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  telefone VARCHAR(30) NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT uk_usuarios_email UNIQUE (email)
@@ -104,11 +105,13 @@ CREATE TABLE hospitais_clinicas (
   cidade VARCHAR(120) NOT NULL,
   uf CHAR(2) NOT NULL,
   observacoes TEXT NULL,
+  usuario_id INTEGER NULL REFERENCES usuarios (id) ON UPDATE CASCADE ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'ativo'
     CHECK (status IN ('ativo', 'inativo')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX idx_hospitais_usuario ON hospitais_clinicas (usuario_id);
 CREATE UNIQUE INDEX uk_hospitais_documento_notnull
   ON hospitais_clinicas (documento) WHERE documento IS NOT NULL AND documento <> '';
 CREATE INDEX idx_hospitais_nome ON hospitais_clinicas (nome_fantasia);
@@ -133,11 +136,13 @@ CREATE TABLE farmacias (
   cidade VARCHAR(120) NOT NULL,
   uf CHAR(2) NOT NULL,
   observacoes TEXT NULL,
+  usuario_id INTEGER NULL REFERENCES usuarios (id) ON UPDATE CASCADE ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'ativo'
     CHECK (status IN ('ativo', 'inativo')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX idx_farmacias_usuario ON farmacias (usuario_id);
 CREATE UNIQUE INDEX uk_farmacias_documento_notnull
   ON farmacias (documento) WHERE documento IS NOT NULL AND documento <> '';
 CREATE INDEX idx_farmacias_nome ON farmacias (nome_fantasia);
@@ -595,10 +600,10 @@ SELECT 6, id, TRUE,
        CASE WHEN rota = '/inicio' THEN TRUE ELSE FALSE END
 FROM menus WHERE id IN (1, 2);
 
--- Autocuidado (CRUD da própria saúde)
+-- Autocuidado (API da própria saúde; menu lateral filtrado no backend)
 INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_criar, pode_editar, pode_deletar)
 SELECT 7, id, TRUE,
-       CASE WHEN rota IN ('/inicio','/remedios','/medicos','/farmacias','/hospitais','/exames-receitas','/agenda','/consultas','/rotina','/timeline','/termos') THEN TRUE ELSE FALSE END,
        CASE WHEN rota IN ('/inicio','/remedios','/medicos','/farmacias','/hospitais','/exames-receitas','/agenda','/consultas','/rotina','/timeline') THEN TRUE ELSE FALSE END,
+       CASE WHEN rota IN ('/inicio','/remedios','/medicos','/farmacias','/hospitais','/exames-receitas','/agenda','/consultas','/rotina','/timeline','/pacientes') THEN TRUE ELSE FALSE END,
        CASE WHEN rota IN ('/inicio','/remedios','/exames-receitas','/consultas','/rotina') THEN TRUE ELSE FALSE END
-FROM menus WHERE id IN (1, 2, 30, 32, 33, 34, 35, 38, 40, 50, 51, 52, 53, 54);
+FROM menus WHERE id IN (1, 2, 30, 31, 32, 33, 34, 35, 38, 40, 50, 51, 52, 53, 54);
