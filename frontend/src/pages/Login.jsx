@@ -43,26 +43,6 @@ function IconLock({ className }) {
   );
 }
 
-function IconShield({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 3.5 19 6.2v5.1c0 4.3-2.9 8.2-7 9.2-4.1-1-7-4.9-7-9.2V6.2L12 3.5Z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m9.2 12.1 1.9 1.9 3.7-3.8"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -153,16 +133,6 @@ export default function Login() {
         <div className="w-full max-w-md rounded-3xl border border-[#d0e4ef] bg-[#F7F9F6] p-7 shadow-panel sm:p-9">
           <div className="mb-6 flex flex-col items-center">
             <BrandLogo variant="full" />
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-vita-soft px-3 py-1 text-xs font-bold uppercase tracking-wider text-vita">
-              <span className="inline-block h-2 w-2 rounded-full bg-link" />
-              Acesso seguro
-            </div>
-            <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-ink">
-              Entrar no Sistema
-            </h2>
-            <p className="mt-1 text-center text-sm text-slate-health">
-              Use suas credenciais VitaLink.
-            </p>
           </div>
 
           <form className="grid gap-4" onSubmit={handleSubmit} noValidate>
@@ -272,14 +242,6 @@ export default function Login() {
               Criar conta
             </Link>
           </p>
-
-          <aside className="mt-6 flex gap-3 rounded-2xl border border-[#d0e4ef] bg-vita-soft/70 p-3.5 text-sm text-[#38565b]">
-            <IconShield className="mt-0.5 h-5 w-5 shrink-0 text-vita" />
-            <p>
-              <strong className="font-semibold text-ink">LGPD:</strong> este acesso é
-              auditado. Não compartilhe credenciais.
-            </p>
-          </aside>
         </div>
       </section>
     </main>
