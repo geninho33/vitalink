@@ -18,7 +18,7 @@
  */
 
 export const BOTTOM_NAV_ITEMS = [
-  { id: 'inicio', label: 'Início', icon: 'home', path: '/inicio', end: true },
+  { id: 'inicio', label: 'Sintomas', icon: 'thermometer', path: '/inicio', end: true },
   { id: 'perfil', label: 'Perfil', icon: 'circle-user', path: '/inicio/perfil' },
   { id: 'eventos', label: 'Eventos', icon: 'plus', path: '/inicio/eventos' },
   { id: 'especialistas', label: 'Especial.', icon: 'stethoscope', path: '/inicio/especialistas' },

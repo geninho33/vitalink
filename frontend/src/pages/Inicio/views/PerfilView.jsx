@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DateBrInput, Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
@@ -38,6 +38,8 @@ function mapPaciente(p) {
 
 export default function PerfilView() {
   const { pacienteId, paciente, reload } = usePacienteAtivo();
+  const pacienteRef = useRef(paciente);
+  pacienteRef.current = paciente;
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,19 +52,30 @@ export default function PerfilView() {
       return;
     }
     try {
-      const res = await apiRequest('/me/paciente').catch(() =>
-        apiRequest(`/pacientes/${pacienteId}`)
-      );
+      const res = await apiRequest('/me/paciente');
       setForm(mapPaciente(res.data || res));
     } catch {
-      setForm(mapPaciente(paciente));
+      try {
+        const fallback = await apiRequest(`/pacientes/${pacienteId}`);
+        setForm(mapPaciente(fallback.data || fallback));
+      } catch {
+        setForm(mapPaciente(pacienteRef.current));
+      }
     }
-  }, [pacienteId, paciente]);
+  }, [pacienteId]);
 
   useEffect(() => {
-    fill();
-    setEditing(false);
-    setMsg('');
+    let cancelled = false;
+    (async () => {
+      await fill();
+      if (!cancelled) {
+        setEditing(false);
+        setMsg('');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [fill]);
 
   const age = useMemo(() => calculateAge(form.data_nascimento), [form.data_nascimento]);

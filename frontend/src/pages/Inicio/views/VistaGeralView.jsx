@@ -22,7 +22,7 @@ function weekRange() {
   return { de: start.toISOString(), ate: end.toISOString() };
 }
 
-function RedeDirectory({ pacienteId }) {
+function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
   const [hospitais, setHospitais] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -109,12 +109,23 @@ function RedeDirectory({ pacienteId }) {
   }, [medicos]);
 
   if (loading) {
-    return <p className="text-sm text-slate-health">Carregando rede de cuidado…</p>;
+    return hideWhenEmpty ? null : (
+      <p className="text-sm text-slate-health">Carregando rede de cuidado…</p>
+    );
   }
 
+  const hasData = hospitais.length > 0 || medicos.length > 0;
+  if (hideWhenEmpty && !hasData) return null;
+
   return (
-    <div className="grid gap-4">
-      {['hospital', 'clinica', 'laboratorio'].map((tipo) => (
+    <div className={title ? 'mt-6' : 'grid gap-4'}>
+      {title ? (
+        <h2 className="mb-3 font-display text-xl font-bold text-ink">{title}</h2>
+      ) : null}
+      <div className="grid gap-4">
+      {['hospital', 'clinica', 'laboratorio'].map((tipo) => {
+        if (hideWhenEmpty && !byTipo[tipo]?.length) return null;
+        return (
         <Panel key={tipo}>
           <h2 className="mb-2 font-display text-lg font-bold text-aqua-deep">{TIPO_LABEL[tipo]}</h2>
           {byTipo[tipo]?.length ? (
@@ -134,8 +145,10 @@ function RedeDirectory({ pacienteId }) {
             <p className="text-sm text-slate-health">Nenhum cadastrado.</p>
           )}
         </Panel>
-      ))}
+        );
+      })}
 
+      {hideWhenEmpty && byEsp.length === 0 ? null : (
       <Panel>
         <h2 className="mb-3 font-display text-lg font-bold text-aqua-deep">
           Profissionais por Especialidade
@@ -164,6 +177,8 @@ function RedeDirectory({ pacienteId }) {
           </div>
         )}
       </Panel>
+      )}
+      </div>
     </div>
   );
 }
@@ -187,33 +202,27 @@ export default function VistaGeralView() {
   const [busyMed, setBusyMed] = useState(null);
 
   const loadCareData = useCallback(async () => {
-    const { de, ate } = weekRange();
-    try {
-      const [agendaRes, medsRes, admRes] = await Promise.all([
-        apiRequest('/agenda', {
-          query: {
-            paciente_id: pacienteId || undefined,
-            de,
-            ate,
-          },
-        }),
-        pacienteId
-          ? apiRequest('/inicio/medicamentos', { query: { paciente_id: pacienteId } })
-          : Promise.resolve({ data: [] }),
-        pacienteId
-          ? apiRequest('/remedios/administracoes-hoje', {
-              query: { paciente_id: pacienteId },
-            }).catch(() => ({ data: [] }))
-          : Promise.resolve({ data: [] }),
-      ]);
-      setAppointments(agendaRes.data || []);
-      setMedicines(medsRes.data || []);
-      setTaken((admRes.data || []).map((r) => String(r.remedio_id)));
-    } catch {
+    if (!pacienteId) {
       setAppointments([]);
       setMedicines([]);
       setTaken([]);
+      return;
     }
+    const { de, ate } = weekRange();
+    const [agendaRes, medsRes, admRes] = await Promise.all([
+      apiRequest('/agenda', {
+        query: { paciente_id: pacienteId, de, ate },
+      }).catch(() => ({ data: [] })),
+      apiRequest('/inicio/medicamentos', { query: { paciente_id: pacienteId } }).catch(() => ({
+        data: [],
+      })),
+      apiRequest('/remedios/administracoes-hoje', {
+        query: { paciente_id: pacienteId },
+      }).catch(() => ({ data: [] })),
+    ]);
+    setAppointments(agendaRes.data || []);
+    setMedicines(medsRes.data || []);
+    setTaken((admRes.data || []).map((r) => String(r.remedio_id)));
   }, [pacienteId]);
 
   useEffect(() => {
@@ -475,12 +484,11 @@ export default function VistaGeralView() {
       ) : null}
 
       {!isAdmin ? (
-        <div className="mt-6">
-          <h2 className="mb-3 font-display text-xl font-bold text-ink">
-            Sua rede de cuidado
-          </h2>
-          <RedeDirectory pacienteId={pacienteId || undefined} />
-        </div>
+        <RedeDirectory
+          pacienteId={pacienteId || undefined}
+          hideWhenEmpty
+          title="Sua rede de cuidado"
+        />
       ) : null}
       </>
       ) : null}

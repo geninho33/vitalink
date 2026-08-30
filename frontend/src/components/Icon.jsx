@@ -27,6 +27,14 @@ function Icon({ name, className = 'h-5 w-5' }) {
           <path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" />
         </svg>
       );
+    case 'thermometer':
+    case 'activity':
+      return (
+        <svg {...common}>
+          <path d="M14 4.5a2.5 2.5 0 0 0-5 0v9.2a3.5 3.5 0 1 0 5 0V4.5Z" />
+          <path d="M11.5 13.5V8" />
+        </svg>
+      );
     case 'calendar':
       return (
         <svg {...common}>

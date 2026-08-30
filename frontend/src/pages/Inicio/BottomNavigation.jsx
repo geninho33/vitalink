@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import Icon from '../../components/Icon';
-import { useAuth } from '../../context/AuthContext';
-import { isAutocuidado } from '../../utils/perfis';
 import { BOTTOM_NAV_ITEMS } from './navItems';
 
 const PRIMARY_IDS = ['inicio', 'agenda', 'medicamentos', 'documentos'];
@@ -41,17 +39,8 @@ function NavItem({ item, onNavigate, compact }) {
 
 export default function BottomNavigation() {
   const location = useLocation();
-  const { usuario } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
-  const items = useMemo(
-    () =>
-      BOTTOM_NAV_ITEMS.map((item) =>
-        item.id === 'inicio' && isAutocuidado(usuario)
-          ? { ...item, label: 'Sua saúde' }
-          : item
-      ),
-    [usuario]
-  );
+  const items = BOTTOM_NAV_ITEMS;
 
   const primary = useMemo(
     () => items.filter((item) => PRIMARY_IDS.includes(item.id)),

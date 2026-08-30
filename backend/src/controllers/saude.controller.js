@@ -5,7 +5,10 @@ const {
   pacientesScopeForCrud,
   medicosScopeForCrud,
   remediosScopeForCrud,
+  applyPacienteScope,
+  assertPacienteAccess,
 } = require('../services/pacienteScope.service');
+const logger = require('../utils/logger');
 const { parseIsoDate, isValidCpf, isValidEmail } = require('../utils/validation');
 const {
   syncRemedioAgenda,
@@ -496,7 +499,7 @@ async function administrarRemedio(req, res, next) {
     const jaHoje = await query(
       `SELECT id FROM medicamento_administracoes
        WHERE remedio_id = :remedioId
-         AND (created_at AT TIME ZONE 'America/Sao_Paulo')::date = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+         AND administrado_em::date = CURRENT_DATE
        LIMIT 1`,
       { remedioId }
     );
@@ -565,36 +568,42 @@ async function administrarRemedio(req, res, next) {
 
 async function listAdministracoesHoje(req, res, next) {
   try {
-    const { applyPacienteScope, assertPacienteAccess } = require('../services/pacienteScope.service');
-    const pacienteId = req.query.paciente_id != null ? Number(req.query.paciente_id) : null;
-    if (pacienteId) await assertPacienteAccess(req.user, pacienteId);
+    const rawId = req.query.paciente_id;
+    const pacienteId =
+      rawId != null && String(rawId).trim() !== '' ? Number(rawId) : null;
+    if (pacienteId != null && !Number.isFinite(pacienteId)) {
+      return res.json({ data: [] });
+    }
+    if (pacienteId) {
+      await assertPacienteAccess(req.user, pacienteId);
+    }
 
-    const where = [
-      `(ma.created_at AT TIME ZONE 'America/Sao_Paulo')::date
-       = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`,
-    ];
+    const where = ['ma.administrado_em::date = CURRENT_DATE'];
     const params = {};
     if (pacienteId) {
-      where.push('r.paciente_id = :pacienteId');
+      where.push('(ma.paciente_id = :pacienteId OR r.paciente_id = :pacienteId)');
       params.pacienteId = pacienteId;
-    }
-    const scope = await applyPacienteScope(req.user, 'r.paciente_id');
-    if (scope?.sql) {
-      where.push(`(${scope.sql})`);
-      Object.assign(params, scope.params);
+    } else {
+      const scope = await applyPacienteScope(req.user, 'COALESCE(ma.paciente_id, r.paciente_id)');
+      if (scope?.sql) {
+        where.push(`(${scope.sql})`);
+        Object.assign(params, scope.params || {});
+      }
     }
 
     const rows = await query(
       `SELECT ma.remedio_id, MAX(ma.id) AS id
        FROM medicamento_administracoes ma
-       INNER JOIN remedios r ON r.id = ma.remedio_id
+       LEFT JOIN remedios r ON r.id = ma.remedio_id
        WHERE ${where.join(' AND ')}
        GROUP BY ma.remedio_id`,
       params
     );
-    return res.json({ data: rows });
+    return res.json({ data: rows || [] });
   } catch (err) {
-    return next(err);
+    if (err.status === 403) return next(err);
+    logger.warn('administracoes-hoje sem registros utilizáveis', { message: err.message });
+    return res.json({ data: [] });
   }
 }
 

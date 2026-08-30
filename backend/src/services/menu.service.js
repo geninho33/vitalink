@@ -44,10 +44,7 @@ async function getMenusByPerfil(perfilId) {
     .sort((a, b) => a.ordem - b.ordem || a.id - b.id)
     .map((row) => ({
       id: row.id,
-      titulo:
-        Number(perfilId) === PERFIL_AUTOCUIDADO && row.rota === '/inicio'
-          ? 'Sua saúde'
-          : row.titulo,
+      titulo: row.titulo,
       rota: row.rota,
       icone: row.icone,
       ordem: row.ordem,
