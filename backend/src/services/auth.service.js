@@ -60,14 +60,7 @@ async function login({ email, senha, ip, userAgent }) {
     throw err;
   }
 
-  if (user.status === 'pendente_confirmacao') {
-    const err = new Error('Confirme seu e-mail para liberar o acesso.');
-    err.status = 403;
-    err.code = 'email_not_confirmed';
-    throw err;
-  }
-
-  if (user.status !== 'ativo') {
+  if (user.status !== 'ativo' && user.status !== 'pendente_confirmacao') {
     const err = new Error('Usuário inativo ou bloqueado.');
     err.status = 403;
     err.code = 'user_inactive';
@@ -87,6 +80,11 @@ async function login({ email, senha, ip, userAgent }) {
     err.status = 401;
     err.code = 'invalid_credentials';
     throw err;
+  }
+
+  if (user.status === 'pendente_confirmacao') {
+    await query(`UPDATE usuarios SET status = 'ativo' WHERE id = :id`, { id: user.id });
+    user.status = 'ativo';
   }
 
   const papeis = await listPapeisByUsuario(user.id);

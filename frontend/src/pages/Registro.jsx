@@ -57,7 +57,7 @@ export default function Registro() {
       <div className="w-full max-w-md rounded-3xl border border-[#d0e4ef] bg-[#F7F9F6] p-7 shadow-panel">
         <h1 className="font-display text-2xl font-bold text-ink">Criar conta</h1>
         <p className="mt-1 text-sm text-slate-health">
-          Enviaremos um e-mail para confirmar o cadastro. Acesso permitido apenas a maiores de 18 anos.
+          Após o cadastro você já pode entrar. Acesso permitido apenas a maiores de 18 anos.
         </p>
 
         {done ? (
@@ -65,16 +65,8 @@ export default function Registro() {
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
               {done.message}
             </p>
-            {done.dev_link ? (
-              <p className="text-xs text-slate-health">
-                Ambiente de desenvolvimento:{' '}
-                <a href={done.dev_link} className="font-semibold text-vita underline">
-                  confirmar e-mail
-                </a>
-              </p>
-            ) : null}
             <Link to="/login" className="text-sm font-semibold text-vita hover:underline">
-              Voltar ao login
+              Entrar agora
             </Link>
           </div>
         ) : (

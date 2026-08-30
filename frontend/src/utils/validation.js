@@ -6,12 +6,14 @@ export function validateStrongPassword(senha) {
   if (!/[a-z]/.test(s)) return 'A senha deve conter ao menos uma letra minúscula.';
   if (!/[A-Z]/.test(s)) return 'A senha deve conter ao menos uma letra maiúscula.';
   if (!/[0-9]/.test(s)) return 'A senha deve conter ao menos um número.';
-  if (!/[#$*!%]/.test(s)) return 'A senha deve conter um caractere especial (# $ * ! %).';
+  if (!/[#$*!%@&+_-]/.test(s)) {
+    return 'A senha deve conter um caractere especial (# $ * ! % @ & + - _).';
+  }
   return null;
 }
 
 export const PASSWORD_HINT =
-  'Mínimo 8 caracteres, com maiúscula, minúscula, número e um especial (# $ * ! %).';
+  'Mínimo 8 caracteres, com maiúscula, minúscula, número e um especial (# $ * ! % @ & + - _).';
 
 export function formatDateBr(value) {
   if (!value) return '';

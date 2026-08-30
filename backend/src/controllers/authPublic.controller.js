@@ -3,7 +3,7 @@ const { query, isDuplicateKey } = require('../config/database');
 const { hashPassword } = require('../utils/password');
 const { writeAudit } = require('../services/audit.service');
 const { syncUsuarioPerfilPadrao } = require('../services/papel.service');
-const { sendConfirmacaoEmail, sendResetSenha } = require('../services/mail.service');
+const { sendResetSenha } = require('../services/mail.service');
 const { addressNormalize } = require('../utils/crudFactory');
 const {
   assertEmail,
@@ -86,7 +86,7 @@ async function registro(req, res, next) {
       `INSERT INTO usuarios
         (nome, email, senha_hash, status, perfil_id, onboarding_concluido, cpf, data_nascimento)
        VALUES
-        (:nome, :email, :senha_hash, 'pendente_confirmacao', :perfil_id, FALSE, :cpf, :nasc)`,
+        (:nome, :email, :senha_hash, 'ativo', :perfil_id, FALSE, :cpf, :nasc)`,
       {
         nome: String(nome).trim(),
         email: emailOk,
@@ -99,13 +99,6 @@ async function registro(req, res, next) {
     const usuarioId = result.insertId;
     await syncUsuarioPerfilPadrao(usuarioId, PERFIL_RESPONSAVEL);
 
-    const token = await issueToken(usuarioId, 'confirmacao_email', 24);
-    const mail = await sendConfirmacaoEmail({
-      to: String(email).trim().toLowerCase(),
-      nome: String(nome).trim(),
-      token,
-    });
-
     await writeAudit({
       usuarioId,
       acao: 'registro_publico',
@@ -116,8 +109,7 @@ async function registro(req, res, next) {
 
     return res.status(201).json({
       ok: true,
-      message: 'Cadastro criado. Confirme o e-mail para liberar o acesso.',
-      ...(isDev() || mail.mocked ? { dev_link: mail.url } : {}),
+      message: 'Cadastro criado. Você já pode entrar.',
     });
   } catch (err) {
     if (isDuplicateKey(err)) {

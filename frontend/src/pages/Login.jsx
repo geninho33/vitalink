@@ -1,7 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../context/AuthContext';
+import {
+  clearSavedCredentials,
+  loadSavedCredentials,
+  saveCredentials,
+} from '../services/savedCredentials';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -63,9 +68,18 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [salvarCredenciais, setSalvarCredenciais] = useState(false);
   const [touched, setTouched] = useState({ email: false, senha: false });
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+
+  useEffect(() => {
+    const saved = loadSavedCredentials();
+    if (!saved) return;
+    setEmail(saved.email);
+    setSenha(saved.senha);
+    setSalvarCredenciais(true);
+  }, []);
 
   const errors = useMemo(() => {
     const next = {};
@@ -84,6 +98,11 @@ export default function Login() {
     setAuthError('');
     try {
       const data = await login({ email: email.trim(), senha });
+      if (salvarCredenciais) {
+        saveCredentials({ email: email.trim(), senha });
+      } else {
+        clearSavedCredentials();
+      }
       navigate(data?.usuario?.onboarding_concluido === false ? '/onboarding' : '/dashboard', {
         replace: true,
       });
@@ -201,6 +220,25 @@ export default function Login() {
               >
                 Esqueceu a senha?
               </Link>
+            </label>
+
+            <label className="flex items-start gap-2.5 text-sm text-ink">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-vita"
+                checked={salvarCredenciais}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSalvarCredenciais(checked);
+                  if (!checked) clearSavedCredentials();
+                }}
+              />
+              <span>
+                Salvar credenciais de acesso neste dispositivo
+                <span className="mt-0.5 block text-xs font-normal text-slate-health">
+                  O e-mail e a senha ficam neste navegador para o próximo login.
+                </span>
+              </span>
             </label>
 
             {authError ? (

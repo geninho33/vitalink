@@ -1,5 +1,6 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASSWORD_SPECIAL = /[#$*!%]/;
+const PASSWORD_SPECIAL = /[#$*!%@&+_-]/;
+const PASSWORD_SPECIAL_HINT = '# $ * ! % @ & + - _';
 
 function onlyDigits(value) {
   return String(value || '').replace(/\D/g, '');
@@ -39,7 +40,7 @@ function validateStrongPassword(senha) {
     return 'A senha deve conter ao menos um número.';
   }
   if (!PASSWORD_SPECIAL.test(s)) {
-    return 'A senha deve conter um caractere especial (# $ * ! %).';
+    return `A senha deve conter um caractere especial (${PASSWORD_SPECIAL_HINT}).`;
   }
   return null;
 }
