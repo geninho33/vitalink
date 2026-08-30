@@ -23,9 +23,19 @@ export default function AgendaView() {
   const [confirmId, setConfirmId] = useState(null);
   const [medicos, setMedicos] = useState([]);
   const [locais, setLocais] = useState([]);
-  const [especialidades, setEspecialidades] = useState(loadCatalog('especialidades'));
+  const [especialidades, setEspecialidades] = useState(() => loadCatalog('especialidades'));
+  const [catalogLocais, setCatalogLocais] = useState(() => loadCatalog('locais'));
+  const [catalogMedicos, setCatalogMedicos] = useState(() => loadCatalog('medicos-locais'));
   const [quick, setQuick] = useState(null);
   const [quickValue, setQuickValue] = useState('');
+  const [quickSaving, setQuickSaving] = useState(false);
+
+  async function refreshLocais() {
+    const res = await apiRequest('/hospitais', { query: { pageSize: 200, status: 'ativo' } });
+    const rows = res.data || [];
+    setLocais(rows);
+    return rows;
+  }
 
   useEffect(() => {
     setList(
@@ -36,15 +46,13 @@ export default function AgendaView() {
     apiRequest('/medicos', { query: { pageSize: 200, status: 'ativo' } })
       .then((res) => setMedicos(res.data || []))
       .catch(() => setMedicos([]));
-    apiRequest('/hospitais', { query: { pageSize: 200, status: 'ativo' } })
-      .then((res) => setLocais(res.data || []))
-      .catch(() => setLocais([]));
+    refreshLocais().catch(() => setLocais([]));
   }, []);
 
   const doctorOptions = useMemo(() => {
     const api = optionize(medicos, 'nome', 'nome');
-    return [...api, ...loadCatalog('medicos-locais')];
-  }, [medicos]);
+    return [...api, ...catalogMedicos];
+  }, [medicos, catalogMedicos]);
 
   const specialtyOptions = useMemo(() => {
     const fromMedicos = [...new Set(medicos.map((m) => m.especialidade).filter(Boolean))].map((s) => ({
@@ -56,8 +64,8 @@ export default function AgendaView() {
 
   const locationOptions = useMemo(() => {
     const api = optionize(locais, 'nome_fantasia', 'nome_fantasia');
-    return [...api, ...loadCatalog('locais')];
-  }, [locais]);
+    return [...api, ...catalogLocais];
+  }, [locais, catalogLocais]);
 
   function persist(next) {
     storageSet('appointments', next);
@@ -98,12 +106,13 @@ export default function AgendaView() {
     setQuickValue('');
   }
 
-  function saveQuick(e) {
+  async function saveQuick(e) {
     e.preventDefault();
     const value = quickValue.trim();
-    if (!value) return;
+    if (!value || quickSaving) return;
     if (quick === 'doctor') {
-      addCatalogItem('medicos-locais', { value, label: value });
+      const next = addCatalogItem('medicos-locais', { value, label: value });
+      setCatalogMedicos(next);
       setForm((f) => ({ ...f, doctor: value }));
     }
     if (quick === 'specialty') {
@@ -112,8 +121,33 @@ export default function AgendaView() {
       setForm((f) => ({ ...f, specialty: value }));
     }
     if (quick === 'location') {
-      addCatalogItem('locais', { value, label: value });
-      setForm((f) => ({ ...f, location: value }));
+      setQuickSaving(true);
+      try {
+        const created = await apiRequest('/hospitais', {
+          method: 'POST',
+          body: {
+            nome_fantasia: value,
+            telefone_principal: '00000000000',
+            cep: '00000000',
+            logradouro: 'A definir',
+            numero: 's/n',
+            bairro: 'A definir',
+            cidade: 'A definir',
+            uf: 'SP',
+            status: 'ativo',
+          },
+        });
+        const rows = await refreshLocais();
+        const createdId = Number(created?.id);
+        const createdRow = rows.find((h) => Number(h.id) === createdId);
+        setForm((f) => ({ ...f, location: createdRow?.nome_fantasia || value }));
+      } catch {
+        const next = addCatalogItem('locais', { value, label: value });
+        setCatalogLocais(next);
+        setForm((f) => ({ ...f, location: value }));
+      } finally {
+        setQuickSaving(false);
+      }
     }
     setQuick(null);
   }
@@ -244,7 +278,9 @@ export default function AgendaView() {
           <Field label="Nome" required>
             <TextInput required value={quickValue} onChange={(e) => setQuickValue(e.target.value)} />
           </Field>
-          <PrimaryButton type="submit">Salvar e selecionar</PrimaryButton>
+          <PrimaryButton type="submit" disabled={quickSaving}>
+            {quickSaving ? 'Salvando...' : 'Salvar e selecionar'}
+          </PrimaryButton>
         </form>
       </Modal>
     </div>

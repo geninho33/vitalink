@@ -123,6 +123,10 @@ export default function OnboardingPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (usuario?.onboarding_concluido !== false) {
+      navigate('/inicio', { replace: true });
+      return;
+    }
     const perfilId = Number(usuario?.perfil?.id || usuario?.perfil_id);
     if (perfilId === 4) setTipo('cuidador');
     if (perfilId === 5) setTipo('responsavel');
@@ -133,7 +137,14 @@ export default function OnboardingPage() {
     if (usuario?.telefone && !dados.telefone) {
       setDados((prev) => ({ ...prev, telefone: onlyDigits(usuario.telefone) }));
     }
-  }, [usuario?.perfil?.id, usuario?.perfil_id, usuario?.cpf, usuario?.telefone]);
+  }, [
+    navigate,
+    usuario?.onboarding_concluido,
+    usuario?.perfil?.id,
+    usuario?.perfil_id,
+    usuario?.cpf,
+    usuario?.telefone,
+  ]);
 
   function addPaciente() {
     if (pacientes.length >= 2) return;

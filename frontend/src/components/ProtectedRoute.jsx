@@ -38,7 +38,10 @@ export default function ProtectedRoute() {
     pacientes.length === 0 &&
     !isPacienteGatePath(location.pathname)
   ) {
-    return <Navigate to={pacienteGateTarget(usuario)} replace />;
+    const target = pacienteGateTarget(usuario);
+    if (target !== location.pathname) {
+      return <Navigate to={target} replace />;
+    }
   }
 
   if (

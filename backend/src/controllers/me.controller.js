@@ -93,9 +93,15 @@ async function updateMeuPaciente(req, res, next) {
     if (payload.data_nascimento) {
       payload.data_nascimento = parseIsoDate(payload.data_nascimento) || payload.data_nascimento;
     }
+    if (payload.email === '') payload.email = null;
     if (payload.email && !isValidEmail(payload.email)) {
       return res.status(400).json({ error: 'validation_error', message: 'E-mail inválido.' });
     }
+    if (payload.sexo === '') payload.sexo = null;
+    if (payload.alergias === '') payload.alergias = null;
+    if (payload.observacoes === '') payload.observacoes = null;
+    if (payload.diagnostico_principal === '') payload.diagnostico_principal = null;
+    if (payload.telefone_principal === '') payload.telefone_principal = null;
     if (!payload.tipo_sanguineo) payload.tipo_sanguineo = 'NI';
 
     const cols = Object.keys(payload).filter((k) => payload[k] !== undefined);
@@ -131,7 +137,10 @@ async function updateMeuPaciente(req, res, next) {
       metadados: diff ? { diff, origem: 'me_paciente' } : { origem: 'me_paciente' },
     });
 
-    return res.json({ ok: true });
+    const after = await query(`SELECT * FROM pacientes WHERE id = :id LIMIT 1`, {
+      id: pacienteId,
+    });
+    return res.json({ ok: true, data: after[0] || { ...before, ...payload } });
   } catch (err) {
     return next(err);
   }

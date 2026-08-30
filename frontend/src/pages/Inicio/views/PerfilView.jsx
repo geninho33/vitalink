@@ -40,7 +40,7 @@ export default function PerfilView() {
   const { pacienteId, paciente, reload } = usePacienteAtivo();
   const pacienteRef = useRef(paciente);
   pacienteRef.current = paciente;
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => mapPaciente(paciente));
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -51,6 +51,9 @@ export default function PerfilView() {
       setForm(emptyForm());
       return;
     }
+    if (pacienteRef.current) {
+      setForm(mapPaciente(pacienteRef.current));
+    }
     try {
       const res = await apiRequest('/me/paciente');
       setForm(mapPaciente(res.data || res));
@@ -59,7 +62,7 @@ export default function PerfilView() {
         const fallback = await apiRequest(`/pacientes/${pacienteId}`);
         setForm(mapPaciente(fallback.data || fallback));
       } catch {
-        setForm(mapPaciente(pacienteRef.current));
+        if (pacienteRef.current) setForm(mapPaciente(pacienteRef.current));
       }
     }
   }, [pacienteId]);
@@ -87,7 +90,7 @@ export default function PerfilView() {
     setError('');
     setMsg('');
     try {
-      await apiRequest('/me/paciente', {
+      const res = await apiRequest('/me/paciente', {
         method: 'PUT',
         body: {
           nome: form.nome,
@@ -101,8 +104,8 @@ export default function PerfilView() {
           diagnostico_principal: form.diagnostico_principal || null,
         },
       });
+      if (res?.data) setForm(mapPaciente(res.data));
       await reload();
-      await fill();
       setEditing(false);
       setMsg('Ficha atualizada.');
     } catch (err) {
@@ -130,7 +133,14 @@ export default function PerfilView() {
       />
 
       <Panel>
-        <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSave}>
+        <form
+          className={`grid gap-3 sm:grid-cols-2 ${
+            editing
+              ? '[&_input]:border-aqua [&_input]:bg-[#fffdf4] [&_input]:ring-2 [&_input]:ring-aqua/20 [&_select]:border-aqua [&_select]:bg-[#fffdf4] [&_select]:ring-2 [&_select]:ring-aqua/20 [&_textarea]:border-aqua [&_textarea]:bg-[#fffdf4] [&_textarea]:ring-2 [&_textarea]:ring-aqua/20'
+              : '[&_input]:bg-[#eef2f3] [&_select]:bg-[#eef2f3] [&_textarea]:bg-[#eef2f3]'
+          }`}
+          onSubmit={handleSave}
+        >
           <Field label="Nome completo" required>
             <TextInput
               required

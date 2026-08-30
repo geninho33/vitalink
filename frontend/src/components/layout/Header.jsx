@@ -8,21 +8,13 @@ import { usePacienteAtivo } from '../../context/PacienteAtivoContext';
 import { pacienteGateTarget } from '../../utils/pacienteGate';
 import { isAutocuidado } from '../../utils/perfis';
 
-function labelPapel(papel) {
-  if (!papel) return 'Sem perfil';
-  const base = papel.rotulo || papel.perfil_nome || 'Perfil';
-  if (papel.paciente_nome) return `${base} · ${papel.paciente_nome}`;
-  return base;
-}
-
 export default function Header({ onOpenMobile, usuario, locked }) {
-  const { logout, papeis, switchContext } = useAuth();
+  const { logout } = useAuth();
   const { pacientes, pacienteId, setPacienteId, paciente } = usePacienteAtivo();
   const navigate = useNavigate();
   const showPacienteSelector = !isAutocuidado(usuario) && pacientes.length > 0;
   const showPacienteChip = isAutocuidado(usuario) && paciente;
   const [open, setOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const menuRef = useRef(null);
 
   const nome = usuario?.nome || 'Usuário';
@@ -30,10 +22,7 @@ export default function Header({ onOpenMobile, usuario, locked }) {
     usuario?.papel_ativo?.rotulo ||
     usuario?.perfil?.nome ||
     'Sem perfil';
-  const papelAtivoId = usuario?.papel_ativo?.id ?? null;
-  const perfilAtivoId = usuario?.perfil?.id ?? null;
   const initials = getInitials(nome);
-  const multiPerfil = Array.isArray(papeis) && papeis.length > 1;
 
   useEffect(() => {
     function onDocClick(e) {
@@ -53,34 +42,6 @@ export default function Header({ onOpenMobile, usuario, locked }) {
   function handleLogout() {
     setOpen(false);
     logout();
-  }
-
-  async function handleSwitch(papel) {
-    if (switching) return;
-    const alreadyActive =
-      (papel.id != null && Number(papel.id) === Number(papelAtivoId)) ||
-      (papel.id == null &&
-        Number(papel.perfil_id) === Number(perfilAtivoId) &&
-        !papel.paciente_id);
-    if (alreadyActive) {
-      setOpen(false);
-      return;
-    }
-
-    setSwitching(true);
-    try {
-      await switchContext({
-        papel_id: papel.id,
-        perfil_id: papel.perfil_id,
-        paciente_id: papel.paciente_id,
-      });
-      setOpen(false);
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      window.alert(err?.message || 'Não foi possível trocar o perfil.');
-    } finally {
-      setSwitching(false);
-    }
   }
 
   return (
@@ -169,43 +130,6 @@ export default function Header({ onOpenMobile, usuario, locked }) {
             <p className="truncate text-sm font-semibold text-ink">{nome}</p>
             <p className="truncate text-xs text-slate-health">{perfilAtivo}</p>
           </div>
-
-          {multiPerfil ? (
-            <div className="min-h-0 flex-1 overflow-y-auto border-b border-[#e8f1f0] p-1.5">
-              <p className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-health">
-                Trocar perfil
-              </p>
-              {papeis.map((papel) => {
-                const active =
-                  (papel.id != null && Number(papel.id) === Number(papelAtivoId)) ||
-                  (papel.id == null &&
-                    Number(papel.perfil_id) === Number(perfilAtivoId) &&
-                    !papel.paciente_id);
-                return (
-                  <button
-                    key={papel.id ?? `p-${papel.perfil_id}-${papel.paciente_id || 0}`}
-                    type="button"
-                    role="menuitem"
-                    disabled={switching}
-                    className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                      active
-                        ? 'bg-aqua-soft font-semibold text-aqua-deep'
-                        : 'text-ink hover:bg-aqua-soft'
-                    } disabled:opacity-60`}
-                    onClick={() => handleSwitch(papel)}
-                  >
-                    <Icon name="masks" className="h-4 w-4 shrink-0 text-aqua" />
-                    <span className="min-w-0 truncate">{labelPapel(papel)}</span>
-                    {active ? (
-                      <span className="ml-auto shrink-0 text-[10px] font-bold uppercase text-aqua">
-                        Ativo
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
 
           <div className="sticky bottom-0 shrink-0 bg-white p-1.5">
             <button

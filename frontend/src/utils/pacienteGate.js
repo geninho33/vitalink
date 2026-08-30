@@ -7,6 +7,9 @@ export function isPacienteGatePath(pathname) {
 export function pacienteGateTarget(usuario) {
   const perfilId = Number(usuario?.perfil?.id || usuario?.perfil_id);
   if ([1, 2, 3].includes(perfilId)) return '/pacientes';
+  if (usuario?.onboarding_concluido !== false) {
+    return perfilId === 7 ? '/inicio' : '/dashboard';
+  }
   return '/onboarding';
 }
 

@@ -44,12 +44,14 @@ export function AuthProvider({ children }) {
         if (cancelled) return;
         setSession((prev) => {
           if (!prev?.token) return prev;
-          return {
+          const next = {
             token: prev.token,
             usuario: data.usuario || prev.usuario,
             menus: data.menus || [],
             papeis: data.papeis ?? prev.papeis ?? [],
           };
+          persistSession(next);
+          return next;
         });
         setSessionChecked(true);
       })
@@ -100,12 +102,14 @@ export function AuthProvider({ children }) {
     const data = await refreshSessionRequest();
     setSession((prev) => {
       if (!prev?.token) return prev;
-      return {
+      const next = {
         token: prev.token,
         usuario: data.usuario || prev.usuario,
         menus: data.menus || [],
         papeis: data.papeis ?? prev.papeis ?? [],
       };
+      persistSession(next);
+      return next;
     });
     return data;
   }, []);
