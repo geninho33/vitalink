@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Icon from '../Icon';
 import { fetchAddressByCep, maskCep, onlyDigits } from '../../hooks/useCep';
 import { resolveUploadUrl } from '../../services/api';
-import { formatDateBr, maskDateBr, parseDateBr, maskMoneyBr, parseMoneyBr } from '../../utils/validation';
+import { formatDateBr, maskDateBr, parseDateBr, toIsoDate, maskMoneyBr, parseMoneyBr } from '../../utils/validation';
 
 const UF_OPTIONS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
@@ -73,26 +74,97 @@ export function Field({ label, required, children, hint, error }) {
   );
 }
 
-export function DateBrInput({ value, onChange, className = '', ...props }) {
+export function DateBrInput({
+  value,
+  onChange,
+  className = '',
+  disabled,
+  required,
+  min,
+  max,
+  name,
+  id,
+  ...props
+}) {
+  const pickerRef = useRef(null);
+  const iso = toIsoDate(value);
   const [text, setText] = useState(formatDateBr(value));
+
   useEffect(() => {
     setText(formatDateBr(value));
   }, [value]);
+
+  function emitIso(nextIso) {
+    onChange(nextIso || '');
+    setText(formatDateBr(nextIso));
+  }
+
+  function openPicker(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = pickerRef.current;
+    if (!el || disabled) return;
+    try {
+      if (typeof el.showPicker === 'function') {
+        el.showPicker();
+        return;
+      }
+    } catch {
+      /* fallback nativo abaixo */
+    }
+    el.focus();
+    el.click();
+  }
+
   return (
-    <TextInput
-      inputMode="numeric"
-      placeholder="DD/MM/AAAA"
-      maxLength={10}
-      autoComplete="bday"
-      className={className}
-      {...props}
-      value={text}
-      onChange={(e) => {
-        const masked = maskDateBr(e.target.value);
-        setText(masked);
-        onChange(parseDateBr(masked) || masked);
-      }}
-    />
+    <div className="relative min-w-0">
+      <TextInput
+        inputMode="numeric"
+        placeholder="DD/MM/AAAA"
+        maxLength={10}
+        autoComplete="bday"
+        disabled={disabled}
+        required={required}
+        name={name}
+        id={id}
+        className={`pr-11 ${className}`}
+        {...props}
+        value={text}
+        onChange={(e) => {
+          const masked = maskDateBr(e.target.value);
+          setText(masked);
+          if (!masked) {
+            onChange('');
+            return;
+          }
+          const parsed = parseDateBr(masked);
+          if (parsed) onChange(parsed);
+        }}
+      />
+      <input
+        ref={pickerRef}
+        type="date"
+        tabIndex={-1}
+        aria-hidden
+        disabled={disabled}
+        min={min}
+        max={max}
+        value={iso}
+        onChange={(e) => emitIso(e.target.value)}
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
+      />
+      <button
+        type="button"
+        tabIndex={disabled ? -1 : 0}
+        disabled={disabled}
+        aria-label="Abrir calendário"
+        title="Abrir calendário"
+        onClick={openPicker}
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-aqua-deep hover:bg-aqua-soft disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <Icon name="calendar" className="h-5 w-5" />
+      </button>
+    </div>
   );
 }
 
@@ -130,7 +202,7 @@ export function TextSelect({ className = '', children, ...props }) {
   return (
     <select
       {...props}
-      className={`w-full rounded-xl border border-[#cfe0df] bg-[#f8fcfc] px-3 py-2.5 text-sm outline-none transition focus:border-aqua focus:ring-2 focus:ring-aqua/20 ${className}`}
+      className={`w-full rounded-xl border border-[#cfe0df] bg-[#f8fcfc] px-3 py-2.5 text-sm outline-none transition focus:border-aqua focus:ring-2 focus:ring-aqua/20 disabled:opacity-60 ${className}`}
     >
       {children}
     </select>

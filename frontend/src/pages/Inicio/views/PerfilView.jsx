@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DateBrInput, Field, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
+import { toIsoDate } from '../../../utils/validation';
 import { calculateAge } from '../localStore';
 import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
 
@@ -27,7 +28,7 @@ function mapPaciente(p) {
     nome: p.nome || '',
     email: p.email || '',
     sexo: p.sexo || '',
-    data_nascimento: p.data_nascimento ? String(p.data_nascimento).slice(0, 10) : '',
+    data_nascimento: toIsoDate(p.data_nascimento),
     tipo_sanguineo: p.tipo_sanguineo || '',
     telefone_principal: p.telefone_principal || '',
     alergias: p.alergias || '',
@@ -36,80 +37,130 @@ function mapPaciente(p) {
   };
 }
 
+function unwrapPaciente(res) {
+  if (!res) return null;
+  const row = res.data && typeof res.data === 'object' ? res.data : res;
+  if (row && (row.id != null || row.nome)) return row;
+  return null;
+}
+
 export default function PerfilView() {
   const { pacienteId, paciente, reload } = usePacienteAtivo();
-  const pacienteRef = useRef(paciente);
-  pacienteRef.current = paciente;
+  const snapshotRef = useRef(null);
   const [form, setForm] = useState(() => mapPaciente(paciente));
   const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(Boolean(pacienteId));
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
-  const fill = useCallback(async () => {
+  const loadFicha = useCallback(async () => {
     if (!pacienteId) {
       setForm(emptyForm());
-      return;
-    }
-    if (pacienteRef.current) {
-      setForm(mapPaciente(pacienteRef.current));
+      return null;
     }
     try {
       const res = await apiRequest('/me/paciente');
-      setForm(mapPaciente(res.data || res));
+      return unwrapPaciente(res);
     } catch {
-      try {
-        const fallback = await apiRequest(`/pacientes/${pacienteId}`);
-        setForm(mapPaciente(fallback.data || fallback));
-      } catch {
-        if (pacienteRef.current) setForm(mapPaciente(pacienteRef.current));
-      }
+      const fallback = await apiRequest(`/pacientes/${pacienteId}`);
+      return unwrapPaciente(fallback);
     }
   }, [pacienteId]);
 
   useEffect(() => {
+    setEditing(false);
+    setMsg('');
+    setError('');
+    snapshotRef.current = null;
+  }, [pacienteId]);
+
+  useEffect(() => {
     let cancelled = false;
+    if (!pacienteId) {
+      setForm(emptyForm());
+      setLoading(false);
+      return undefined;
+    }
+    setLoading(true);
     (async () => {
-      await fill();
-      if (!cancelled) {
-        setEditing(false);
-        setMsg('');
+      try {
+        const row = await loadFicha();
+        if (!cancelled && row) setForm(mapPaciente(row));
+      } catch {
+        if (!cancelled) {
+          setError('Não foi possível carregar a ficha do paciente.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [fill]);
+  }, [pacienteId, loadFicha]);
 
   const age = useMemo(() => calculateAge(form.data_nascimento), [form.data_nascimento]);
 
+  function startEdit() {
+    snapshotRef.current = { ...form };
+    setError('');
+    setMsg('');
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    if (snapshotRef.current) setForm(snapshotRef.current);
+    snapshotRef.current = null;
+    setEditing(false);
+    setError('');
+    setMsg('');
+  }
+
   async function handleSave(e) {
     e.preventDefault();
-    if (!pacienteId) return;
+    if (!pacienteId || saving) return;
+
+    const dataNascimento = toIsoDate(form.data_nascimento);
+    if (!form.nome.trim()) {
+      setError('Informe o nome completo.');
+      return;
+    }
+    if (!dataNascimento) {
+      setError('Informe a data de nascimento.');
+      return;
+    }
+
+    const payload = {
+      nome: form.nome.trim(),
+      email: form.email || null,
+      sexo: form.sexo || null,
+      data_nascimento: dataNascimento,
+      tipo_sanguineo: form.tipo_sanguineo || 'NI',
+      telefone_principal: form.telefone_principal || null,
+      alergias: form.alergias || null,
+      observacoes: form.observacoes || null,
+      diagnostico_principal: form.diagnostico_principal || null,
+    };
+
     setSaving(true);
     setError('');
     setMsg('');
     try {
-      const res = await apiRequest('/me/paciente', {
-        method: 'PUT',
-        body: {
-          nome: form.nome,
-          email: form.email || null,
-          sexo: form.sexo || null,
-          data_nascimento: form.data_nascimento,
-          tipo_sanguineo: form.tipo_sanguineo || 'NI',
-          telefone_principal: form.telefone_principal || null,
-          alergias: form.alergias || null,
-          observacoes: form.observacoes || null,
-          diagnostico_principal: form.diagnostico_principal || null,
-        },
-      });
-      if (res?.data) setForm(mapPaciente(res.data));
-      await reload();
+      let res;
+      try {
+        res = await apiRequest('/me/paciente', { method: 'PUT', body: payload });
+      } catch {
+        res = await apiRequest(`/pacientes/${pacienteId}`, { method: 'PUT', body: payload });
+      }
+      const saved = unwrapPaciente(res);
+      if (saved) setForm(mapPaciente(saved));
+      snapshotRef.current = null;
       setEditing(false);
-      setMsg('Ficha atualizada.');
+      setMsg('Ficha atualizada com sucesso.');
+      await reload();
     } catch (err) {
-      setError(err.message || 'Não foi possível salvar.');
+      setError(err.message || 'Não foi possível salvar a ficha.');
     } finally {
       setSaving(false);
     }
@@ -129,10 +180,21 @@ export default function PerfilView() {
       <PageTitle
         eyebrow="Dados pessoais"
         title="Ficha do paciente"
-        description="Dados do paciente ativo, carregados automaticamente."
+        description="Dados do paciente ativo. Clique em Editar ficha para desbloquear os campos."
       />
 
       <Panel>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-health">
+            {loading ? 'Carregando ficha…' : editing ? 'Modo edição — altere os campos e salve.' : 'Modo leitura'}
+          </p>
+          {!editing ? (
+            <PrimaryButton type="button" disabled={loading} onClick={startEdit}>
+              Editar ficha
+            </PrimaryButton>
+          ) : null}
+        </div>
+
         <form
           className={`grid gap-3 sm:grid-cols-2 ${
             editing
@@ -170,8 +232,9 @@ export default function PerfilView() {
               <option value="nao_informado">Não informado</option>
             </TextSelect>
           </Field>
-          <Field label="Data de nascimento">
+          <Field label="Data de nascimento" required>
             <DateBrInput
+              required
               disabled={!editing}
               value={form.data_nascimento}
               onChange={(data_nascimento) => setForm({ ...form, data_nascimento })}
@@ -233,30 +296,26 @@ export default function PerfilView() {
               />
             </Field>
           </div>
-          {error ? <p className="sm:col-span-2 text-sm text-red-600">{error}</p> : null}
-          {msg ? <p className="sm:col-span-2 text-sm text-aqua-deep">{msg}</p> : null}
-          <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
-            {editing ? (
-              <>
-                <PrimaryButton type="submit" disabled={saving} className="sm:flex-1">
-                  {saving ? 'Salvando...' : 'Salvar alterações'}
-                </PrimaryButton>
-                <SecondaryButton
-                  type="button"
-                  onClick={() => {
-                    setEditing(false);
-                    fill();
-                  }}
-                >
-                  Cancelar
-                </SecondaryButton>
-              </>
-            ) : (
-              <PrimaryButton type="button" className="sm:flex-1" onClick={() => setEditing(true)}>
-                Editar ficha
+          {error ? (
+            <p className="sm:col-span-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+          {msg ? (
+            <p className="sm:col-span-2 rounded-xl border border-aqua/30 bg-aqua-soft px-3 py-2 text-sm text-aqua-deep">
+              {msg}
+            </p>
+          ) : null}
+          {editing ? (
+            <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
+              <PrimaryButton type="submit" disabled={saving} className="sm:flex-1">
+                {saving ? 'Salvando…' : 'Salvar alterações'}
               </PrimaryButton>
-            )}
-          </div>
+              <SecondaryButton type="button" disabled={saving} onClick={cancelEdit}>
+                Cancelar
+              </SecondaryButton>
+            </div>
+          ) : null}
         </form>
       </Panel>
     </div>

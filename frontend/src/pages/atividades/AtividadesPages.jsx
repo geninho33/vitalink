@@ -11,7 +11,7 @@ import {
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import MonthCalendar from '../../components/MonthCalendar';
 import TimelineRail from '../../components/TimelineRail';
-import { Field, TextInput, TextSelect, TextTextarea, Modal } from '../../components/forms/FormControls';
+import { DateBrInput, Field, TextInput, TextSelect, TextTextarea, Modal } from '../../components/forms/FormControls';
 import { apiRequest } from '../../services/api';
 
 function dayKey(d = new Date()) {
@@ -363,11 +363,7 @@ export function AgendaPage() {
         {view === 'diaria' ? (
           <div>
             <Field label="Dia">
-              <TextInput
-                type="date"
-                value={dayDate}
-                onChange={(e) => setDayDate(e.target.value)}
-              />
+              <DateBrInput value={dayDate} onChange={setDayDate} />
             </Field>
             <div className="mt-3 grid gap-1.5">
               {dayEvents.map(renderEventRow)}
@@ -975,10 +971,10 @@ export function RotinaPage() {
             />
           </Field>
           <Field label="Data" required>
-            <TextInput
-              type="date"
+            <DateBrInput
+              required
               value={form.data_inicio}
-              onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+              onChange={(data_inicio) => setForm({ ...form, data_inicio })}
             />
           </Field>
           <div className="sm:col-span-2">

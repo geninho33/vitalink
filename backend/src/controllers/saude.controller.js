@@ -300,6 +300,7 @@ const pacientesConfig = {
     if (n.diagnostico_principal != null && String(n.diagnostico_principal).trim() === '') {
       n.diagnostico_principal = null;
     }
+    if (n.sexo === '') n.sexo = null;
     if (n.data_nascimento) {
       n.data_nascimento = parseIsoDate(n.data_nascimento) || n.data_nascimento;
     }

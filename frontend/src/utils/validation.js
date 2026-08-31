@@ -32,6 +32,11 @@ export function parseDateBr(value) {
   return '';
 }
 
+/** Normaliza qualquer valor de data do formulário para ISO `YYYY-MM-DD` (sem fuso). */
+export function toIsoDate(value) {
+  return parseDateBr(value);
+}
+
 export function maskDateBr(value) {
   const d = onlyDigits(value).slice(0, 8);
   if (d.length <= 2) return d;

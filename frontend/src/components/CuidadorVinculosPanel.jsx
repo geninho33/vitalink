@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AddressFields,
+  DateBrInput,
   Field,
   TextInput,
   TextSelect,
@@ -282,17 +283,16 @@ export default function CuidadorVinculosPanel({ pacienteId }) {
             </TextSelect>
           </Field>
           <Field label="Data início" required>
-            <TextInput
-              type="date"
+            <DateBrInput
+              required
               value={form.data_inicio}
-              onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+              onChange={(data_inicio) => setForm({ ...form, data_inicio })}
             />
           </Field>
           <Field label="Data término">
-            <TextInput
-              type="date"
+            <DateBrInput
               value={form.data_termino || ''}
-              onChange={(e) => setForm({ ...form, data_termino: e.target.value })}
+              onChange={(data_termino) => setForm({ ...form, data_termino })}
             />
           </Field>
           <Field label="Status">

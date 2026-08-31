@@ -102,10 +102,10 @@ async function farmaciaRapida(req, res, next) {
 
     const result = await query(
       `INSERT INTO farmacias
-        (nome_fantasia, telefone_principal, cep, logradouro, numero, bairro, cidade, uf, status)
+        (nome_fantasia, telefone_principal, cep, logradouro, numero, bairro, cidade, uf, status, usuario_id)
        VALUES
-        (:nome, :telefone, '00000000', 'A definir', 's/n', 'A definir', 'A definir', 'SP', 'ativo')`,
-      { nome, telefone }
+        (:nome, :telefone, '00000000', 'A definir', 's/n', 'A definir', 'A definir', 'SP', 'ativo', :usuario_id)`,
+      { nome, telefone, usuario_id: req.user.id }
     );
     await writeAudit({
       usuarioId: req.user.id,

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import FileUploadField from '../../components/FileUploadField';
-import { Field, Modal, TextInput, TextSelect } from '../../components/forms/FormControls';
+import { DateBrInput, Field, Modal, TextInput, TextSelect } from '../../components/forms/FormControls';
 import { apiRequest, assetUrl } from '../../services/api';
 
 function usePacientes() {
@@ -342,10 +342,9 @@ export default function ExamesReceitasPage() {
               />
             </Field>
             <Field label="Data do documento">
-              <TextInput
-                type="date"
+              <DateBrInput
                 value={form.data_documento}
-                onChange={(e) => setForm({ ...form, data_documento: e.target.value })}
+                onChange={(data_documento) => setForm({ ...form, data_documento })}
               />
             </Field>
             <Field label="Tipo">

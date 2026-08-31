@@ -65,9 +65,12 @@ export default function MedsView() {
   const loadFarmacias = useCallback(async () => {
     try {
       const res = await apiRequest('/inicio/farmacias');
-      setFarmacias(res.data || []);
+      const rows = res.data || [];
+      setFarmacias(rows);
+      return rows;
     } catch {
       setFarmacias([]);
+      return [];
     }
   }, []);
 
@@ -136,6 +139,28 @@ export default function MedsView() {
     }
   }
 
+  function applyFarmaciaCriada(created) {
+    const id = String(created?.id ?? created?.insertId ?? created?.data?.id ?? '');
+    if (!id) return '';
+    const row = {
+      id,
+      nome_fantasia: created.nome_fantasia || created.data?.nome_fantasia || quickFarm?.nome?.trim() || 'Farmácia',
+      telefone_principal: created.telefone_principal || created.data?.telefone_principal || quickFarm?.telefone || '',
+    };
+    setFarmacias((list) => {
+      if (list.some((f) => String(f.id) === id)) return list;
+      return [...list, row].sort((a, b) =>
+        String(a.nome_fantasia || '').localeCompare(String(b.nome_fantasia || ''), 'pt-BR')
+      );
+    });
+    if (compraOpen) {
+      setCompraForm((f) => ({ ...f, farmacia_id: id }));
+    } else {
+      setForm((f) => ({ ...f, farmacia_id: id }));
+    }
+    return id;
+  }
+
   async function saveQuickFarm(e) {
     e.preventDefault();
     if (!quickFarm?.nome?.trim()) return;
@@ -144,13 +169,15 @@ export default function MedsView() {
         method: 'POST',
         body: { nome_fantasia: quickFarm.nome.trim(), telefone_principal: quickFarm.telefone || '00000000000' },
       });
-      await loadFarmacias();
-      if (compraOpen) {
-        setCompraForm((f) => ({ ...f, farmacia_id: created.id }));
-      } else {
-        setForm((f) => ({ ...f, farmacia_id: created.id }));
-      }
+      const selectedId = applyFarmaciaCriada(created);
       setQuickFarm(null);
+      const rows = await loadFarmacias();
+      if (selectedId && !rows.some((f) => String(f.id) === selectedId)) {
+        applyFarmaciaCriada({ ...created, id: selectedId });
+      } else if (selectedId) {
+        if (compraOpen) setCompraForm((f) => ({ ...f, farmacia_id: selectedId }));
+        else setForm((f) => ({ ...f, farmacia_id: selectedId }));
+      }
     } catch (err) {
       window.alert(err.message || 'Não foi possível cadastrar a farmácia.');
     }
@@ -238,11 +265,11 @@ export default function MedsView() {
                 onChange={(e) => setForm({ ...form, farmacia_id: e.target.value })}
               >
                 <option value="">Selecione</option>
-                {farmacias.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome_fantasia}
-                  </option>
-                ))}
+                  {farmacias.map((f) => (
+                    <option key={f.id} value={String(f.id)}>
+                      {f.nome_fantasia}
+                    </option>
+                  ))}
               </TextSelect>
               <SecondaryButton type="button" onClick={() => setQuickFarm({ nome: '', telefone: '' })}>
                 Nova
@@ -463,7 +490,7 @@ export default function MedsView() {
                 >
                   <option value="">Mesma farmácia</option>
                   {farmacias.map((f) => (
-                    <option key={f.id} value={f.id}>
+                    <option key={f.id} value={String(f.id)}>
                       {f.nome_fantasia}
                     </option>
                   ))}
