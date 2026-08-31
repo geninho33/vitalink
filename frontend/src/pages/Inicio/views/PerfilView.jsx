@@ -60,10 +60,13 @@ export default function PerfilView() {
       return null;
     }
     try {
-      const res = await apiRequest('/me/paciente');
+      const res = await apiRequest(`/pacientes/${pacienteId}`);
       return unwrapPaciente(res);
-    } catch {
-      const fallback = await apiRequest(`/pacientes/${pacienteId}`);
+    } catch (err) {
+      if (err?.status !== 403) throw err;
+      const fallback = await apiRequest('/me/paciente', {
+        query: { paciente_id: pacienteId },
+      });
       return unwrapPaciente(fallback);
     }
   }, [pacienteId]);
@@ -73,6 +76,7 @@ export default function PerfilView() {
     setMsg('');
     setError('');
     snapshotRef.current = null;
+    setForm(mapPaciente(paciente));
   }, [pacienteId]);
 
   useEffect(() => {
@@ -149,9 +153,14 @@ export default function PerfilView() {
     try {
       let res;
       try {
-        res = await apiRequest('/me/paciente', { method: 'PUT', body: payload });
-      } catch {
         res = await apiRequest(`/pacientes/${pacienteId}`, { method: 'PUT', body: payload });
+      } catch (err) {
+        if (err?.status !== 403) throw err;
+        res = await apiRequest('/me/paciente', {
+          method: 'PUT',
+          query: { paciente_id: pacienteId },
+          body: { ...payload, paciente_id: Number(pacienteId) },
+        });
       }
       const saved = unwrapPaciente(res);
       if (saved) setForm(mapPaciente(saved));

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useAuth } from '../../context/AuthContext';
@@ -8,8 +8,7 @@ import { filterMenusWithoutPatient } from '../../utils/pacienteGate';
 
 export default function AppShell() {
   const { usuario, menus, refreshSession } = useAuth();
-  const { pacientes, loading, reload } = usePacienteAtivo();
-  const location = useLocation();
+  const { pacientes, loading } = usePacienteAtivo();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const locked = !loading && pacientes.length === 0;
@@ -21,10 +20,6 @@ export default function AppShell() {
   useEffect(() => {
     refreshSession().catch(() => {});
   }, [refreshSession]);
-
-  useEffect(() => {
-    reload().catch(() => {});
-  }, [location.pathname, reload]);
 
   return (
     <div className="min-h-screen bg-[#eef6f7]">

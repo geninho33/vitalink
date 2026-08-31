@@ -77,22 +77,30 @@ export default function Header({ onOpenMobile, usuario, locked }) {
           {paciente.nome}
         </span>
       ) : showPacienteSelector ? (
-        <label className="flex min-w-0 max-w-[11rem] flex-1 items-center gap-2 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-2 py-1.5 sm:max-w-xs sm:px-3">
-          <Icon name="user" className="h-4 w-4 shrink-0 text-vita" />
-          <span className="sr-only">Paciente ativo</span>
-          <select
-            className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-ink outline-none"
-            value={pacienteId}
-            onChange={(e) => setPacienteId(e.target.value)}
-            title={paciente?.nome || 'Paciente ativo'}
-          >
-            {pacientes.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <form
+            id="vitalink-paciente-ativo"
+            className="hidden"
+            onSubmit={(e) => e.preventDefault()}
+          />
+          <label className="flex min-w-0 max-w-[11rem] flex-1 items-center gap-2 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-2 py-1.5 sm:max-w-xs sm:px-3">
+            <Icon name="user" className="h-4 w-4 shrink-0 text-vita" />
+            <span className="sr-only">Paciente ativo</span>
+            <select
+              className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-ink outline-none"
+              value={pacienteId}
+              form="vitalink-paciente-ativo"
+              onChange={(e) => setPacienteId(e.target.value)}
+              title={paciente?.nome || 'Paciente ativo'}
+            >
+              {pacientes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       ) : null}
 
       <div className="relative z-[80] shrink-0" ref={menuRef}>

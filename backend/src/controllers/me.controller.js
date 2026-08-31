@@ -19,8 +19,24 @@ const PACIENTE_SELF_FIELDS = [
   'diagnostico_principal',
 ];
 
-async function resolveOwnPacienteId(user) {
+function requestedPacienteId(req) {
+  const raw = req.query?.paciente_id ?? req.body?.paciente_id ?? req.body?.id;
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+async function resolveOwnPacienteId(user, requestedId = null) {
   const ids = await listAllowedPacienteIds(user);
+  if (requestedId) {
+    if (ids !== null && !ids.includes(requestedId)) {
+      const err = new Error('Você não tem acesso a este paciente.');
+      err.status = 403;
+      err.code = 'forbidden';
+      throw err;
+    }
+    return requestedId;
+  }
   const fromToken = user.pacienteId != null ? Number(user.pacienteId) : null;
   if (fromToken && (ids === null || ids.includes(fromToken))) return fromToken;
   if (ids && ids.length) return ids[0];
@@ -54,7 +70,7 @@ async function listMeusPacientes(req, res, next) {
 
 async function getMeuPaciente(req, res, next) {
   try {
-    const pacienteId = await resolveOwnPacienteId(req.user);
+    const pacienteId = await resolveOwnPacienteId(req.user, requestedPacienteId(req));
     if (!pacienteId) {
       return res.status(404).json({
         error: 'not_found',
@@ -80,7 +96,7 @@ async function getMeuPaciente(req, res, next) {
 
 async function updateMeuPaciente(req, res, next) {
   try {
-    const pacienteId = await resolveOwnPacienteId(req.user);
+    const pacienteId = await resolveOwnPacienteId(req.user, requestedPacienteId(req));
     if (!pacienteId) {
       return res.status(404).json({
         error: 'not_found',

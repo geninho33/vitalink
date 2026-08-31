@@ -41,9 +41,16 @@ export function PacienteAtivoProvider({ children }) {
       const list = res.data || [];
       setPacientes(list);
       setPacienteIdState((current) => {
-        const preferred = usuario?.paciente_ativo_id ? String(usuario.paciente_ativo_id) : current;
-        const exists = list.some((p) => String(p.id) === String(preferred));
-        const next = exists ? String(preferred) : list[0] ? String(list[0].id) : '';
+        const inList = (id) => list.some((p) => String(p.id) === String(id));
+        const stored = current || readStoredId();
+        const fromToken = usuario?.paciente_ativo_id ? String(usuario.paciente_ativo_id) : '';
+        const next = inList(stored)
+          ? String(stored)
+          : inList(fromToken)
+            ? fromToken
+            : list[0]
+              ? String(list[0].id)
+              : '';
         try {
           if (next) localStorage.setItem(STORAGE_KEY, next);
           else localStorage.removeItem(STORAGE_KEY);
