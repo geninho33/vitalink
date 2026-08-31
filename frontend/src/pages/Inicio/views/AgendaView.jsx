@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ComboCreate, DateBrInput, Field, Modal, TextInput } from '../../../components/forms/FormControls';
+import { useEffect, useState } from 'react';
+import { DateBrInput, Field, Modal, TextInput } from '../../../components/forms/FormControls';
+import AutocompleteSelect from '../../../components/forms/AutocompleteSelect';
+import { searchEspecialidades, searchLocais, searchMedicos } from '../../../utils/redeSaude';
 import GoogleCalendarButton from '../../../components/GoogleCalendarButton';
 import { consultaToCalendarEvent } from '../../../utils/googleCalendar';
 import { apiRequest } from '../../../services/api';
-import { addCatalogItem, loadCatalog, optionize } from '../catalog';
+import { addCatalogItem, loadCatalog } from '../catalog';
 import { formatDateBr, storageGet, storageSet } from '../localStore';
 import { EmptyState, PageTitle, Panel, PrimaryButton } from '../ui';
 
@@ -21,8 +23,6 @@ export default function AgendaView() {
   const [form, setForm] = useState(empty);
   const [list, setList] = useState([]);
   const [confirmId, setConfirmId] = useState(null);
-  const [medicos, setMedicos] = useState([]);
-  const [locais, setLocais] = useState([]);
   const [especialidades, setEspecialidades] = useState(() => loadCatalog('especialidades'));
   const [catalogLocais, setCatalogLocais] = useState(() => loadCatalog('locais'));
   const [catalogMedicos, setCatalogMedicos] = useState(() => loadCatalog('medicos-locais'));
@@ -31,10 +31,8 @@ export default function AgendaView() {
   const [quickSaving, setQuickSaving] = useState(false);
 
   async function refreshLocais() {
-    const res = await apiRequest('/hospitais', { query: { pageSize: 200, status: 'ativo' } });
-    const rows = res.data || [];
-    setLocais(rows);
-    return rows;
+    const res = await apiRequest('/hospitais', { query: { pageSize: 20, status: 'ativo' } });
+    return res.data || [];
   }
 
   useEffect(() => {
@@ -43,29 +41,7 @@ export default function AgendaView() {
         `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`)
       )
     );
-    apiRequest('/medicos', { query: { pageSize: 200, status: 'ativo' } })
-      .then((res) => setMedicos(res.data || []))
-      .catch(() => setMedicos([]));
-    refreshLocais().catch(() => setLocais([]));
   }, []);
-
-  const doctorOptions = useMemo(() => {
-    const api = optionize(medicos, 'nome', 'nome');
-    return [...api, ...catalogMedicos];
-  }, [medicos, catalogMedicos]);
-
-  const specialtyOptions = useMemo(() => {
-    const fromMedicos = [...new Set(medicos.map((m) => m.especialidade).filter(Boolean))].map((s) => ({
-      value: s,
-      label: s,
-    }));
-    return [...fromMedicos, ...especialidades];
-  }, [medicos, especialidades]);
-
-  const locationOptions = useMemo(() => {
-    const api = optionize(locais, 'nome_fantasia', 'nome_fantasia');
-    return [...api, ...catalogLocais];
-  }, [locais, catalogLocais]);
 
   function persist(next) {
     storageSet('appointments', next);
@@ -172,21 +148,37 @@ export default function AgendaView() {
               />
             </Field>
           </div>
-          <ComboCreate
+          <AutocompleteSelect
             label="Especialidade"
             value={form.specialty}
-            onChange={(specialty) => setForm({ ...form, specialty })}
-            options={specialtyOptions}
-            placeholder="Selecione"
+            selectedLabel={form.specialty}
+            allowFreeText
+            fetchOptions={searchEspecialidades}
+            placeholder="Buscar especialidade…"
             onCreate={() => openQuick('specialty')}
+            onChange={(specialty) => setForm({ ...form, specialty })}
           />
-          <ComboCreate
+          <AutocompleteSelect
             label="Médico"
             value={form.doctor}
-            onChange={(doctor) => setForm({ ...form, doctor })}
-            options={doctorOptions}
-            placeholder="Selecione"
+            selectedLabel={form.doctor}
+            allowFreeText
+            fetchOptions={async (q) =>
+              (await searchMedicos(q)).map((o) => ({
+                ...o,
+                value: o.raw?.nome || o.label,
+              }))
+            }
+            placeholder="Buscar por nome ou CRM…"
             onCreate={() => openQuick('doctor')}
+            onChange={(doctor, opt) =>
+              setForm({
+                ...form,
+                doctor,
+                specialty: opt?.raw?.especialidade || form.specialty,
+                contact: opt?.raw?.telefone_principal || form.contact,
+              })
+            }
           />
           <Field label="Data" required>
             <DateBrInput required value={form.date} onChange={(date) => setForm({ ...form, date })} />
@@ -194,13 +186,26 @@ export default function AgendaView() {
           <Field label="Horário">
             <TextInput type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
           </Field>
-          <ComboCreate
+          <AutocompleteSelect
             label="Local"
             value={form.location}
-            onChange={(location) => setForm({ ...form, location })}
-            options={locationOptions}
-            placeholder="Selecione"
+            selectedLabel={form.location}
+            allowFreeText
+            fetchOptions={async (q) =>
+              (await searchLocais(q)).map((o) => ({
+                ...o,
+                value: o.raw?.nome_fantasia || o.label,
+              }))
+            }
+            placeholder="Buscar por nome, bairro ou cidade…"
             onCreate={() => openQuick('location')}
+            onChange={(location, opt) =>
+              setForm({
+                ...form,
+                location,
+                contact: opt?.raw?.telefone_principal || form.contact,
+              })
+            }
           />
           <Field label="Contato do local">
             <TextInput

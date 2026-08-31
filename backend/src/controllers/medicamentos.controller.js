@@ -76,16 +76,26 @@ async function listFarmacias(req, res, next) {
   try {
     const where = [`farmacias.status = 'ativo'`];
     const params = {};
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(20, Math.max(1, Number(req.query.pageSize) || 20));
     const scope = await farmaciasScopeForCrud(req);
     if (scope?.sql) {
       where.push(`(${scope.sql})`);
       Object.assign(params, scope.params);
     }
+    if (q) {
+      where.push(
+        `(farmacias.nome_fantasia ILIKE :q OR farmacias.bairro ILIKE :q OR farmacias.cidade ILIKE :q OR farmacias.uf ILIKE :q)`
+      );
+      params.q = `%${q}%`;
+    }
+    params.lim = limit;
     const rows = await query(
-      `SELECT id, nome_fantasia, telefone_principal
+      `SELECT id, nome_fantasia, telefone_principal, bairro, cidade, uf, logradouro
        FROM farmacias
        WHERE ${where.join(' AND ')}
-       ORDER BY nome_fantasia ASC`,
+       ORDER BY nome_fantasia ASC
+       LIMIT :lim`,
       params
     );
     return res.json({ data: rows });

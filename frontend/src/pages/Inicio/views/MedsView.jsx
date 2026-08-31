@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DateBrInput, Field, MoneyInput, Modal, TextInput, TextSelect } from '../../../components/forms/FormControls';
+import AutocompleteSelect from '../../../components/forms/AutocompleteSelect';
+import { formatLocalLabel, searchFarmacias } from '../../../utils/redeSaude';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
 import { printMedicamentos } from '../../../utils/printMedicamentos';
@@ -17,6 +19,7 @@ const empty = () => ({
   consumo_diario: '1',
   indicacao: '',
   farmacia_id: '',
+  farmacia_label: '',
   valor: null,
   intervalo_horas: '8',
 });
@@ -26,6 +29,7 @@ const emptyCompra = () => ({
   valor: null,
   data_compra: '',
   farmacia_id: '',
+  farmacia_label: '',
 });
 
 function fmtDate(value) {
@@ -153,10 +157,11 @@ export default function MedsView() {
         String(a.nome_fantasia || '').localeCompare(String(b.nome_fantasia || ''), 'pt-BR')
       );
     });
+    const label = formatLocalLabel(row) || row.nome_fantasia;
     if (compraOpen) {
-      setCompraForm((f) => ({ ...f, farmacia_id: id }));
+      setCompraForm((f) => ({ ...f, farmacia_id: id, farmacia_label: label }));
     } else {
-      setForm((f) => ({ ...f, farmacia_id: id }));
+      setForm((f) => ({ ...f, farmacia_id: id, farmacia_label: label }));
     }
     return id;
   }
@@ -257,25 +262,22 @@ export default function MedsView() {
               />
             </Field>
           </div>
-          <Field label="Farmácia" required>
-            <div className="flex gap-2">
-              <TextSelect
-                required
-                value={form.farmacia_id}
-                onChange={(e) => setForm({ ...form, farmacia_id: e.target.value })}
-              >
-                <option value="">Selecione</option>
-                  {farmacias.map((f) => (
-                    <option key={f.id} value={String(f.id)}>
-                      {f.nome_fantasia}
-                    </option>
-                  ))}
-              </TextSelect>
-              <SecondaryButton type="button" onClick={() => setQuickFarm({ nome: '', telefone: '' })}>
-                Nova
-              </SecondaryButton>
-            </div>
-          </Field>
+          <AutocompleteSelect
+            label="Farmácia"
+            required
+            value={form.farmacia_id}
+            selectedLabel={form.farmacia_label}
+            fetchOptions={searchFarmacias}
+            placeholder="Buscar por nome, bairro ou cidade…"
+            onCreate={() => setQuickFarm({ nome: '', telefone: '' })}
+            onChange={(value, opt) =>
+              setForm({
+                ...form,
+                farmacia_id: value,
+                farmacia_label: opt?.label || '',
+              })
+            }
+          />
           <Field label="Valor do medicamento" required>
             <MoneyInput
               required
@@ -482,24 +484,21 @@ export default function MedsView() {
                 onChange={(valor) => setCompraForm({ ...compraForm, valor })}
               />
             </Field>
-            <Field label="Farmácia">
-              <div className="flex gap-2">
-                <TextSelect
-                  value={compraForm.farmacia_id}
-                  onChange={(e) => setCompraForm({ ...compraForm, farmacia_id: e.target.value })}
-                >
-                  <option value="">Mesma farmácia</option>
-                  {farmacias.map((f) => (
-                    <option key={f.id} value={String(f.id)}>
-                      {f.nome_fantasia}
-                    </option>
-                  ))}
-                </TextSelect>
-                <SecondaryButton type="button" onClick={() => setQuickFarm({ nome: '', telefone: '' })}>
-                  Nova
-                </SecondaryButton>
-              </div>
-            </Field>
+            <AutocompleteSelect
+              label="Farmácia"
+              value={compraForm.farmacia_id}
+              selectedLabel={compraForm.farmacia_label}
+              fetchOptions={searchFarmacias}
+              placeholder="Buscar farmácia…"
+              onCreate={() => setQuickFarm({ nome: '', telefone: '' })}
+              onChange={(value, opt) =>
+                setCompraForm({
+                  ...compraForm,
+                  farmacia_id: value,
+                  farmacia_label: opt?.label || '',
+                })
+              }
+            />
             <PrimaryButton type="submit">Registrar e atualizar agenda</PrimaryButton>
           </form>
         ) : null}

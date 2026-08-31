@@ -42,6 +42,18 @@ docker volume rm vitalink_mysql_data 2>/dev/null || true
 ./deploy.sh rebuild
 ```
 
+O catálogo público (hospitais, clínicas, farmácias e médicos) é aplicado automaticamente
+no `db-prepare` do entrypoint (`SEED_REDE_SAUDE=true`, padrão). Idempotente: não sobrescreve
+registros já existentes.
+
+```bash
+./deploy.sh seed-rede
+# ou
+cd backend && npm run db:seed:rede
+```
+
+SQL: `database/seed_rede_saude.sql`
+
 ## Massa de dados (seed sintético)
 
 ```bash

@@ -1,7 +1,8 @@
 const { query } = require('../config/database');
 
 const PERFIL_AUTOCUIDADO = 7;
-const AUTOCUIDADO_MENU_IDS = new Set([1, 2, 40]);
+/** Dashboard, Início, Saúde (pai), Médicos, Estabelecimentos, Farmácias, Termos */
+const AUTOCUIDADO_MENU_IDS = new Set([1, 2, 30, 32, 34, 35, 40]);
 
 async function getMenusByPerfil(perfilId) {
   let rows = await query(

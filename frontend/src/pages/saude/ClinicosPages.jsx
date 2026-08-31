@@ -13,6 +13,9 @@ import {
   TextSelect,
   TextTextarea,
 } from '../../components/forms/FormControls';
+import AutocompleteSelect, { AutocompleteMulti } from '../../components/forms/AutocompleteSelect';
+import { formatLocalLabel, formatMedicoLabel, searchEspecialidades, searchLocais, searchMedicos, searchFarmacias } from '../../utils/redeSaude';
+import { isValidCrm, isValidUf, UF_LIST } from '../../utils/validation';
 import { apiRequest } from '../../services/api';
 import { printMedicamentosFromLoader } from '../../utils/printMedicamentos';
 import {
@@ -65,6 +68,27 @@ function parseEstabelecimentoIds(row) {
   }
   if (row.hospital_clinica_id) return [Number(row.hospital_clinica_id)];
   return [];
+}
+
+function parseEstabelecimentoItems(row) {
+  let est = row?.estabelecimentos;
+  if (typeof est === 'string') {
+    try {
+      est = JSON.parse(est);
+    } catch {
+      est = [];
+    }
+  }
+  if (Array.isArray(est) && est.length) {
+    return est.map((e) => ({
+      value: String(e.id),
+      label: formatLocalLabel(e) || e.nome_fantasia || String(e.id),
+    }));
+  }
+  return (row?.estabelecimento_ids || []).map((id) => ({
+    value: String(id),
+    label: `Local #${id}`,
+  }));
 }
 
 function normalizeSpecialty(value) {
@@ -159,8 +183,6 @@ function SexoBodyPreview({ sexo, medicos, medicoIds }) {
 }
 
 export function MedicosPage() {
-  const hospitais = useOptions('/hospitais');
-
   const empty = () => ({
     estabelecimento_ids: [],
     nome: '',
@@ -192,21 +214,38 @@ export function MedicosPage() {
         <Field label="Nome completo" required>
           <TextInput value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
         </Field>
-        <Field label="Especialidade" required>
+        <AutocompleteSelect
+          label="Especialidade"
+          required
+          value={form.especialidade}
+          selectedLabel={form.especialidade}
+          allowFreeText
+          fetchOptions={searchEspecialidades}
+          placeholder="Buscar especialidade…"
+          onChange={(value) => setForm({ ...form, especialidade: value })}
+        />
+        <Field label="CRM" required hint="Somente números">
           <TextInput
-            value={form.especialidade || ''}
-            onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
+            required
+            inputMode="numeric"
+            value={form.crm}
+            onChange={(e) => setForm({ ...form, crm: onlyDigits(e.target.value).slice(0, 10) })}
+            placeholder="000000"
           />
-        </Field>
-        <Field label="CRM" required>
-          <TextInput value={form.crm} onChange={(e) => setForm({ ...form, crm: e.target.value })} />
         </Field>
         <Field label="UF CRM" required>
-          <TextInput
-            maxLength={2}
+          <TextSelect
+            required
             value={form.uf_crm}
             onChange={(e) => setForm({ ...form, uf_crm: e.target.value.toUpperCase() })}
-          />
+          >
+            <option value="">Selecione</option>
+            {UF_LIST.map((uf) => (
+              <option key={uf} value={uf}>
+                {uf}
+              </option>
+            ))}
+          </TextSelect>
         </Field>
         <Field label="Telefone pessoal/WhatsApp" hint="Opcional">
           <TextInput
@@ -235,16 +274,17 @@ export function MedicosPage() {
           />
         </Field>
         <div className="sm:col-span-2">
-          <MultiCheckboxField
+          <AutocompleteMulti
             label="Local(is) de atendimento"
-            hint="Hospital/Clínica cadastrados no sistema"
-            options={hospitais}
+            hint="Hospital/Clínica — busque por nome, bairro ou cidade"
             valueIds={form.estabelecimento_ids || []}
-            onChange={(ids) => setForm({ ...form, estabelecimento_ids: ids })}
+            selectedItems={parseEstabelecimentoItems(form)}
+            onChangeIds={(ids) => setForm({ ...form, estabelecimento_ids: ids })}
+            fetchOptions={searchLocais}
             footer={
               <Link
                 to="/hospitais"
-                className="mt-2 inline-block text-sm font-semibold text-aqua hover:underline"
+                className="mt-1 inline-block text-sm font-semibold text-aqua hover:underline"
               >
                 + Novo estabelecimento
               </Link>
@@ -316,6 +356,13 @@ export function MedicosPage() {
         ...row,
         estabelecimento_ids: parseEstabelecimentoIds(row),
       })}
+      validateForm={(form) => {
+        if (!String(form.nome || '').trim()) return 'Informe o nome completo.';
+        if (!String(form.especialidade || '').trim()) return 'Informe a especialidade.';
+        if (!isValidCrm(form.crm)) return 'Informe um CRM válido (4 a 10 dígitos).';
+        if (!isValidUf(form.uf_crm)) return 'Informe a UF do CRM.';
+        return null;
+      }}
       renderForm={(form, setForm) => <MedicoForm form={form} setForm={setForm} />}
       toPayload={(form) => ({
         ...form,
@@ -733,11 +780,18 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
             />
           </div>
           <div className="sm:col-span-2">
-            <MultiCheckboxField
+            <AutocompleteMulti
               label="Médico(s) principal(is)"
-              options={medicos}
+              hint="Busque por nome ou CRM"
               valueIds={form.medico_ids || []}
-              onChange={(ids) => setForm({ ...form, medico_ids: ids })}
+              selectedItems={(form.medico_ids || []).map((id) => {
+                const m = (medicos || []).find((x) => Number(x.id) === Number(id));
+                return m
+                  ? { value: String(m.id), label: formatMedicoLabel(m) }
+                  : { value: String(id), label: `Médico #${id}` };
+              })}
+              onChangeIds={(ids) => setForm({ ...form, medico_ids: ids })}
+              fetchOptions={searchMedicos}
             />
           </div>
           <div className="sm:col-span-2 flex flex-wrap items-center gap-3 text-sm">
@@ -942,8 +996,6 @@ function PrintRemediosButtons() {
 }
 
 export function RemediosPage() {
-  const medicos = useOptions('/medicos');
-  const farmacias = useOptions('/farmacias');
   const empty = () => ({
     nome_comercial: '',
     principio_ativo: '',
@@ -1045,14 +1097,27 @@ export function RemediosPage() {
         uso_continuo: Boolean(row.uso_continuo),
         periodo_horario: row.periodo_horario || 'manha',
         medico_prescritor_id: row.medico_prescritor_id ?? '',
+        medico_prescritor_label: row.medico_prescritor_nome
+          ? formatMedicoLabel({
+              nome: row.medico_prescritor_nome,
+              crm: row.medico_prescritor_crm,
+              uf_crm: row.medico_prescritor_uf,
+            })
+          : row.medico_prescritor_nome || '',
         hora_exata: row.hora_exata || '',
         farmacia_id: row.farmacia_id ?? '',
+        farmacia_label: row.farmacia_nome ? formatLocalLabel({
+          nome_fantasia: row.farmacia_nome,
+          bairro: row.farmacia_bairro,
+          cidade: row.farmacia_cidade,
+          uf: row.farmacia_uf,
+        }) : row.farmacia_nome || '',
         valor: row.valor != null ? Number(row.valor) : null,
         consumo_diario: row.consumo_diario ?? '',
       })}
       renderForm={(form, setForm) => (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field
+          <AutocompleteSelect
             label="Farmácia"
             required
             hint={
@@ -1060,22 +1125,18 @@ export function RemediosPage() {
                 Cadastrar nova farmácia
               </Link>
             }
-          >
-            <TextSelect
-              required
-              value={form.farmacia_id || ''}
-              onChange={(e) =>
-                setForm({ ...form, farmacia_id: e.target.value ? Number(e.target.value) : '' })
-              }
-            >
-              <option value="">Selecione</option>
-              {farmacias.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.nome_fantasia}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
+            value={form.farmacia_id ? String(form.farmacia_id) : ''}
+            selectedLabel={form.farmacia_label || ''}
+            fetchOptions={searchFarmacias}
+            placeholder="Buscar farmácia…"
+            onChange={(value, opt) =>
+              setForm({
+                ...form,
+                farmacia_id: value ? Number(value) : '',
+                farmacia_label: opt?.label || '',
+              })
+            }
+          />
           <Field label="Valor do medicamento" required>
             <MoneyInput
               required
@@ -1140,24 +1201,21 @@ export function RemediosPage() {
               />
             </Field>
           </div>
-          <Field label="Médico prescritor" hint="Opcional — medicamentos sem controle especial">
-            <TextSelect
-              value={form.medico_prescritor_id || ''}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  medico_prescritor_id: e.target.value ? Number(e.target.value) : '',
-                })
-              }
-            >
-              <option value="">Não informado</option>
-              {medicos.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nome}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
+          <AutocompleteSelect
+            label="Médico prescritor"
+            hint="Opcional — busque por nome ou CRM"
+            value={form.medico_prescritor_id ? String(form.medico_prescritor_id) : ''}
+            selectedLabel={form.medico_prescritor_label || ''}
+            fetchOptions={searchMedicos}
+            placeholder="Buscar médico…"
+            onChange={(value, opt) =>
+              setForm({
+                ...form,
+                medico_prescritor_id: value ? Number(value) : '',
+                medico_prescritor_label: opt?.label || '',
+              })
+            }
+          />
           <Field label="Dosagem / concentração">
             <TextInput
               value={form.concentracao || ''}

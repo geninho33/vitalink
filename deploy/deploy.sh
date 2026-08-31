@@ -9,6 +9,7 @@
 #   ./deploy.sh ps          # status
 #   ./deploy.sh migrate     # reaplica SQL via backend entrypoint/restart
 #   ./deploy.sh seed        # popula massa sintética (LGPD / Faker)
+#   ./deploy.sh seed-rede   # catálogo público (hospitais, farmácias, médicos)
 #   ./deploy.sh doctor      # status + logs + health (útil para 502)
 #   ./deploy.sh git-status  # status do repositório
 #   ./deploy.sh git-push    # push da branch configurada (GIT_BRANCH)
@@ -151,6 +152,12 @@ cmd_seed() {
   echo "  Ex.: medico01@seed.vitalink.local"
 }
 
+cmd_seed_rede() {
+  echo "[deploy] Catálogo público da rede de saúde (idempotente)..."
+  compose exec -T vitalink-backend node src/seeds/redeSaude.seeder.js
+  echo "[deploy] Catálogo rede de saúde OK."
+}
+
 cmd_git_status() {
   git -C "$ROOT_DIR" status -sb
   git -C "$ROOT_DIR" remote -v
@@ -174,6 +181,7 @@ case "${1:-help}" in
   ps) cmd_ps ;;
   migrate) cmd_migrate ;;
   seed) cmd_seed ;;
+  seed-rede) cmd_seed_rede ;;
   doctor) cmd_doctor ;;
   git-status) cmd_git_status ;;
   git-push) cmd_git_push ;;

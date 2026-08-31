@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ComboCreate, DateBrInput, Field, Modal, TextInput, TextSelect, TextTextarea } from '../../../components/forms/FormControls';
-import { addCatalogItem, loadCatalog, optionize } from '../catalog';
+import AutocompleteSelect from '../../../components/forms/AutocompleteSelect';
+import { searchMedicos } from '../../../utils/redeSaude';
+import { addCatalogItem, loadCatalog } from '../catalog';
 import { apiRequest } from '../../../services/api';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { todayKey } from '../localStore';
@@ -36,7 +38,6 @@ export default function EventosView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState(null);
-  const [medicos, setMedicos] = useState([]);
   const [diagnosticos, setDiagnosticos] = useState(loadCatalog('diagnosticos'));
   const [quick, setQuick] = useState(null);
   const [quickValue, setQuickValue] = useState('');
@@ -64,12 +65,6 @@ export default function EventosView() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    apiRequest('/medicos', { query: { pageSize: 200, status: 'ativo' } })
-      .then((res) => setMedicos(res.data || []))
-      .catch(() => setMedicos([]));
-  }, []);
 
   function startEdit(row) {
     setEditingId(row.id);
@@ -199,16 +194,23 @@ export default function EventosView() {
               />
             </Field>
           </div>
-          <ComboCreate
+          <AutocompleteSelect
             label="Médico(a)"
             value={form.doctor}
-            onChange={(doctor) => setForm({ ...form, doctor })}
-            options={[...optionize(medicos, 'nome', 'nome'), ...loadCatalog('medicos-locais')]}
-            placeholder="Selecione"
+            selectedLabel={form.doctor}
+            allowFreeText
+            fetchOptions={async (q) =>
+              (await searchMedicos(q)).map((o) => ({
+                ...o,
+                value: o.raw?.nome || o.label,
+              }))
+            }
+            placeholder="Buscar por nome ou CRM…"
             onCreate={() => {
               setQuick('doctor');
               setQuickValue('');
             }}
+            onChange={(doctor) => setForm({ ...form, doctor })}
           />
           <ComboCreate
             label="Diagnóstico"

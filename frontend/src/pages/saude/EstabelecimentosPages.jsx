@@ -8,7 +8,8 @@ import {
   TextSelect,
   TextTextarea,
 } from '../../components/forms/FormControls';
-import { maskPhone, onlyDigits } from '../../hooks/useCep';
+import { maskPhone, maskCnpj, onlyDigits } from '../../hooks/useCep';
+import { isValidCnpj } from '../../utils/validation';
 
 function toWhatsAppLink(value) {
   const digits = onlyDigits(value);
@@ -105,7 +106,11 @@ function EstablishmentForm({ form, setForm, relaxed = false }) {
           </Field>
           <Field label="CNPJ/CPF" hint="Opcional">
             <TextInput
-              value={form.documento || ''}
+              value={
+                (form.tipo_documento || 'cnpj') === 'cnpj'
+                  ? maskCnpj(form.documento || '')
+                  : form.documento || ''
+              }
               onChange={(e) => setForm({ ...form, documento: onlyDigits(e.target.value) })}
             />
           </Field>
@@ -256,6 +261,16 @@ function makePage(title, description, endpoint, { relaxed = false } = {}) {
           telefone_secundario: form.whatsapp || form.telefone_secundario || null,
           cep: form.cep ? onlyDigits(form.cep) : null,
         })}
+        validateForm={(form) => {
+          if (
+            form.documento &&
+            (form.tipo_documento || 'cnpj') === 'cnpj' &&
+            !isValidCnpj(form.documento)
+          ) {
+            return 'CNPJ inválido.';
+          }
+          return null;
+        }}
       />
     );
   };

@@ -86,3 +86,31 @@ export function formatMoneyBr(value) {
   if (!Number.isFinite(n)) return '';
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
+
+export const UF_LIST = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
+];
+
+export function isValidUf(value) {
+  return UF_LIST.includes(String(value || '').trim().toUpperCase());
+}
+
+export function isValidCrm(value) {
+  const digits = onlyDigits(value);
+  return digits.length >= 4 && digits.length <= 10;
+}
+
+export function isValidCnpj(value) {
+  const cnpj = onlyDigits(value);
+  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+  const calc = (nums, weights) => {
+    const sum = nums.reduce((s, n, i) => s + n * weights[i], 0);
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  const n = cnpj.split('').map(Number);
+  const d1 = calc(n.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  if (d1 !== n[12]) return false;
+  const d2 = calc(n.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return d2 === n[13];
+}

@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth.routes');
 const menusRoutes = require('./routes/menus.routes');
 const meController = require('./controllers/me.controller');
 const { authenticate } = require('./middleware/auth');
+const { requirePermission } = require('./middleware/rbac');
 const usuariosRoutes = require('./routes/usuarios.routes');
 const perfisRoutes = require('./routes/perfis.routes');
 const inicioRoutes = require('./routes/inicio.routes');
@@ -17,7 +18,7 @@ const { mountCrud } = require('./routes/crud.routes');
 const { mountAtividadesRoutes } = require('./routes/atividades.routes');
 const { hospitais, farmacias } = require('./controllers/estabelecimentos.controller');
 const { cuidadores, responsaveis } = require('./controllers/pessoas.controller');
-const { medicos, pacientes } = require('./controllers/saude.controller');
+const { medicos, pacientes, listEspecialidades } = require('./controllers/saude.controller');
 const examesReceitas = require('./controllers/examesReceitas.controller');
 const empresasCuidadoras = require('./controllers/empresasCuidadoras.controller');
 const { mountRemediosRoutes } = require('./routes/remedios.routes');
@@ -83,6 +84,7 @@ function createApp() {
     mountCrud(responsaveis, { denyCreatePerfilIds: [5, 7], denyDeletePerfilIds: [5, 7] })
   );
   api.use('/medicos', mountCrud(medicos));
+  api.get('/especialidades', authenticate, requirePermission('/medicos', 'ler'), listEspecialidades);
   api.use('/empresas-cuidadoras', mountCrud(empresasCuidadoras));
   // Rotas aninhadas antes do CRUD genérico de pacientes
   api.use(

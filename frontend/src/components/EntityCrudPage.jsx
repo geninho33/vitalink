@@ -13,6 +13,7 @@ export default function EntityCrudPage({
   renderForm,
   toPayload,
   mapRow,
+  validateForm,
   statusFilter = true,
   onAfterSave,
   extraActions,
@@ -108,6 +109,14 @@ export default function EntityCrudPage({
     setSaving(true);
     setError('');
     try {
+      if (typeof validateForm === 'function') {
+        const msg = validateForm(form, editing);
+        if (msg) {
+          setError(msg);
+          setSaving(false);
+          return;
+        }
+      }
       const payload = toPayload ? await Promise.resolve(toPayload(form, editing)) : form;
       const clean = { ...payload };
       delete clean.anamnese;

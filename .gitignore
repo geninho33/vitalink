@@ -20,8 +20,8 @@ backend/.env
 frontend/.env
 deploy/.env
 
-# Arquivos temporários e pacotes gerados
-tmp_docx_render/
+# Cache local do seeder CNES (regenerável)
+database/_medicos_cache.json
 *.zip
 
 # Configurações locais das ferramentas

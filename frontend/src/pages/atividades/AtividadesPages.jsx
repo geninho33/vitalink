@@ -12,6 +12,8 @@ import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import MonthCalendar from '../../components/MonthCalendar';
 import TimelineRail from '../../components/TimelineRail';
 import { DateBrInput, Field, TextInput, TextSelect, TextTextarea, Modal } from '../../components/forms/FormControls';
+import AutocompleteSelect from '../../components/forms/AutocompleteSelect';
+import { searchEspecialidades, searchMedicos } from '../../utils/redeSaude';
 import { apiRequest } from '../../services/api';
 
 function dayKey(d = new Date()) {
@@ -55,77 +57,27 @@ const EMPTY_CONSULTA_FORM = {
 };
 
 function MedicoAutocomplete({ value, medicoId, onSelect, required }) {
-  const [medicos, setMedicos] = useState([]);
-  const [query, setQuery] = useState(value || '');
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    apiRequest('/medicos', { query: { pageSize: 100, status: 'ativo' } })
-      .then((r) => setMedicos(r.data || []))
-      .catch(() => setMedicos([]));
-  }, []);
-
-  useEffect(() => {
-    setQuery(value || '');
-  }, [value, medicoId]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return medicos.slice(0, 12);
-    return medicos
-      .filter(
-        (m) =>
-          String(m.nome || '').toLowerCase().includes(q) ||
-          String(m.especialidade || '').toLowerCase().includes(q) ||
-          String(m.crm || '').toLowerCase().includes(q)
-      )
-      .slice(0, 12);
-  }, [medicos, query]);
-
   return (
-    <Field label="Profissional" required={required}>
-      <div className="relative">
-        <TextInput
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-            onSelect({ medico_id: '', profissional_nome: e.target.value, especialidade: '' });
-          }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder="Buscar médico ativo…"
-          autoComplete="off"
-        />
-        {open && filtered.length ? (
-          <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-[#cfe0df] bg-white py-1 shadow-panel">
-            {filtered.map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-aqua-soft/50"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    onSelect({
-                      medico_id: m.id,
-                      profissional_nome: m.nome,
-                      especialidade: m.especialidade || '',
-                    });
-                    setQuery(m.nome);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="font-semibold text-ink">{m.nome}</span>
-                  {m.especialidade ? (
-                    <span className="text-slate-health"> · {m.especialidade}</span>
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </Field>
+    <AutocompleteSelect
+      label="Profissional"
+      required={required}
+      value={medicoId ? String(medicoId) : ''}
+      selectedLabel={value}
+      allowFreeText
+      fetchOptions={searchMedicos}
+      placeholder="Buscar por nome ou CRM…"
+      onChange={(val, opt) => {
+        if (opt?.raw) {
+          onSelect({
+            medico_id: opt.raw.id,
+            profissional_nome: opt.raw.nome,
+            especialidade: opt.raw.especialidade || '',
+          });
+        } else {
+          onSelect({ medico_id: '', profissional_nome: val, especialidade: '' });
+        }
+      }}
+    />
   );
 }
 
@@ -160,13 +112,16 @@ function ConsultaFormFields({ form, setForm, pacientes, hidePaciente }) {
           }))
         }
       />
-      <Field label="Especialidade" required>
-        <TextInput
-          value={form.especialidade}
-          onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
-          placeholder="Fisioterapia, Fono..."
-        />
-      </Field>
+      <AutocompleteSelect
+        label="Especialidade"
+        required
+        value={form.especialidade}
+        selectedLabel={form.especialidade}
+        allowFreeText
+        fetchOptions={searchEspecialidades}
+        placeholder="Buscar especialidade…"
+        onChange={(especialidade) => setForm({ ...form, especialidade })}
+      />
       <Field label="Local">
         <TextSelect
           value={form.local_tipo}

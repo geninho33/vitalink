@@ -49,6 +49,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
       DB_NAME: ${DB_NAME:-vitalink}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      SEED_REDE_SAUDE: ${SEED_REDE_SAUDE:-true}
       UPLOAD_DIR: /app/uploads
       JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-vitalink-2026}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}

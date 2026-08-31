@@ -9,7 +9,7 @@ const {
   assertPacienteAccess,
 } = require('../services/pacienteScope.service');
 const logger = require('../utils/logger');
-const { parseIsoDate, isValidCpf, isValidEmail } = require('../utils/validation');
+const { parseIsoDate, isValidCpf, isValidEmail, assertCrm } = require('../utils/validation');
 const {
   syncRemedioAgenda,
   clearFutureDoses,
@@ -206,7 +206,7 @@ const medicosConfig = {
   table: 'medicos',
   recurso: 'medicos',
   menuRota: '/medicos',
-  searchable: ['medicos.nome', 'medicos.crm', 'medicos.especialidade'],
+  searchable: ['medicos.nome', 'medicos.crm', 'medicos.uf_crm', 'medicos.especialidade'],
   requiredCreate: ['nome', 'especialidade', 'crm', 'uf_crm'],
   optional: [
     'usuario_id',
@@ -230,6 +230,17 @@ const medicosConfig = {
   normalize: (p) => {
     const n = addressNormalize({ ...p });
     if (!n.status) n.status = 'ativo';
+    if (!n.nome || !String(n.nome).trim()) {
+      const err = new Error('Informe o nome completo do médico.');
+      err.status = 400;
+      err.code = 'validation_error';
+      throw err;
+    }
+    n.nome = String(n.nome).trim();
+    const crm = assertCrm(n.crm, n.uf_crm);
+    n.crm = crm.crm;
+    n.uf_crm = crm.uf_crm;
+    if (n.especialidade) n.especialidade = String(n.especialidade).trim();
     return n;
   },
   selectExtra: `,
@@ -608,10 +619,70 @@ async function listAdministracoesHoje(req, res, next) {
   }
 }
 
+const ESPECIALIDADES_CFM = [
+  'Alergia e Imunologia',
+  'Anestesiologia',
+  'Cardiologia',
+  'Cirurgia Geral',
+  'Clínica Médica',
+  'Dermatologia',
+  'Endocrinologia',
+  'Gastroenterologia',
+  'Geriatria',
+  'Ginecologia e Obstetrícia',
+  'Neurologia',
+  'Oftalmologia',
+  'Oncologia',
+  'Ortopedia e Traumatologia',
+  'Otorrinolaringologia',
+  'Pediatria',
+  'Pneumologia',
+  'Psiquiatria',
+  'Reumatologia',
+  'Urologia',
+];
+
+async function listEspecialidades(req, res, next) {
+  try {
+    const q = String(req.query.q || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const limit = Math.min(20, Math.max(1, Number(req.query.pageSize) || 20));
+    const fromDb = await query(
+      `SELECT DISTINCT TRIM(especialidade) AS nome
+       FROM medicos
+       WHERE especialidade IS NOT NULL AND TRIM(especialidade) <> ''
+       ORDER BY 1`
+    );
+    const map = new Map();
+    for (const name of ESPECIALIDADES_CFM) map.set(name.toLowerCase(), name);
+    for (const row of fromDb) {
+      const nome = String(row.nome || '').trim();
+      if (nome) map.set(nome.toLowerCase(), nome);
+    }
+    let list = [...map.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    if (q) {
+      list = list.filter((nome) =>
+        nome
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .includes(q)
+      );
+    }
+    return res.json({ data: list.slice(0, limit).map((nome) => ({ nome })) });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   medicos,
   pacientes,
   remedios,
   administrarRemedio,
   listAdministracoesHoje,
+  listEspecialidades,
 };

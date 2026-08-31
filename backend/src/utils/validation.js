@@ -115,16 +115,65 @@ function assertTelefone(telefone) {
   return digits;
 }
 
+const UF_SET = new Set([
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+]);
+
+function isValidUf(value) {
+  return UF_SET.has(String(value || '').trim().toUpperCase());
+}
+
+function isValidCrm(value) {
+  const digits = onlyDigits(value);
+  return digits.length >= 4 && digits.length <= 10;
+}
+
+function isValidCnpj(value) {
+  const cnpj = onlyDigits(value);
+  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+  const calc = (nums, weights) => {
+    const sum = nums.reduce((s, n, i) => s + n * weights[i], 0);
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  const n = cnpj.split('').map(Number);
+  const d1 = calc(n.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  if (d1 !== n[12]) return false;
+  const d2 = calc(n.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return d2 === n[13];
+}
+
+function assertCrm(crm, ufCrm) {
+  if (!isValidCrm(crm)) {
+    validationError('Informe um CRM válido (4 a 10 dígitos).');
+  }
+  if (!isValidUf(ufCrm)) {
+    validationError('Informe a UF do CRM.');
+  }
+  return { crm: onlyDigits(crm), uf_crm: String(ufCrm).trim().toUpperCase() };
+}
+
+function assertCnpj(cnpj) {
+  if (!isValidCnpj(cnpj)) validationError('CNPJ inválido.');
+  return onlyDigits(cnpj);
+}
+
 module.exports = {
   onlyDigits,
   isValidEmail,
   isValidCpf,
+  isValidCnpj,
+  isValidCrm,
+  isValidUf,
   validateStrongPassword,
   parseIsoDate,
   ageFromIso,
   assertAdult,
   assertEmail,
   assertCpf,
+  assertCnpj,
+  assertCrm,
   assertPassword,
   assertTelefone,
   validationError,

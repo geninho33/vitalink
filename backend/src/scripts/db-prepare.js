@@ -17,7 +17,19 @@ const cfg = {
   delayMs: Number(process.env.DB_WAIT_DELAY_MS || 1500),
 };
 
-const SQL_DIR = process.env.SQL_DIR || path.join(__dirname, '../../database');
+function resolveSqlDir() {
+  if (process.env.SQL_DIR) return process.env.SQL_DIR;
+  const candidates = [
+    path.join(__dirname, '../../database'),
+    path.join(__dirname, '../../../database'),
+  ];
+  return (
+    candidates.find((dir) => fs.existsSync(path.join(dir, 'schema.postgres.sql'))) ||
+    candidates[0]
+  );
+}
+
+const SQL_DIR = resolveSqlDir();
 const SCHEMA_FILE = path.join(SQL_DIR, 'schema.postgres.sql');
 
 function log(msg) {
@@ -316,6 +328,29 @@ async function applyPatchRegistroEscopo(client) {
   }
 }
 
+async function applySeedRedeSaude(client) {
+  if (!cfg.runMigrations) return;
+  if ((process.env.SEED_REDE_SAUDE || 'true') !== 'true') {
+    log('SEED_REDE_SAUDE=false — pulando catálogo da rede de saúde.');
+    return;
+  }
+
+  const seedFile = path.join(SQL_DIR, 'seed_rede_saude.sql');
+  if (!fs.existsSync(seedFile)) {
+    log(`AVISO: seeder rede de saúde não encontrado: ${seedFile}`);
+    return;
+  }
+
+  log(`Aplicando ${path.basename(seedFile)} (idempotente)...`);
+  const sql = fs.readFileSync(seedFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Catálogo da rede de saúde OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar catálogo da rede de saúde: ${err.code || ''} ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -329,6 +364,7 @@ async function main() {
     await applyPatchOnda3(client);
     await applyPatchAutocuidado(client);
     await applyPatchRegistroEscopo(client);
+    await applySeedRedeSaude(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

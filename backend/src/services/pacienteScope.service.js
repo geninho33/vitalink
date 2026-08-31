@@ -141,10 +141,14 @@ function ownerOrLinkedScope(user, ownerSql, linkedParts = []) {
 }
 
 async function medicosScopeForCrud(req) {
-  return ownerOrLinkedScope(req.user, 'medicos.usuario_id = :scopeOwnerId', [
-    `medicos.id IN (SELECT pm.medico_id FROM paciente_medicos pm WHERE pm.paciente_id = ANY(:scopePacienteIds))`,
-    `medicos.id IN (SELECT p.medico_id FROM pacientes p WHERE p.id = ANY(:scopePacienteIds) AND p.medico_id IS NOT NULL)`,
-  ]);
+  return ownerOrLinkedScope(
+    req.user,
+    '(medicos.usuario_id IS NULL OR medicos.usuario_id = :scopeOwnerId)',
+    [
+      `medicos.id IN (SELECT pm.medico_id FROM paciente_medicos pm WHERE pm.paciente_id = ANY(:scopePacienteIds))`,
+      `medicos.id IN (SELECT p.medico_id FROM pacientes p WHERE p.id = ANY(:scopePacienteIds) AND p.medico_id IS NOT NULL)`,
+    ]
+  );
 }
 
 async function remediosScopeForCrud(req) {
@@ -152,7 +156,10 @@ async function remediosScopeForCrud(req) {
 }
 
 async function hospitaisScopeForCrud(req) {
-  return ownerOrLinkedScope(req.user, 'hospitais_clinicas.usuario_id = :scopeOwnerId', [
+  return ownerOrLinkedScope(
+    req.user,
+    '(hospitais_clinicas.usuario_id IS NULL OR hospitais_clinicas.usuario_id = :scopeOwnerId)',
+    [
     `hospitais_clinicas.id IN (
       SELECT m.hospital_clinica_id FROM medicos m
       WHERE m.hospital_clinica_id IS NOT NULL AND (
@@ -171,7 +178,10 @@ async function hospitaisScopeForCrud(req) {
 }
 
 async function farmaciasScopeForCrud(req) {
-  return ownerOrLinkedScope(req.user, 'farmacias.usuario_id = :scopeOwnerId', [
+  return ownerOrLinkedScope(
+    req.user,
+    '(farmacias.usuario_id IS NULL OR farmacias.usuario_id = :scopeOwnerId)',
+    [
     `farmacias.id IN (
       SELECT r.farmacia_id FROM remedios r
       WHERE r.farmacia_id IS NOT NULL AND r.paciente_id = ANY(:scopePacienteIds)
