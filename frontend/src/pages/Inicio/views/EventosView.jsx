@@ -5,18 +5,9 @@ import { searchMedicos } from '../../../utils/redeSaude';
 import { addCatalogItem, loadCatalog } from '../catalog';
 import { apiRequest } from '../../../services/api';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
+import { EVENT_TYPES } from '../../../constants/eventosSaude';
 import { todayKey } from '../localStore';
 import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
-
-const EVENT_TYPES = [
-  'Monitoramento diário',
-  'Consulta',
-  'Emergência',
-  'Internação',
-  'Exame',
-  'Procedimento',
-  'Outro',
-];
 
 function emptyForm() {
   return {
@@ -205,7 +196,7 @@ export default function EventosView() {
                 value: o.raw?.nome || o.label,
               }))
             }
-            placeholder="Buscar por nome ou CRM…"
+            placeholder="Buscar por nome…"
             onCreate={() => {
               setQuick('doctor');
               setQuickValue('');

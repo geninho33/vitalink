@@ -17,7 +17,7 @@ function canAccessPath(pathname, menus) {
 
 export default function ProtectedRoute() {
   const { isAuthenticated, sessionChecked, requerOnboarding, menus, usuario } = useAuth();
-  const { pacientes, loading: loadingPacientes } = usePacienteAtivo();
+  const { pacientes, loading: loadingPacientes, ready: pacientesReady } = usePacienteAtivo();
   const location = useLocation();
 
   if (!sessionChecked) {
@@ -34,6 +34,7 @@ export default function ProtectedRoute() {
 
   if (
     !requerOnboarding &&
+    pacientesReady &&
     !loadingPacientes &&
     pacientes.length === 0 &&
     !isPacienteGatePath(location.pathname)

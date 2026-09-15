@@ -5,15 +5,8 @@ import { apiRequest } from '../../../services/api';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { EmptyState, PageTitle, Panel, PrimaryButton } from '../ui';
 import GoogleCalendarButton from '../../../components/GoogleCalendarButton';
+import { ATIVIDADES_INICIO } from '../../../constants/eventosSaude';
 import { rotinaToCalendarEvent } from '../../../utils/googleCalendar';
-
-const ATIVIDADES = [
-  { value: 'medicamento', label: 'Tomar remédio', tipo: 'medicamento' },
-  { value: 'consulta', label: 'Consulta médica', tipo: 'compromisso' },
-  { value: 'pressao', label: 'Medir pressão', tipo: 'saude' },
-  { value: 'glicemia', label: 'Controle de diabetes', tipo: 'saude' },
-  { value: 'rotina', label: 'Outra rotina diária', tipo: 'outro' },
-];
 
 function dayKey(d) {
   const pad = (n) => String(n).padStart(2, '0');
@@ -89,7 +82,7 @@ export default function InicioAgendaView() {
   });
 
   const atividade = useMemo(
-    () => ATIVIDADES.find((a) => a.value === form.atividade) || ATIVIDADES[0],
+    () => ATIVIDADES_INICIO.find((a) => a.value === form.atividade) || ATIVIDADES_INICIO[0],
     [form.atividade]
   );
 
@@ -236,7 +229,7 @@ export default function InicioAgendaView() {
               value={form.atividade}
               onChange={(e) => setForm({ ...form, atividade: e.target.value })}
             >
-              {ATIVIDADES.map((a) => (
+              {ATIVIDADES_INICIO.map((a) => (
                 <option key={a.value} value={a.value}>
                   {a.label}
                 </option>

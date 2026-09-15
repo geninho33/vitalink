@@ -13,10 +13,25 @@ export function formatLocalLabel(row) {
   return endereco ? `${nome} - ${endereco}` : nome;
 }
 
-export function formatMedicoLabel(row) {
+export function anonymizeCrm(crm) {
+  const digits = String(crm || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length <= 3) return '*'.repeat(digits.length);
+  return `${'*'.repeat(Math.max(0, digits.length - 3))}${digits.slice(-3)}`;
+}
+
+export function formatMedicoLabel(row, { fullCrm = false } = {}) {
   if (!row) return '';
-  const crm = row.crm && row.uf_crm ? `${row.crm}/${row.uf_crm}` : row.crm || '';
-  return crm ? `${row.nome} - CRM: ${crm}` : row.nome || '';
+  const nome = row.nome || '';
+  if (!row.crm) return nome;
+  const crm = fullCrm
+    ? row.uf_crm
+      ? `${row.crm}/${row.uf_crm}`
+      : String(row.crm)
+    : row.uf_crm
+      ? `${anonymizeCrm(row.crm)}/${row.uf_crm}`
+      : anonymizeCrm(row.crm);
+  return `${nome} — CRM ${crm}`;
 }
 
 export async function searchLocais(q) {
@@ -60,4 +75,17 @@ export async function searchEspecialidades(q) {
     const nome = row.nome || row;
     return { value: nome, label: nome, raw: row };
   });
+}
+
+export async function searchCatalogoMedicamentos(q) {
+  const res = await apiRequest('/catalogo-medicamentos', {
+    query: { q: q || undefined, pageSize: SUGGEST_LIMIT },
+  });
+  return (res.data || []).map((row) => ({
+    value: `${row.nome_comercial}||${row.principio_ativo || ''}`,
+    label: row.principio_ativo
+      ? `${row.nome_comercial} (${row.principio_ativo})`
+      : row.nome_comercial,
+    raw: row,
+  }));
 }

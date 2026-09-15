@@ -65,7 +65,7 @@ function MedicoAutocomplete({ value, medicoId, onSelect, required }) {
       selectedLabel={value}
       allowFreeText
       fetchOptions={searchMedicos}
-      placeholder="Buscar por nome ou CRM…"
+      placeholder="Buscar por nome…"
       onChange={(val, opt) => {
         if (opt?.raw) {
           onSelect({

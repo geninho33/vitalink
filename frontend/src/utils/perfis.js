@@ -17,3 +17,12 @@ export function perfilIdOf(usuario) {
 export function isAutocuidado(usuario) {
   return perfilIdOf(usuario) === PERFIL.AUTOCUIDADO;
 }
+
+export function isPaciente(usuario) {
+  return perfilIdOf(usuario) === PERFIL.PACIENTE;
+}
+
+export function isPacienteOuAutocuidado(usuario) {
+  const id = perfilIdOf(usuario);
+  return id === PERFIL.PACIENTE || id === PERFIL.AUTOCUIDADO;
+}

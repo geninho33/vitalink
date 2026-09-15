@@ -14,6 +14,7 @@ import {
   TextTextarea,
 } from '../../components/forms/FormControls';
 import AutocompleteSelect, { AutocompleteMulti } from '../../components/forms/AutocompleteSelect';
+import MedicamentoCatalogoFields from '../../components/forms/MedicamentoCatalogoFields';
 import { formatLocalLabel, formatMedicoLabel, searchEspecialidades, searchLocais, searchMedicos, searchFarmacias } from '../../utils/redeSaude';
 import { isValidCrm, isValidUf, UF_LIST } from '../../utils/validation';
 import { apiRequest } from '../../services/api';
@@ -782,7 +783,7 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
           <div className="sm:col-span-2">
             <AutocompleteMulti
               label="Médico(s) principal(is)"
-              hint="Busque por nome ou CRM"
+              hint="Busque por nome (CRM anonimizado — LGPD)"
               valueIds={form.medico_ids || []}
               selectedItems={(form.medico_ids || []).map((id) => {
                 const m = (medicos || []).find((x) => Number(x.id) === Number(id));
@@ -1016,6 +1017,8 @@ export function RemediosPage() {
     farmacia_id: '',
     valor: null,
     consumo_diario: '',
+    catalogoDosagens: [],
+    catalogoFormas: [],
   });
 
   return (
@@ -1144,18 +1147,13 @@ export function RemediosPage() {
               onChange={(valor) => setForm({ ...form, valor })}
             />
           </Field>
-          <Field label="Nome comercial" required>
-            <TextInput
-              value={form.nome_comercial}
-              onChange={(e) => setForm({ ...form, nome_comercial: e.target.value })}
-            />
-          </Field>
-          <Field label="Princípio ativo" required>
-            <TextInput
-              value={form.principio_ativo}
-              onChange={(e) => setForm({ ...form, principio_ativo: e.target.value })}
-            />
-          </Field>
+          <MedicamentoCatalogoFields
+            form={form}
+            setForm={setForm}
+            required
+            showPrincipioAtivo
+            showConcentracao
+          />
           <Field label="Laboratório">
             <TextInput
               value={form.laboratorio || ''}
@@ -1203,7 +1201,7 @@ export function RemediosPage() {
           </div>
           <AutocompleteSelect
             label="Médico prescritor"
-            hint="Opcional — busque por nome ou CRM"
+            hint="Opcional — busque por nome (CRM anonimizado — LGPD)"
             value={form.medico_prescritor_id ? String(form.medico_prescritor_id) : ''}
             selectedLabel={form.medico_prescritor_label || ''}
             fetchOptions={searchMedicos}
@@ -1216,12 +1214,6 @@ export function RemediosPage() {
               })
             }
           />
-          <Field label="Dosagem / concentração">
-            <TextInput
-              value={form.concentracao || ''}
-              onChange={(e) => setForm({ ...form, concentracao: e.target.value })}
-            />
-          </Field>
           <Field label="Forma farmacêutica">
             <TextSelect
               value={form.forma_farmaceutica}

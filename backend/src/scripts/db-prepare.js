@@ -328,6 +328,42 @@ async function applyPatchRegistroEscopo(client) {
   }
 }
 
+async function applyPatchCatalogoMedicamentos(client) {
+  if (!cfg.runMigrations) return;
+
+  const patchFile = path.join(SQL_DIR, 'patch_catalogo_medicamentos.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch catálogo de medicamentos não encontrado: ${patchFile}`);
+    return;
+  }
+
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  const sql = fs.readFileSync(patchFile, 'utf8');
+  try {
+    await client.query(sql);
+    log('Patch catálogo de medicamentos OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch catálogo: ${err.code || ''} ${err.message}`);
+  }
+}
+
+async function applySeedCatalogoMedicamentos(client) {
+  if (!cfg.runMigrations) return;
+  if ((process.env.SEED_CATALOGO_MEDICAMENTOS || 'true') !== 'true') {
+    log('SEED_CATALOGO_MEDICAMENTOS=false — pulando catálogo de medicamentos.');
+    return;
+  }
+
+  try {
+    const { seedCatalogoMedicamentos } = require('../seeds/catalogoMedicamentos.seeder');
+    log('Populando catálogo de medicamentos (50+ / dosagens)...');
+    const result = await seedCatalogoMedicamentos(client);
+    log(`Catálogo de medicamentos: ${result.total} apresentações.`);
+  } catch (err) {
+    log(`AVISO ao popular catálogo de medicamentos: ${err.message}`);
+  }
+}
+
 async function applySeedRedeSaude(client) {
   if (!cfg.runMigrations) return;
   if ((process.env.SEED_REDE_SAUDE || 'true') !== 'true') {
@@ -365,6 +401,8 @@ async function main() {
     await applyPatchAutocuidado(client);
     await applyPatchRegistroEscopo(client);
     await applySeedRedeSaude(client);
+    await applyPatchCatalogoMedicamentos(client);
+    await applySeedCatalogoMedicamentos(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

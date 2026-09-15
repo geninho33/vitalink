@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { DateBrInput, Field, MoneyInput, Modal, TextInput, TextSelect } from '../../../components/forms/FormControls';
 import AutocompleteSelect from '../../../components/forms/AutocompleteSelect';
 import { formatLocalLabel, searchFarmacias } from '../../../utils/redeSaude';
+import MedicamentoCatalogoFields from '../../../components/forms/MedicamentoCatalogoFields';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
 import { printMedicamentos } from '../../../utils/printMedicamentos';
@@ -22,6 +23,11 @@ const empty = () => ({
   farmacia_label: '',
   valor: null,
   intervalo_horas: '8',
+  principio_ativo: '',
+  forma_farmaceutica: 'comprimido',
+  concentracao: '',
+  catalogoDosagens: [],
+  catalogoFormas: [],
 });
 
 const emptyCompra = () => ({
@@ -252,16 +258,7 @@ export default function MedsView() {
 
       <Panel className="mb-5">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
-          <div className="sm:col-span-2">
-            <Field label="Nome do medicamento" required>
-              <TextInput
-                required
-                value={form.nome_comercial}
-                onChange={(e) => setForm({ ...form, nome_comercial: e.target.value })}
-                placeholder="Nome do medicamento"
-              />
-            </Field>
-          </div>
+          <MedicamentoCatalogoFields form={form} setForm={setForm} required />
           <AutocompleteSelect
             label="Farmácia"
             required

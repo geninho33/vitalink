@@ -169,7 +169,7 @@ export default function AgendaView() {
                 value: o.raw?.nome || o.label,
               }))
             }
-            placeholder="Buscar por nome ou CRM…"
+            placeholder="Buscar por nome…"
             onCreate={() => openQuick('doctor')}
             onChange={(doctor, opt) =>
               setForm({

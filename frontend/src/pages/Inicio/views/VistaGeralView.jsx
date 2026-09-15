@@ -4,9 +4,10 @@ import { useAuth } from '../../../context/AuthContext';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { Field, TextTextarea } from '../../../components/forms/FormControls';
 import { apiRequest } from '../../../services/api';
-import { Panel, PrimaryButton } from '../ui';
+import { formatMedicoLabel } from '../../../utils/redeSaude';
+import { Panel } from '../ui';
 
-const PERFIL = { ADMIN: 1, CUIDADOR: 4, RESPONSAVEL: 5, PACIENTE: 6 };
+const PERFIL = { ADMIN: 1, CUIDADOR: 4, RESPONSAVEL: 5, PACIENTE: 6, AUTOCUIDADO: 7 };
 
 const TIPO_LABEL = {
   hospital: 'Hospitais',
@@ -22,7 +23,7 @@ function weekRange() {
   return { de: start.toISOString(), ate: end.toISOString() };
 }
 
-function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
+function RedeDirectory({ pacienteId, hideWhenEmpty, title, somenteVinculados = false }) {
   const [hospitais, setHospitais] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +43,10 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
         let hosps = hRes.data || [];
         let meds = mRes.data || [];
         const paciente = pacienteRes?.data || pacienteRes;
-        if (paciente?.id) {
+        if (somenteVinculados && !paciente?.id) {
+          meds = [];
+          hosps = [];
+        } else if (paciente?.id) {
           const medicoIds = new Set(
             (Array.isArray(paciente.medico_ids)
               ? paciente.medico_ids
@@ -51,7 +55,10 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
                 : []
             ).map(Number)
           );
-          if (medicoIds.size) {
+          if (somenteVinculados && !medicoIds.size) {
+            meds = [];
+            hosps = [];
+          } else if (medicoIds.size) {
             meds = meds.filter((m) => medicoIds.has(Number(m.id)));
             const estIds = new Set();
             for (const m of meds) {
@@ -69,6 +76,7 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
               if (m.hospital_clinica_id) estIds.add(Number(m.hospital_clinica_id));
             }
             if (estIds.size) hosps = hosps.filter((h) => estIds.has(Number(h.id)));
+            else if (somenteVinculados) hosps = [];
           }
         }
         setHospitais(hosps);
@@ -86,7 +94,7 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
     return () => {
       cancelled = true;
     };
-  }, [pacienteId]);
+  }, [pacienteId, somenteVinculados]);
 
   const byTipo = useMemo(() => {
     const map = { hospital: [], clinica: [], laboratorio: [] };
@@ -117,6 +125,22 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
   const hasData = hospitais.length > 0 || medicos.length > 0;
   if (hideWhenEmpty && !hasData) return null;
 
+  if (!hasData && somenteVinculados) {
+    return (
+      <div className={title ? 'mt-6' : ''}>
+        {title ? (
+          <h2 className="mb-3 font-display text-xl font-bold text-ink">{title}</h2>
+        ) : null}
+        <Panel>
+          <p className="text-sm text-slate-health">
+            Sua rede de cuidado lista apenas os profissionais vinculados ao seu atendimento.
+            Nenhum vínculo encontrado ainda.
+          </p>
+        </Panel>
+      </div>
+    );
+  }
+
   return (
     <div className={title ? 'mt-6' : 'grid gap-4'}>
       {title ? (
@@ -133,8 +157,11 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
               {byTipo[tipo].map((h) => (
                 <li key={h.id}>
                   <Link
-                    to={`/hospitais?edit=${h.id}`}
-                    className="block rounded-lg px-2 py-1.5 text-sm font-semibold text-ink hover:bg-vita-soft/50"
+                    to={somenteVinculados ? '#' : `/hospitais?edit=${h.id}`}
+                    onClick={somenteVinculados ? (e) => e.preventDefault() : undefined}
+                    className={`block rounded-lg px-2 py-1.5 text-sm font-semibold text-ink ${
+                      somenteVinculados ? '' : 'hover:bg-vita-soft/50'
+                    }`}
                   >
                     {h.nome_fantasia}
                   </Link>
@@ -164,10 +191,13 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title }) {
                   {lista.map((m) => (
                     <li key={m.id}>
                       <Link
-                        to={`/medicos?edit=${m.id}`}
-                        className="block rounded-lg px-2 py-1.5 text-sm font-semibold text-ink hover:bg-vita-soft/50"
+                        to={somenteVinculados ? '#' : `/medicos?edit=${m.id}`}
+                        onClick={somenteVinculados ? (e) => e.preventDefault() : undefined}
+                        className={`block rounded-lg px-2 py-1.5 text-sm font-semibold text-ink ${
+                          somenteVinculados ? '' : 'hover:bg-vita-soft/50'
+                        }`}
                       >
-                        {m.nome}
+                        {formatMedicoLabel(m)}
                       </Link>
                     </li>
                   ))}
@@ -190,6 +220,7 @@ export default function VistaGeralView() {
   const firstName = usuario?.nome?.split(' ')[0] || 'Usuário';
   const isAdmin = perfilId === PERFIL.ADMIN;
   const isResponsavel = perfilId === PERFIL.RESPONSAVEL;
+  const isSelfCare = perfilId === PERFIL.PACIENTE || perfilId === PERFIL.AUTOCUIDADO;
 
   const { pacientes, pacienteId, paciente: selectedPaciente } = usePacienteAtivo();
   const [appointments, setAppointments] = useState([]);
@@ -343,7 +374,7 @@ export default function VistaGeralView() {
         <p className="mb-4 text-sm text-slate-health">
           Paciente ativo:{' '}
           <Link
-            to={`/pacientes?edit=${pacienteId}`}
+            to={isSelfCare ? '/inicio/perfil' : `/pacientes?edit=${pacienteId}`}
             className="font-semibold text-aqua hover:underline"
           >
             {selectedPaciente?.nome || 'ficha'}
@@ -486,7 +517,8 @@ export default function VistaGeralView() {
       {!isAdmin ? (
         <RedeDirectory
           pacienteId={pacienteId || undefined}
-          hideWhenEmpty
+          hideWhenEmpty={!isSelfCare}
+          somenteVinculados={isSelfCare}
           title="Sua rede de cuidado"
         />
       ) : null}

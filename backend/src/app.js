@@ -21,6 +21,7 @@ const { cuidadores, responsaveis } = require('./controllers/pessoas.controller')
 const { medicos, pacientes, listEspecialidades } = require('./controllers/saude.controller');
 const examesReceitas = require('./controllers/examesReceitas.controller');
 const empresasCuidadoras = require('./controllers/empresasCuidadoras.controller');
+const catalogoMedicamentos = require('./controllers/catalogoMedicamentos.controller');
 const { mountRemediosRoutes } = require('./routes/remedios.routes');
 const { mountPacienteVinculosRoutes } = require('./routes/pacienteVinculos.routes');
 const vinculoPaciente = require('./controllers/vinculoPaciente.controller');
@@ -98,6 +99,12 @@ function createApp() {
       denyCreatePerfilIds: [4, 7],
       denyDeletePerfilIds: [4, 7],
     })
+  );
+  api.get(
+    '/catalogo-medicamentos',
+    authenticate,
+    requirePermission('/inicio', 'ler'),
+    catalogoMedicamentos.list
   );
   api.use('/remedios', mountRemediosRoutes());
   api.use('/exames-receitas', mountCrud(examesReceitas));

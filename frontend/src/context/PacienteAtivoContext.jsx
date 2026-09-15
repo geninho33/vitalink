@@ -17,7 +17,8 @@ export function PacienteAtivoProvider({ children }) {
   const { isAuthenticated, sessionChecked, usuario } = useAuth();
   const [pacientes, setPacientes] = useState([]);
   const [pacienteId, setPacienteIdState] = useState(readStoredId);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
 
   const setPacienteId = useCallback((id) => {
     const value = id == null ? '' : String(id);
@@ -33,6 +34,8 @@ export function PacienteAtivoProvider({ children }) {
   const reload = useCallback(async () => {
     if (!isAuthenticated) {
       setPacientes([]);
+      setLoading(false);
+      setReady(false);
       return;
     }
     setLoading(true);
@@ -63,6 +66,7 @@ export function PacienteAtivoProvider({ children }) {
       setPacientes([]);
     } finally {
       setLoading(false);
+      setReady(true);
     }
   }, [isAuthenticated, usuario?.paciente_ativo_id]);
 
@@ -83,9 +87,10 @@ export function PacienteAtivoProvider({ children }) {
       paciente,
       setPacienteId,
       loading,
+      ready,
       reload,
     }),
-    [pacientes, pacienteId, paciente, setPacienteId, loading, reload]
+    [pacientes, pacienteId, paciente, setPacienteId, loading, ready, reload]
   );
 
   return <PacienteAtivoContext.Provider value={value}>{children}</PacienteAtivoContext.Provider>;

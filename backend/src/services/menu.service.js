@@ -1,8 +1,9 @@
 const { query } = require('../config/database');
 
+const PERFIL_PACIENTE = 6;
 const PERFIL_AUTOCUIDADO = 7;
-/** Dashboard, Início, Saúde (pai), Médicos, Estabelecimentos, Farmácias, Termos */
-const AUTOCUIDADO_MENU_IDS = new Set([1, 2, 30, 32, 34, 35, 40]);
+/** Paciente e Autocuidado: apenas Dashboard e Início no menu lateral. */
+const MENU_SOMENTE_DASHBOARD_INICIO = new Set([1, 2]);
 
 async function getMenusByPerfil(perfilId) {
   let rows = await query(
@@ -17,8 +18,8 @@ async function getMenusByPerfil(perfilId) {
     { perfilId }
   );
 
-  if (Number(perfilId) === PERFIL_AUTOCUIDADO) {
-    rows = rows.filter((r) => AUTOCUIDADO_MENU_IDS.has(Number(r.id)));
+  if ([PERFIL_PACIENTE, PERFIL_AUTOCUIDADO].includes(Number(perfilId))) {
+    rows = rows.filter((r) => MENU_SOMENTE_DASHBOARD_INICIO.has(Number(r.id)));
   }
 
   const byId = new Map(rows.map((r) => [r.id, r]));

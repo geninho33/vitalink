@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Manual do Sistema VitaLink</title>
+  <style>
+    :root {
+      --vita: #0d7377;
+      --ink: #1a2e35;
+      --muted: #5b7270;
+      --line: #c5d5d4;
+      --paper: #f7fbfb;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 11pt/1.65 "Segoe UI", Calibri, Arial, sans-serif;
+    }
+    h1 { font-size: 22pt; color: var(--vita); margin: 0 0 10pt; line-height: 1.25; }
+    h2 {
+      font-size: 15pt;
+      color: var(--vita);
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 6pt;
+      margin: 26pt 0 12pt;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 12pt; color: #0a5c60; margin: 16pt 0 8pt; page-break-after: avoid; }
+    p, li { orphans: 3; widows: 3; }
+    ol, ul { padding-left: 1.25em; margin: 8pt 0 12pt; }
+    li { margin: 3pt 0; }
+    table { width: 100%; border-collapse: collapse; margin: 8pt 0 14pt; font-size: 9.5pt; }
+    th, td { border: 1px solid var(--line); padding: 6pt 8pt; text-align: left; vertical-align: top; }
+    th { background: #e7f4f4; color: var(--vita); }
+    .fields th:nth-child(3), .fields td:nth-child(3) { width: 16%; }
+    .cover {
+      min-height: 240mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      page-break-after: always;
+      background: linear-gradient(180deg, #eef6f7 0%, #ffffff 55%);
+    }
+    .cover img { width: 190px; height: auto; margin-bottom: 18pt; }
+    .cover h1 { font-size: 28pt; }
+    .cover .sub { color: var(--muted); font-size: 13pt; max-width: 145mm; line-height: 1.5; }
+    .meta { margin-top: 28pt; font-size: 10pt; color: var(--muted); line-height: 1.6; }
+    .toc { page-break-after: always; }
+    .toc a { color: var(--ink); text-decoration: none; }
+    .toc li { margin: 5pt 0; }
+    figure.shot {
+      width: 63.36%;
+      margin: 12pt auto 18pt;
+      page-break-inside: avoid;
+    }
+    figure.shot img {
+      width: 100%;
+      height: auto;
+      border: 1px solid #b7c9c8;
+      border-radius: 6px;
+      display: block;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(26, 46, 53, 0.08);
+    }
+    figure.shot figcaption {
+      font-size: 9pt;
+      color: var(--muted);
+      margin-top: 5pt;
+      font-style: italic;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .pair {
+      display: flex;
+      gap: 8pt;
+      width: 63.36%;
+      margin: 12pt auto 18pt;
+      page-break-inside: avoid;
+    }
+    .pair figure.shot { flex: 1; width: auto; margin: 0; }
+    .box {
+      border-radius: 6px;
+      padding: 8pt 11pt;
+      margin: 10pt 0 14pt;
+      font-size: 10.5pt;
+      page-break-inside: avoid;
+    }
+    .box p { margin: 0; }
+    .box.tip { background: #eef8f4; border-left: 4px solid #0d9488; }
+    .box.warn { background: #fff7ed; border-left: 4px solid #d97706; }
+    .box.note { background: #f4f8fb; border-left: 4px solid #0d7377; }
+    .small { font-size: 9.5pt; color: var(--muted); }
+    code { font-size: 9.5pt; background: #eef4f4; padding: 1px 4px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <img src="screenshots/logo.png" alt="VitaLink" />
+    <h1>Manual do Sistema</h1>
+    <p class="sub">Guia operacional ilustrado — família, cuidador, médico e administrador. Versão reformulada com passo a passo, tabelas de campos e figuras numeradas.</p>
+    <p class="meta">
+      Versão 2.0 · 09/09/2026, 00:29:16<br />
+      Ambiente fotografado: http://localhost:5173<br />
+      Perfil das capturas: Administrador<br />
+      Imagens: +20% em relação à edição anterior, proporção original preservada
+    </p>
+  </section>
+
+  <section class="toc">
+    <h2>Sumário</h2>
+    <ol>
+      <li><a href="#s1">O que é o VitaLink</a></li>
+      <li><a href="#s2">Acesso à conta</a></li>
+      <li><a href="#s3">Primeiro uso e cadastro do paciente</a></li>
+      <li><a href="#s4">Como a tela está organizada</a></li>
+      <li><a href="#s5">Perfis e permissões</a></li>
+      <li><a href="#s6">Painel (Dashboard)</a></li>
+      <li><a href="#s7">Início — rotina do paciente ativo</a></li>
+      <li><a href="#s8">Cadastros de saúde</a></li>
+      <li><a href="#s9">Agenda, consultas, rotina e linha do tempo</a></li>
+      <li><a href="#s10">Administração</a></li>
+      <li><a href="#s11">Meus dados e termos</a></li>
+      <li><a href="#s12">Perguntas frequentes gerais</a></li>
+      <li><a href="#indice">Índice remissivo das telas</a></li>
+      <li><a href="#figuras">Índice de figuras</a></li>
+    </ol>
+    <div class="box note"><p><strong>📌 Nota.</strong> Os menus dependem do <strong>perfil</strong> da conta. Se um item não aparecer, o administrador libera a leitura em <strong>Administração → Acessos</strong>.</p></div>
+  </section>
+
+  
+  <h2 id="s1">1. O que é o VitaLink</h2>
+  <h3>1. Visão geral e finalidade</h3>
+  <p>O VitaLink é a plataforma de <strong>cuidado contínuo no lar</strong>. Ele reúne ficha do paciente, medicamentos, agenda, rede de saúde, exames, receitas e acessos por perfil — para que família, cuidador, médico e administrador acompanhem a mesma rotina, com o paciente certo no topo da tela.</p>
+  <h3>2. O que você consegue fazer</h3>
+  <ul>
+    <li>Manter a ficha (dados pessoais, alergias, diagnóstico e anamnese).</li>
+    <li>Registrar horários de medicamentos, estoque e compras.</li>
+    <li>Agendar consultas, rotinas e eventos do dia a dia.</li>
+    <li>Consultar médicos, hospitais, clínicas e farmácias (incluindo o catálogo da Grande Florianópolis).</li>
+    <li>Anexar exames e receitas.</li>
+    <li>Controlar quem vê e quem altera cada módulo (perfis e acessos).</li>
+  </ul>
+  <div class="box note"><p><strong>📌 Nota.</strong> Tudo o que você registra fica ligado ao <strong>paciente ativo</strong> — o nome no seletor do topo. Trocar o paciente troca medicamentos, agenda, ficha e eventos.</p></div>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Antes de salvar uma dose, uma consulta ou um evento, confira o nome no topo. Registrar no paciente errado mistura o prontuário.</p></div>
+
+  <h2 id="s2">2. Acesso à conta</h2>
+  <h3>1. Visão geral e finalidade</h3>
+  <p>O acesso protege o prontuário: só entra quem tem e-mail cadastrado, senha válida e conta ativa. Depois do login, o sistema monta o menu conforme o <strong>perfil</strong> da conta.</p>
+  <h3>2. Acesso à funcionalidade</h3>
+  <p>Abra o endereço do sistema no navegador (homologação ou produção). A primeira tela é o <strong>Login</strong>. Atalhos na própria tela: <strong>Criar conta</strong> e <strong>Esqueceu a senha?</strong>.</p>
+  <h3>3. Pré-requisitos</h3>
+  <ul>
+    <li>Conta criada (ou convite do administrador).</li>
+    <li>E-mail confirmado, se o ambiente exigir.</li>
+    <li>Navegador atualizado; no celular o layout se adapta.</li>
+  </ul>
+
+  <h3>4. Guia operacional — entrar no sistema</h3>
+  <ol>
+    <li>Abra o endereço informado pela equipe VitaLink.</li>
+    <li>No campo <strong>E-mail</strong>, digite o e-mail da conta (o mesmo do cadastro).</li>
+    <li>No campo <strong>Senha</strong>, digite a senha. Os caracteres ficam ocultos.</li>
+    <li>Opcional: marque <strong>Salvar credenciais de acesso neste dispositivo</strong> para o navegador lembrar e-mail e senha neste computador. Use só em aparelho particular.</li>
+    <li>Clique no botão destacado <strong>Entrar no Sistema</strong> (marcador 1 na figura).</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/login.jpg" alt="Tela de login, com o botão Entrar no Sistema em destaque" />
+      <figcaption>Figura 2.1 — Tela de login, com o botão Entrar no Sistema em destaque</figcaption>
+    </figure>
+  <p><strong>Comportamento esperado:</strong> o botão mostra “Autenticando...”. Em seguida o sistema abre o <strong>Painel</strong> (ou o <strong>Onboarding</strong>, se ainda não houver paciente). Se e-mail ou senha estiverem errados, um aviso vermelho aparece no cartão, sem detalhar o servidor.</p>
+
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>E-mail</td><td>Texto (e-mail)</td><td>Sim</td><td>Formato nome@dominio. Ex.: seu.email@empresa.com</td></tr><tr><td>Senha</td><td>Senha</td><td>Sim</td><td>Mínimo 6 caracteres na tela de login; a senha forte vale no cadastro e na redefinição.</td></tr><tr><td>Salvar credenciais</td><td>Caixa de seleção</td><td>Não</td><td>Guarda e-mail e senha neste navegador para o próximo acesso.</td></tr></tbody>
+  </table>
+
+  <h3>6. Mensagens de validação e erros comuns</h3>
+  <table>
+    <thead><tr><th>Mensagem</th><th>Como corrigir</th></tr></thead>
+    <tbody>
+      <tr><td>Informe o e-mail. / E-mail inválido.</td><td>Preencha um e-mail com @ e domínio.</td></tr>
+      <tr><td>Informe a senha. / A senha deve ter ao menos 6 caracteres.</td><td>Digite a senha completa.</td></tr>
+      <tr><td>Falha na autenticação / conta inativa</td><td>Confira Caps Lock. Se persistir, use <strong>Esqueceu a senha?</strong> ou peça ao administrador para reativar a conta em <strong>Usuários</strong>.</td></tr>
+    </tbody>
+  </table>
+  <div class="box tip"><p><strong>💡 Dica prática.</strong> Marque salvar credenciais apenas em computador ou celular de uso pessoal. Em computador compartilhado, deixe desmarcado e clique em <strong>Sair</strong> ao terminar.</p></div>
+  <h3>7. Dúvidas frequentes</h3>
+  <p><strong>O login abre e volta sozinho?</strong> A sessão (token) dura algumas horas. Entre de novo.</p>
+  <p><strong>Não lembro se a conta existe.</strong> Tente <strong>Criar conta</strong> com o mesmo e-mail: o sistema avisa se já estiver cadastrado.</p>
+
+  <h3>Criar conta</h3>
+  <p><strong>Objetivo:</strong> registrar um novo usuário maior de 18 anos para depois entrar e, se for o caso, cadastrar o paciente.</p>
+  <p><strong>Caminho:</strong> tela de login → link <strong>Criar conta</strong> → rota <code>/registro</code>.</p>
+  <ol>
+    <li>Clique em <strong>Criar conta</strong> abaixo do botão de entrar.</li>
+    <li>Preencha nome, e-mail, CPF, telefone com DDD, data de nascimento e senha forte.</li>
+    <li>Clique em <strong>Cadastrar</strong> (marcador na figura, quando destacado).</li>
+    <li>Leia a mensagem de sucesso e clique em <strong>Entrar agora</strong>, ou confirme o e-mail se o sistema enviar o link.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/registro.jpg" alt="Formulário Criar conta, com o botão Cadastrar em destaque" />
+      <figcaption>Figura 2.2 — Formulário Criar conta, com o botão Cadastrar em destaque</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome</td><td>Texto</td><td>Sim</td><td>Nome completo do titular da conta.</td></tr><tr><td>E-mail</td><td>E-mail</td><td>Sim</td><td>Será o login. Precisa ser único no sistema.</td></tr><tr><td>CPF</td><td>Texto numérico</td><td>Sim</td><td>11 dígitos válidos (dígitos verificadores).</td></tr><tr><td>Telefone</td><td>Texto numérico</td><td>Sim</td><td>Com DDD. Ex.: 48999998888.</td></tr><tr><td>Data de nascimento</td><td>Data (DD/MM/AAAA)</td><td>Sim</td><td>O titular precisa ter 18 anos ou mais.</td></tr><tr><td>Senha</td><td>Senha</td><td>Sim</td><td>Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial.</td></tr></tbody>
+  </table>
+  <p><strong>Erros comuns:</strong> “E-mail inválido.”; “CPF inválido.”; “Informe um telefone válido com DDD.”; “Cadastro restrito a maiores de 18 anos.”; senha fraca (o texto de ajuda aparece sob o campo). Corrija o campo e clique em <strong>Cadastrar</strong> novamente.</p>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Menores de 18 anos não criam conta própria. O cuidado de um menor entra pelo cadastro de <strong>Paciente</strong> feito por um responsável ou administrador já logado.</p></div>
+
+  <h3>Esqueci a senha</h3>
+  <p><strong>Caminho:</strong> login → <strong>Esqueceu a senha?</strong> → <code>/esqueci-senha</code>.</p>
+  <ol>
+    <li>Informe o e-mail da conta.</li>
+    <li>Clique no botão de envio e abra a caixa de entrada (e o spam).</li>
+    <li>No link recebido, defina a senha nova com a mesma regra de senha forte.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/esqueci.jpg" alt="Tela Esqueceu a senha? para solicitar o link por e-mail" />
+      <figcaption>Figura 2.3 — Tela Esqueceu a senha? para solicitar o link por e-mail</figcaption>
+    </figure>
+  <div class="box note"><p><strong>📌 Nota.</strong> Em homologação o e-mail pode não chegar. Peça ao administrador para redefinir a senha em <strong>Usuários</strong>.</p></div>
+
+  <h3>Sair</h3>
+  <ol>
+    <li>No canto superior direito, clique no seu nome (iniciais no círculo).</li>
+    <li>Clique em <strong>Sair</strong>.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/menu-conta.jpg" alt="Menu da conta com Meus Dados e Sair em destaque" />
+      <figcaption>Figura 2.4 — Menu da conta com Meus Dados e Sair em destaque</figcaption>
+    </figure>
+
+  <h2 id="s3">3. Primeiro uso e cadastro do paciente</h2>
+  <h3>1. Visão geral e finalidade</h3>
+  <p>Sem um paciente vinculado, o VitaLink não libera a rotina (Início, medicamentos, agenda clínica). O <strong>onboarding</strong> cria ou vincula o primeiro paciente pela <strong>CPF</strong>.</p>
+  <h3>2. Acesso</h3>
+  <p>Aberto automaticamente após o primeiro login, se o onboarding não estiver concluído. Rota <code>/onboarding</code>. Administrador, médico e atendente também cadastram em <strong>Saúde → Pacientes</strong>.</p>
+  <h3>3. Pré-requisitos</h3>
+  <ul>
+    <li>Conta autenticada.</li>
+    <li>Nome, data de nascimento e CPF do paciente em mãos.</li>
+  </ul>
+  <h3>4. Passo a passo</h3>
+  <ol>
+    <li>Informe <strong>Nome</strong>, <strong>Nascimento</strong> e <strong>CPF</strong>.</li>
+    <li>Se o CPF já existir, leia o aviso e escolha <strong>vincular</strong> o cadastro em vez de duplicar.</li>
+    <li>Conclua o fluxo. O sistema passa a exigir o paciente ativo nas demais telas.</li>
+  </ol>
+  
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome</td><td>Texto</td><td>Sim</td><td>Nome completo do paciente.</td></tr><tr><td>Nascimento</td><td>Data</td><td>Sim</td><td>Data de nascimento no formato brasileiro.</td></tr><tr><td>CPF</td><td>Texto numérico</td><td>Sim</td><td>11 dígitos. Se já cadastro, o sistema oferece vínculo.</td></tr><tr><td>Telefone</td><td>Texto</td><td>Não</td><td>Contato do paciente, quando houver.</td></tr></tbody>
+  </table>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Sem paciente, só permanecem liberados cadastro de pacientes (para perfis administrativos), <strong>Meus Dados</strong> e <strong>Termos</strong>.</p></div>
+  <h3>7. FAQ</h3>
+  <p><strong>O CPF já está no sistema.</strong> Vincule. Não crie um segundo prontuário para a mesma pessoa.</p>
+
+  <h2 id="s4">4. Como a tela está organizada</h2>
+  <h3>1. Visão geral</h3>
+  <p>Depois do login, a área de trabalho tem menu à esquerda, faixa superior (paciente ativo e conta) e conteúdo central. No módulo <strong>Início</strong>, há ainda a barra inferior de atalhos.</p>
+  <h3>2. Acesso</h3>
+  <p>Qualquer tela autenticada. No celular, o menu lateral abre pelo ícone de três linhas no topo.</p>
+  <table>
+    <thead><tr><th>Área</th><th>O que faz</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Menu lateral</strong></td><td>Módulos permitidos ao seu perfil. Grupos: Saúde, Atividades, Administração.</td></tr>
+      <tr><td><strong>Topo</strong></td><td>Identificação “Painel”, <strong>seletor de paciente</strong> e menu da conta.</td></tr>
+      <tr><td><strong>Conteúdo</strong></td><td>Lista, ficha ou calendário do módulo escolhido.</td></tr>
+      <tr><td><strong>Barra inferior (Início)</strong></td><td>Sintomas, Perfil, Eventos, Especialistas, Agenda, Corpo, Linha, Medicamentos, Exames/Receitas.</td></tr>
+    </tbody>
+  </table>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/dashboard.jpg" alt="Área autenticada: menu à esquerda, paciente no topo e conteúdo do Painel" />
+      <figcaption>Figura 4.1 — Área autenticada: menu à esquerda, paciente no topo e conteúdo do Painel</figcaption>
+    </figure>
+  <h3>Paciente ativo</h3>
+  <ol>
+    <li>Localize o combo no centro do topo (não disponível no perfil Autocuidado, que vê só o próprio nome).</li>
+    <li>Abra a lista e escolha o paciente.</li>
+    <li>Confira se o nome bate com a ficha ou a lista que você vai alterar.</li>
+  </ol>
+  <div class="box note"><p><strong>📌 Nota.</strong> Quem tem um único paciente ainda vê o nome no topo. Quem tem vários precisa selecionar antes de registrar a rotina.</p></div>
+  <div class="pair">
+    <figure class="shot">
+      <img src="screenshots/pdf/login-mobile.jpg" alt="Login no celular" />
+      <figcaption>Figura 4.2 — Login no celular</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="screenshots/pdf/inicio-mobile.jpg" alt="Início no celular, com menu hambúrguer e barra inferior" />
+      <figcaption>Figura 4.3 — Início no celular, com menu hambúrguer e barra inferior</figcaption>
+    </figure></div>
+  <div class="box tip"><p><strong>💡 Dica prática.</strong> No celular, os atalhos do Início ficam na barra inferior; os demais módulos estão no menu hambúrguer.</p></div>
+
+  <h2 id="s5">5. Perfis e permissões</h2>
+  <h3>1. Visão geral e finalidade</h3>
+  <p>O menu não é igual para todos. O administrador define, em <strong>Acessos</strong>, o que cada perfil pode ler, criar, editar e excluir. Sem “ler”, o item some da barra lateral.</p>
+  <h3>2. Acesso</h3>
+  <p><strong>Administração → Acessos</strong> (rota <code>/acessos</code>). Somente quem tem permissão de administração.</p>
+  <h3>3. Pré-requisitos</h3>
+  <p>Perfil Administrador (ou equivalente com acesso a Acessos). Os demais usuários só sentem o efeito nos menus.</p>
+  <table>
+    <thead><tr><th>Perfil</th><th>Uso típico</th></tr></thead>
+    <tbody>
+      <tr><td>Administrador</td><td>Usuários, perfis, acessos, auditoria e todos os cadastros.</td></tr>
+      <tr><td>Médico</td><td>Pacientes, medicamentos, consultas, linha do tempo, rede de saúde.</td></tr>
+      <tr><td>Atendente</td><td>Apoio operacional, conforme a matriz de acessos.</td></tr>
+      <tr><td>Cuidador</td><td>Rotina dos pacientes vinculados: doses, eventos, agenda. Não cria/exclui pacientes.</td></tr>
+      <tr><td>Responsável</td><td>Acompanha o familiar; pode cadastrar cuidador, responsável e paciente se a permissão existir.</td></tr>
+      <tr><td>Paciente</td><td>Consulta a própria rotina autorizada.</td></tr>
+      <tr><td>Autocuidado</td><td>Cuida de si: Início, médicos, estabelecimentos, farmácias e termos.</td></tr>
+    </tbody>
+  </table>
+  <h3>4. Passo a passo (ajustar acessos)</h3>
+  <ol>
+    <li>Abra <strong>Administração</strong> no menu e clique em <strong>Acessos</strong>.</li>
+    <li>Escolha o perfil na seleção da tela.</li>
+    <li>Marque ou desmarque <strong>ler</strong>, <strong>criar</strong>, <strong>editar</strong> e <strong>excluir</strong> em cada menu.</li>
+    <li>Salve, se a tela exigir confirmação. Peça para o usuário sair e entrar de novo para recarregar o menu.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/acessos.jpg" alt="Matriz de acessos: permissões de ler, criar, editar e excluir por perfil" />
+      <figcaption>Figura 5.1 — Matriz de acessos: permissões de ler, criar, editar e excluir por perfil</figcaption>
+    </figure>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Tirar a leitura de um menu remove o item da barra na próxima sessão. Não desmarque o próprio acesso de administrador sem outro administrador ativo.</p></div>
+  <h3>7. FAQ</h3>
+  <p><strong>Não vejo um menu.</strong> Não é falha do navegador: falta permissão de leitura. Peça o ajuste em <strong>Acessos</strong>.</p>
+
+  <h2 id="s6">6. Painel (Dashboard)</h2>
+  <h3>1. Visão geral e finalidade</h3>
+  <p>O <strong>Dashboard operacional</strong> mostra o recado do dia, quantos pacientes estão ativos, eventos de hoje, consultas da semana e alertas pendentes — para você decidir o que tratar primeiro.</p>
+  <h3>2. Acesso</h3>
+  <p>Menu <strong>Dashboard</strong> · rota <code>/dashboard</code>. Também é o destino padrão após o login (quando o onboarding já foi concluído).</p>
+  <h3>3. Pré-requisitos</h3>
+  <p>Conta autenticada e permissão de leitura do Dashboard. Indicadores clínicos ficam mais ricos quando há pacientes e agenda cadastrados.</p>
+  <h3>4. Passo a passo</h3>
+  <ol>
+    <li>Clique em <strong>Dashboard</strong> no menu esquerdo.</li>
+    <li>Leia a saudação e os cartões <strong>Pacientes ativos</strong>, <strong>Eventos de hoje</strong>, <strong>Consultas na semana</strong> e <strong>Alertas / Ações</strong>.</li>
+    <li>Clique em <strong>Abrir</strong> no cartão desejado para ir à lista correspondente.</li>
+    <li>Em <strong>Próximos compromissos</strong>, use <strong>Ver agenda</strong> para o calendário.</li>
+    <li>No <strong>Calendário operacional da semana</strong>, clique em um dia para ver o volume daquele dia.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/dashboard.jpg" alt="Painel operacional com cartões de resumo, compromissos e calendário da semana" />
+      <figcaption>Figura 6.1 — Painel operacional com cartões de resumo, compromissos e calendário da semana</figcaption>
+    </figure>
+  <p><strong>Comportamento esperado:</strong> os números refletem o paciente ativo e os cadastros do ambiente. Não há botão Salvar nesta tela: ela é só leitura e atalhos.</p>
+  <div class="box tip"><p><strong>💡 Dica prática.</strong> Use o Painel de manhã para ver o que está atrasado (cartão laranja de alertas) antes de abrir o Início.</p></div>
+  <h3>7. FAQ</h3>
+  <p><strong>Os números estão zerados.</strong> Ainda não há eventos, ou o filtro de paciente não tem rotina. Cadastre a agenda e os medicamentos.</p>
+
+  <h2 id="s7">7. Início — rotina do paciente ativo</h2>
+  <h3>1. Visão geral e finalidade</h3>
+  <p>O <strong>Início</strong> é o prontuário do dia a dia do paciente selecionado no topo: rede de cuidado, ficha, eventos, especialistas, agenda, mapa do corpo, linha do tempo, medicamentos e documentos.</p>
+  <h3>2. Acesso</h3>
+  <p>Menu <strong>Início</strong> · <code>/inicio</code>. Atalhos na barra inferior (no celular, parte dos itens fica em <strong>Mais</strong>).</p>
+  <h3>3. Pré-requisitos</h3>
+  <p>Pelo menos um paciente vinculado e selecionado no topo. Permissão de leitura do Início.</p>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Se a tela pedir para cadastrar um paciente, conclua o onboarding ou use <strong>Saúde → Pacientes</strong>.</p></div>
+
+  <h3>7.1 Sintomas / rede de cuidado</h3>
+  <p><strong>Objetivo:</strong> ver o resumo da rede (hospitais e clínicas) e chegar rápido aos outros atalhos da barra inferior.</p>
+  <ol>
+    <li>Clique em <strong>Início</strong> (ícone de casa).</li>
+    <li>Confira o paciente no topo.</li>
+    <li>Role a <strong>Rede de cuidado</strong> ou toque em <strong>Sintomas</strong>, <strong>Perfil</strong>, <strong>Medicamentos</strong> etc. na barra inferior.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/inicio.jpg" alt="Início do paciente ativo, com barra inferior de atalhos" />
+      <figcaption>Figura 7.1 — Início do paciente ativo, com barra inferior de atalhos</figcaption>
+    </figure>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/inicio-mobile.jpg" alt="Início no celular: hambúrguer, paciente no topo e barra Sintomas / Agenda / Medicamentos" />
+      <figcaption>Figura 7.2 — Início no celular: hambúrguer, paciente no topo e barra Sintomas / Agenda / Medicamentos</figcaption>
+    </figure>
+
+  <h3>7.2 Perfil (ficha do paciente)</h3>
+  <p><strong>Objetivo:</strong> consultar e atualizar dados pessoais, contato, tipo sanguíneo, diagnóstico, alergias e observações do paciente ativo.</p>
+  <p><strong>Caminho:</strong> Início → <strong>Perfil</strong> na barra inferior · <code>/inicio/perfil</code>.</p>
+  <ol>
+    <li>Abra <strong>Perfil</strong>.</li>
+    <li>Confira o nome no combo do topo.</li>
+    <li>Clique em <strong>Editar ficha</strong> (marcador 1). Os campos saem do modo leitura.</li>
+    <li>Altere os dados necessários.</li>
+    <li>Clique em <strong>Salvar alterações</strong> ou em <strong>Cancelar</strong> para descartar.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/perfil.jpg" alt="Ficha em modo leitura, com o botão Editar ficha em destaque" />
+      <figcaption>Figura 7.3 — Ficha em modo leitura, com o botão Editar ficha em destaque</figcaption>
+    </figure>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/perfil-edicao.jpg" alt="Ficha desbloqueada para edição, com Salvar alterações em destaque" />
+      <figcaption>Figura 7.4 — Ficha desbloqueada para edição, com Salvar alterações em destaque</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome completo</td><td>Texto</td><td>Sim</td><td>Nome do paciente ativo.</td></tr><tr><td>E-mail</td><td>E-mail</td><td>Não</td><td>Contato eletrônico do paciente.</td></tr><tr><td>Sexo</td><td>Seleção</td><td>Não</td><td>Masculino, feminino ou outro conforme as opções da lista.</td></tr><tr><td>Data de nascimento</td><td>Data</td><td>Sim</td><td>Usada também para calcular a idade na tela.</td></tr><tr><td>Tipo sanguíneo</td><td>Seleção</td><td>Não</td><td>A+, A−, B+, B−, AB+, AB−, O+, O− ou NI.</td></tr><tr><td>Telefone</td><td>Texto</td><td>Não</td><td>Telefone principal.</td></tr><tr><td>Diagnóstico principal</td><td>Texto longo</td><td>Não</td><td>Resumo clínico principal.</td></tr><tr><td>Alergias</td><td>Texto longo</td><td>Não</td><td>Alergias conhecidas. Preencha com clareza para o cuidador.</td></tr><tr><td>Observações médicas</td><td>Texto longo</td><td>Não</td><td>Notas livres da equipe.</td></tr></tbody>
+  </table>
+  <p><strong>Comportamento esperado:</strong> após salvar, os campos voltam a ficar protegidos até um novo <strong>Editar ficha</strong>. A idade é recalculada pela data de nascimento.</p>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Salve ou cancele antes de trocar o paciente no combo. Senão você pode gravar a ficha no registro errado.</p></div>
+
+  <h3>7.3 Eventos</h3>
+  <p><strong>Objetivo:</strong> diário de bordo — sintomas, observações e ocorrências do paciente ativo.</p>
+  <p><strong>Caminho:</strong> Início → <strong>Eventos</strong> · <code>/inicio/eventos</code>.</p>
+  <ol>
+    <li>Abra <strong>Eventos</strong>.</li>
+    <li>Inclua o tipo, a descrição e a data/hora conforme os campos da tela.</li>
+    <li>Salve. O item entra no histórico e na linha do tempo.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/eventos.jpg" alt="Lista e inclusão de eventos do paciente ativo" />
+      <figcaption>Figura 7.5 — Lista e inclusão de eventos do paciente ativo</figcaption>
+    </figure>
+
+  <h3>7.4 Especialistas</h3>
+  <p><strong>Objetivo:</strong> profissionais e locais usados no cuidado, com busca no contexto do Início.</p>
+  <p><strong>Caminho:</strong> <code>/inicio/especialistas</code>.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/especialistas.jpg" alt="Especialistas vinculados ao cuidado do paciente" />
+      <figcaption>Figura 7.6 — Especialistas vinculados ao cuidado do paciente</figcaption>
+    </figure>
+
+  <h3>7.5 Agenda (Início)</h3>
+  <p><strong>Objetivo:</strong> compromissos do paciente (consulta, exame, rotina, medicação) e, quando visível, envio ao <strong>Google Agenda</strong>.</p>
+  <p><strong>Caminho:</strong> <code>/inicio/agenda</code>.</p>
+  <ol>
+    <li>Escolha o tipo de atividade (tomar remédio, consulta, pressão, glicemia ou outra rotina).</li>
+    <li>Informe título, descrição e data/hora.</li>
+    <li>Salve. O compromisso aparece na visão Dia / Semana / Mês.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/inicio-agenda.jpg" alt="Agenda do paciente no módulo Início" />
+      <figcaption>Figura 7.7 — Agenda do paciente no módulo Início</figcaption>
+    </figure>
+
+  <h3>7.6 Corpo</h3>
+  <p><strong>Objetivo:</strong> registrar queixas ou pontos de atenção no mapa do corpo.</p>
+  <p><strong>Caminho:</strong> <code>/inicio/corpo</code>.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/corpo.jpg" alt="Mapa do corpo e registros associados" />
+      <figcaption>Figura 7.8 — Mapa do corpo e registros associados</figcaption>
+    </figure>
+
+  <h3>7.7 Linha do tempo (Início)</h3>
+  <p><strong>Objetivo:</strong> histórico unificado (doses, eventos, consultas) em ordem cronológica.</p>
+  <p><strong>Caminho:</strong> <code>/inicio/linha</code>.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/linha.jpg" alt="Linha do tempo no Início" />
+      <figcaption>Figura 7.9 — Linha do tempo no Início</figcaption>
+    </figure>
+
+  <h3>7.8 Medicamentos (Início)</h3>
+  <p><strong>Objetivo:</strong> posologia, estoque, farmácia, compras e impressão da lista do paciente ativo.</p>
+  <p><strong>Caminho:</strong> Início → <strong>Medicamentos</strong> · <code>/inicio/meds</code>.</p>
+  <ol>
+    <li>Abra <strong>Medicamentos</strong> com o paciente correto no topo.</li>
+    <li>Cadastre nome, horário ou período (manhã, tarde, noite), quantidade a administrar, estoque, farmácia (busca) e intervalo em horas.</li>
+    <li>Para entrada de estoque, registre <strong>compras</strong> (quantidade, valor, data, farmácia).</li>
+    <li>Use <strong>imprimir</strong> quando precisar da lista em papel.</li>
+    <li>Opcional: enviar o horário ao Google Agenda, se o botão estiver visível.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/meds.jpg" alt="Medicamentos do paciente ativo, com cadastro e ações da lista" />
+      <figcaption>Figura 7.10 — Medicamentos do paciente ativo, com cadastro e ações da lista</figcaption>
+    </figure>
+  <div class="box tip"><p><strong>💡 Dica prática.</strong> Digite parte do nome da farmácia. O catálogo público cobre a Grande Florianópolis; as demais você cadastra em <strong>Farmácias</strong>.</p></div>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Confirme a exclusão de um medicamento: a lista de horários daquele item deixa de valer para o paciente ativo.</p></div>
+
+  <h3>7.9 Exames e receitas (Início)</h3>
+  <p><strong>Objetivo:</strong> documentos clínicos do paciente ativo, o mesmo conjunto da tela Saúde, já filtrado.</p>
+  <p><strong>Caminho:</strong> <code>/inicio/docs</code>.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/docs-inicio.jpg" alt="Exames e receitas no Início" />
+      <figcaption>Figura 7.11 — Exames e receitas no Início</figcaption>
+    </figure>
+
+  <h2 id="s8">8. Cadastros de saúde</h2>
+  <p>As telas de Saúde seguem o padrão <strong>lista + formulário</strong>: buscar, filtrar por status, <strong>Novo cadastro</strong>, <strong>Editar</strong> e <strong>Excluir</strong> (inativar), conforme a permissão.</p>
+  <div class="box note"><p><strong>📌 Nota.</strong> O botão <strong>Novo cadastro</strong> só aparece se o perfil puder criar. Sem ele, você ainda pode consultar a lista se tiver leitura.</p></div>
+
+  <h3>8.1 Pacientes</h3>
+  <p><strong>Objetivo:</strong> prontuário cadastral — identificação, convênio, endereço, responsáveis, médicos, foto, carteirinha e anamnese.</p>
+  <p><strong>Caminho:</strong> <strong>Saúde → Pacientes</strong> · <code>/pacientes</code>.</p>
+  <p><strong>Pré-requisitos:</strong> permissão no menu Pacientes. CPF em mãos. Para vínculos, cadastre antes responsáveis e médicos, se for associá-los.</p>
+  <ol>
+    <li>Abra <strong>Pacientes</strong>.</li>
+    <li>Use <strong>Buscar</strong> ou o filtro <strong>Status</strong> (Todos / ativo / inativo).</li>
+    <li>Clique em <strong>Novo cadastro</strong> (marcador 1) para incluir, ou em <strong>Editar</strong> na linha.</li>
+    <li>Preencha as abas <strong>Dados Gerais</strong>, <strong>Endereço</strong>, <strong>Cuidadores</strong> e <strong>Anamnese</strong>.</li>
+    <li>Clique em <strong>Salvar</strong>. A lista atualiza e o registro fica <strong>ativo</strong>.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/pacientes.jpg" alt="Lista de pacientes com busca, status e o botão Novo cadastro em destaque" />
+      <figcaption>Figura 8.1 — Lista de pacientes com busca, status e o botão Novo cadastro em destaque</figcaption>
+    </figure>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/pacientes-novo.jpg" alt="Formulário de novo paciente, com o botão Salvar em destaque" />
+      <figcaption>Figura 8.2 — Formulário de novo paciente, com o botão Salvar em destaque</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome completo</td><td>Texto</td><td>Sim</td><td>Nome do paciente.</td></tr><tr><td>Data de nascimento</td><td>Data</td><td>Sim</td><td>DD/MM/AAAA.</td></tr><tr><td>Sexo</td><td>Seleção</td><td>Não</td><td>Usado também no mapa por especialidade.</td></tr><tr><td>CPF</td><td>Texto numérico</td><td>Sim</td><td>Único. Se já existir, o sistema pede para vincular.</td></tr><tr><td>Alergias</td><td>Texto longo</td><td>Não</td><td>Alergias conhecidas.</td></tr><tr><td>Tipo sanguíneo</td><td>Seleção</td><td>Não</td><td>Inclui a opção NI.</td></tr><tr><td>Telefone principal</td><td>Texto</td><td>Não</td><td>Com DDD.</td></tr><tr><td>E-mail</td><td>E-mail</td><td>Não</td><td>Contato do paciente.</td></tr><tr><td>Status</td><td>Seleção</td><td>Sim</td><td>Ativo ou inativo.</td></tr><tr><td>Foto do paciente</td><td>Arquivo</td><td>Não</td><td>Imagem de identificação.</td></tr><tr><td>Convênio</td><td>Texto</td><td>Não</td><td>Nome do plano. Pode ser sugerido pelo upload da carteirinha.</td></tr><tr><td>Nº convênio</td><td>Texto</td><td>Não</td><td>Número da carteirinha.</td></tr><tr><td>Validade convênio</td><td>Data</td><td>Não</td><td>Validade da carteirinha.</td></tr><tr><td>Carteirinha frente/verso</td><td>Arquivo</td><td>Não</td><td>Imagens da carteirinha.</td></tr><tr><td>Responsável(eis)</td><td>Seleção múltipla</td><td>Não</td><td>Família ou responsáveis já cadastrados.</td></tr><tr><td>Médico(s) principal(is)</td><td>Busca</td><td>Não</td><td>Médicos da rede, busca por nome/CRM.</td></tr><tr><td>Observações</td><td>Texto longo</td><td>Não</td><td>Notas livres.</td></tr><tr><td>CEP</td><td>Texto (máscara)</td><td>Não</td><td>8 dígitos. Ao sair do campo, o sistema tenta preencher logradouro, bairro, cidade e UF.</td></tr><tr><td>Logradouro</td><td>Texto</td><td>Não</td><td>Rua, avenida ou equivalente.</td></tr><tr><td>Número</td><td>Texto</td><td>Não</td><td>Número do imóvel.</td></tr><tr><td>Complemento</td><td>Texto</td><td>Não</td><td>Apto, bloco, sala.</td></tr><tr><td>Bairro</td><td>Texto</td><td>Não</td><td>Bairro.</td></tr><tr><td>Cidade</td><td>Texto</td><td>Não</td><td>Município.</td></tr><tr><td>UF</td><td>Seleção</td><td>Não</td><td>Unidade da federação.</td></tr></tbody>
+  </table>
+  <p><strong>Anamnese (aba):</strong> doenças pré-existentes, histórico familiar, cirurgias, sono, alimentação, mobilidade, autonomia, medicamentos contraindicados, alergias alimentares, limitações, instruções especiais, episódios de confusão e contato de emergência (nome e telefone).</p>
+  <p><strong>Comportamento esperado:</strong> ao salvar, o paciente entra na lista e pode ser escolhido no combo do topo. Excluir pede confirmação e inativa o registro.</p>
+  <table>
+    <thead><tr><th>Mensagem / situação</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>Campos obrigatórios em branco (borda vermelha ou aviso)</td><td>Preencha os campos marcados e clique em <strong>Salvar</strong> de novo.</td></tr>
+      <tr><td>Registro duplicado (CPF, CRM, e-mail ou CNPJ já existente)</td><td>Busque o cadastro na lista e use <strong>Editar</strong>, ou vincule o existente em vez de criar outro.</td></tr>
+      <tr><td>Sem permissão / botão ausente</td><td>Seu perfil não tem criar/editar/excluir. Peça ao administrador para ajustar em <strong>Administração → Acessos</strong>.</td></tr>
+      <tr><td>Confirmação ao clicar em <strong>Excluir</strong></td><td>Confirme apenas se deseja inativar o paciente. A ação impacta listas e vínculos.</td></tr>
+      <tr><td>Sessão expirada (volta ao login)</td><td>Entre novamente. Alterações não salvas são perdidas.</td></tr>
+    </tbody>
+  </table>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Não duplique CPF. O aviso de paciente existente existe para unificar o prontuário.</p></div>
+
+  <h3>8.2 Médicos</h3>
+  <p><strong>Objetivo:</strong> cadastro de profissionais com CRM, especialidade e locais de atendimento.</p>
+  <p><strong>Caminho:</strong> <strong>Saúde → Profissionais da Saúde</strong> · <code>/medicos</code>.</p>
+  <ol>
+    <li>Abra a lista e clique em <strong>Novo cadastro</strong> (ou <strong>Editar</strong>).</li>
+    <li>Informe nome, especialidade (busca), CRM só com números, UF do CRM e, se quiser, telefones, e-mail e locais.</li>
+    <li>Clique em <strong>Salvar</strong>.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/medicos.jpg" alt="Cadastro de médicos" />
+      <figcaption>Figura 8.3 — Cadastro de médicos</figcaption>
+    </figure>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/medicos-novo.jpg" alt="Formulário de novo médico, com Salvar em destaque" />
+      <figcaption>Figura 8.4 — Formulário de novo médico, com Salvar em destaque</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome completo</td><td>Texto</td><td>Sim</td><td>Nome do profissional.</td></tr><tr><td>Especialidade</td><td>Busca / texto</td><td>Sim</td><td>Digite para buscar no catálogo ou informe livremente.</td></tr><tr><td>CRM</td><td>Texto numérico</td><td>Sim</td><td>4 a 10 dígitos. Único por UF.</td></tr><tr><td>UF CRM</td><td>Seleção</td><td>Sim</td><td>Estado de registro do CRM.</td></tr><tr><td>Telefone pessoal/WhatsApp</td><td>Texto</td><td>Não</td><td>Com DDD.</td></tr><tr><td>E-mail pessoal</td><td>E-mail</td><td>Não</td><td>Contato profissional.</td></tr><tr><td>Local(is) de atendimento</td><td>Busca múltipla</td><td>Não</td><td>Hospitais e clínicas da rede.</td></tr><tr><td>Status</td><td>Seleção</td><td>Sim</td><td>Ativo ou inativo.</td></tr><tr><td>CEP</td><td>Texto (máscara)</td><td>Não</td><td>8 dígitos. Ao sair do campo, o sistema tenta preencher logradouro, bairro, cidade e UF.</td></tr><tr><td>Logradouro</td><td>Texto</td><td>Não</td><td>Rua, avenida ou equivalente.</td></tr><tr><td>Número</td><td>Texto</td><td>Não</td><td>Número do imóvel.</td></tr><tr><td>Complemento</td><td>Texto</td><td>Não</td><td>Apto, bloco, sala.</td></tr><tr><td>Bairro</td><td>Texto</td><td>Não</td><td>Bairro.</td></tr><tr><td>Cidade</td><td>Texto</td><td>Não</td><td>Município.</td></tr><tr><td>UF</td><td>Seleção</td><td>Não</td><td>Unidade da federação.</td></tr></tbody>
+  </table>
+  <table>
+    <thead><tr><th>Mensagem / situação</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>Campos obrigatórios em branco (borda vermelha ou aviso)</td><td>Preencha os campos marcados e clique em <strong>Salvar</strong> de novo.</td></tr>
+      <tr><td>Registro duplicado (CPF, CRM, e-mail ou CNPJ já existente)</td><td>Busque o cadastro na lista e use <strong>Editar</strong>, ou vincule o existente em vez de criar outro.</td></tr>
+      <tr><td>Sem permissão / botão ausente</td><td>Seu perfil não tem criar/editar/excluir. Peça ao administrador para ajustar em <strong>Administração → Acessos</strong>.</td></tr>
+      <tr><td>Confirmação ao clicar em <strong>Excluir</strong></td><td>Confirme apenas se deseja inativar o médico. A ação impacta listas e vínculos.</td></tr>
+      <tr><td>Sessão expirada (volta ao login)</td><td>Entre novamente. Alterações não salvas são perdidas.</td></tr>
+    </tbody>
+  </table>
+  <p><strong>CRM duplicado na mesma UF</strong> impede o salvamento. Corrija o número ou a UF, ou edite o cadastro já existente.</p>
+
+  <h3>8.3 Remédios (catálogo)</h3>
+  <p><strong>Objetivo:</strong> catálogo de medicamentos da operação (nome comercial, farmácia, posologia, estoque, prescritor).</p>
+  <p><strong>Caminho:</strong> <strong>Saúde → Medicamentos</strong> · <code>/remedios</code>.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/remedios.jpg" alt="Catálogo de remédios" />
+      <figcaption>Figura 8.5 — Catálogo de remédios</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome comercial</td><td>Texto</td><td>Sim</td><td>Nome da embalagem.</td></tr><tr><td>Princípio ativo</td><td>Texto</td><td>Sim</td><td>Substância.</td></tr><tr><td>Farmácia</td><td>Busca</td><td>Não</td><td>Onde o item costuma ser comprado.</td></tr><tr><td>Valor do medicamento</td><td>Moeda</td><td>Sim</td><td>Valor de referência.</td></tr><tr><td>Quantidade a administrar</td><td>Número</td><td>Sim</td><td>Dose de cada tomada.</td></tr><tr><td>Total de comprimidos / mL</td><td>Número</td><td>Sim</td><td>Estoque atual.</td></tr><tr><td>Indicação</td><td>Texto</td><td>Sim</td><td>Para que o remédio foi prescrito.</td></tr><tr><td>Médico prescritor</td><td>Busca</td><td>Não</td><td>Profissional que prescreveu.</td></tr><tr><td>Uso contínuo</td><td>Seleção</td><td>Não</td><td>Sim ou não.</td></tr><tr><td>Período / Horário</td><td>Seleção</td><td>Não</td><td>Manhã, tarde, noite ou hora exata.</td></tr><tr><td>Hora exata</td><td>Hora</td><td>Condicional</td><td>Obrigatória quando o período for hora exata.</td></tr><tr><td>Status</td><td>Seleção</td><td>Sim</td><td>Ativo ou inativo.</td></tr></tbody>
+  </table>
+
+  <h3>8.4 Hospitais, clínicas e laboratórios</h3>
+  <p><strong>Caminho:</strong> <strong>Saúde → Estabelecimentos de Saúde</strong> · <code>/hospitais</code>.</p>
+  <p>O catálogo público da Grande Florianópolis já vem preenchido; você inclui os seus. Informe tipo (hospital, clínica ou laboratório), CNPJ válido e endereço (CEP preenche o logradouro).</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/hospitais.jpg" alt="Estabelecimentos de saúde" />
+      <figcaption>Figura 8.6 — Estabelecimentos de saúde</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome fantasia</td><td>Texto</td><td>Sim</td><td>Nome de apresentação.</td></tr><tr><td>Tipo</td><td>Seleção</td><td>Sim</td><td>Hospital, clínica ou laboratório.</td></tr><tr><td>Documento (CNPJ)</td><td>Texto</td><td>Não</td><td>CNPJ válido, quando informado.</td></tr><tr><td>Telefone / WhatsApp</td><td>Texto</td><td>Não</td><td>Contatos.</td></tr><tr><td>CEP</td><td>Texto (máscara)</td><td>Não</td><td>8 dígitos. Ao sair do campo, o sistema tenta preencher logradouro, bairro, cidade e UF.</td></tr><tr><td>Logradouro</td><td>Texto</td><td>Não</td><td>Rua, avenida ou equivalente.</td></tr><tr><td>Número</td><td>Texto</td><td>Não</td><td>Número do imóvel.</td></tr><tr><td>Complemento</td><td>Texto</td><td>Não</td><td>Apto, bloco, sala.</td></tr><tr><td>Bairro</td><td>Texto</td><td>Não</td><td>Bairro.</td></tr><tr><td>Cidade</td><td>Texto</td><td>Não</td><td>Município.</td></tr><tr><td>UF</td><td>Seleção</td><td>Não</td><td>Unidade da federação.</td></tr><tr><td>Status</td><td>Seleção</td><td>Sim</td><td>Ativo ou inativo.</td></tr></tbody>
+  </table>
+
+  <h3>8.5 Farmácias</h3>
+  <p><strong>Caminho:</strong> <code>/farmacias</code>. Mesmo padrão de endereço e CNPJ. Use a busca no cadastro de medicamentos e nas compras.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/farmacias.jpg" alt="Cadastro de farmácias" />
+      <figcaption>Figura 8.7 — Cadastro de farmácias</figcaption>
+    </figure>
+
+  <h3>8.6 Cuidadores e responsáveis</h3>
+  <p><strong>Caminho:</strong> <code>/cuidadores</code> e <code>/responsaveis</code>.</p>
+  <p>O cuidador só atua nos pacientes aos quais está vinculado (aba Cuidadores no paciente). Responsáveis podem ser associados na ficha do paciente.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/cuidadores.jpg" alt="Cadastro de cuidadores" />
+      <figcaption>Figura 8.8 — Cadastro de cuidadores</figcaption>
+    </figure>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/responsaveis.jpg" alt="Cadastro de responsáveis" />
+      <figcaption>Figura 8.9 — Cadastro de responsáveis</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome</td><td>Texto</td><td>Sim</td><td>Nome completo.</td></tr><tr><td>CPF</td><td>Texto</td><td>Não</td><td>Quando informado, deve ser válido.</td></tr><tr><td>Telefone/WhatsApp</td><td>Texto</td><td>Não</td><td>Contato.</td></tr><tr><td>Turno / Empresa</td><td>Seleção / texto</td><td>Não</td><td>No cadastro de cuidador, quando aplicável.</td></tr><tr><td>Grau de parentesco</td><td>Texto</td><td>Não</td><td>No cadastro de responsável.</td></tr><tr><td>CEP</td><td>Texto (máscara)</td><td>Não</td><td>8 dígitos. Ao sair do campo, o sistema tenta preencher logradouro, bairro, cidade e UF.</td></tr><tr><td>Logradouro</td><td>Texto</td><td>Não</td><td>Rua, avenida ou equivalente.</td></tr><tr><td>Número</td><td>Texto</td><td>Não</td><td>Número do imóvel.</td></tr><tr><td>Complemento</td><td>Texto</td><td>Não</td><td>Apto, bloco, sala.</td></tr><tr><td>Bairro</td><td>Texto</td><td>Não</td><td>Bairro.</td></tr><tr><td>Cidade</td><td>Texto</td><td>Não</td><td>Município.</td></tr><tr><td>UF</td><td>Seleção</td><td>Não</td><td>Unidade da federação.</td></tr><tr><td>Status</td><td>Seleção</td><td>Sim</td><td>Ativo ou inativo.</td></tr></tbody>
+  </table>
+
+  <h3>8.7 Empresas cuidadoras</h3>
+  <p><strong>Caminho:</strong> <code>/empresas-cuidadoras</code>. Razão social, contato e endereço da prestadora de cuidado.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/empresas.jpg" alt="Empresas cuidadoras" />
+      <figcaption>Figura 8.10 — Empresas cuidadoras</figcaption>
+    </figure>
+
+  <h3>8.8 Exames e receitas</h3>
+  <p><strong>Objetivo:</strong> guardar o documento (PDF ou imagem) ligado ao paciente, com tipo, especialidade e data.</p>
+  <p><strong>Caminho:</strong> <strong>Saúde → Exames / Receitas</strong> · <code>/exames-receitas</code>.</p>
+  <ol>
+    <li>Clique em <strong>Novo documento</strong>.</li>
+    <li>Selecione o paciente, a especialidade, o título, o tipo e anexe o arquivo.</li>
+    <li>Salve. O item entra na lista com status e data.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/exames.jpg" alt="Lista de exames e receitas" />
+      <figcaption>Figura 8.11 — Lista de exames e receitas</figcaption>
+    </figure>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/exames-novo.jpg" alt="Inclusão de exame ou receita, com campos e anexo" />
+      <figcaption>Figura 8.12 — Inclusão de exame ou receita, com campos e anexo</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Paciente</td><td>Seleção</td><td>Sim</td><td>Paciente ao qual o documento pertence.</td></tr><tr><td>Especialidade</td><td>Texto / seleção</td><td>Sim</td><td>Área do documento.</td></tr><tr><td>Título</td><td>Texto</td><td>Sim</td><td>Nome de apresentação na lista.</td></tr><tr><td>Data do documento</td><td>Data</td><td>Não</td><td>Data impressa no papel ou do exame.</td></tr><tr><td>Tipo</td><td>Seleção</td><td>Não</td><td>Exame, receita ou outro tipo da lista.</td></tr><tr><td>Arquivo</td><td>PDF ou imagem</td><td>Não</td><td>Anexo do documento.</td></tr><tr><td>Observações</td><td>Texto</td><td>Não</td><td>Notas da equipe.</td></tr></tbody>
+  </table>
+  <table>
+    <thead><tr><th>Mensagem / situação</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>Campos obrigatórios em branco (borda vermelha ou aviso)</td><td>Preencha os campos marcados e clique em <strong>Salvar</strong> de novo.</td></tr>
+      <tr><td>Registro duplicado (CPF, CRM, e-mail ou CNPJ já existente)</td><td>Busque o cadastro na lista e use <strong>Editar</strong>, ou vincule o existente em vez de criar outro.</td></tr>
+      <tr><td>Sem permissão / botão ausente</td><td>Seu perfil não tem criar/editar/excluir. Peça ao administrador para ajustar em <strong>Administração → Acessos</strong>.</td></tr>
+      <tr><td>Confirmação ao clicar em <strong>Excluir</strong></td><td>Confirme apenas se deseja inativar o documento. A ação impacta listas e vínculos.</td></tr>
+      <tr><td>Sessão expirada (volta ao login)</td><td>Entre novamente. Alterações não salvas são perdidas.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="s9">9. Agenda, consultas, rotina e linha do tempo</h2>
+  <h3>9.1 Agenda</h3>
+  <p><strong>Objetivo:</strong> calendário mensal e lista de compromissos da operação.</p>
+  <p><strong>Caminho:</strong> <strong>Atividades → Agenda</strong> · <code>/agenda</code>.</p>
+  <ol>
+    <li>Abra a <strong>Agenda</strong>.</li>
+    <li>Filtre por paciente, status ou tipo, se os campos estiverem visíveis.</li>
+    <li>Clique no dia para ver os horários daquela data.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/agenda.jpg" alt="Agenda mensal e lista de compromissos" />
+      <figcaption>Figura 9.1 — Agenda mensal e lista de compromissos</figcaption>
+    </figure>
+
+  <h3>9.2 Consultas</h3>
+  <p><strong>Objetivo:</strong> agendar atendimento com paciente, profissional, especialidade, data/hora e local; marcar como concluída depois.</p>
+  <p><strong>Caminho:</strong> <strong>Atividades → Consultas</strong> · <code>/consultas</code>.</p>
+  <ol>
+    <li>Clique em <strong>Nova consulta</strong> (marcador 1).</li>
+    <li>Selecione o <strong>Paciente</strong> (obrigatório).</li>
+    <li>Busque o <strong>Profissional</strong> e a <strong>Especialidade</strong>.</li>
+    <li>Informe <strong>Local</strong>, <strong>Data/Hora</strong> e, se quiser, lembrete em minutos e observações.</li>
+    <li>Clique em <strong>Salvar</strong>. Depois do atendimento, edite e marque a consulta como concluída. Use o atalho do Google Agenda se estiver visível.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/consultas.jpg" alt="Lista de consultas, com o botão Nova consulta em destaque" />
+      <figcaption>Figura 9.2 — Lista de consultas, com o botão Nova consulta em destaque</figcaption>
+    </figure>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/consultas-novo.jpg" alt="Formulário de nova consulta/sessão" />
+      <figcaption>Figura 9.3 — Formulário de nova consulta/sessão</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Paciente</td><td>Seleção</td><td>Sim</td><td>Quem será atendido.</td></tr><tr><td>Profissional</td><td>Busca</td><td>Não</td><td>Médico ou profissional, busca por nome/CRM.</td></tr><tr><td>Especialidade</td><td>Busca / texto</td><td>Não</td><td>Área do atendimento.</td></tr><tr><td>Local</td><td>Texto / busca</td><td>Não</td><td>Onde ocorre a consulta.</td></tr><tr><td>Data/Hora</td><td>Data e hora</td><td>Sim</td><td>Início do atendimento.</td></tr><tr><td>Lembrete (min)</td><td>Número</td><td>Não</td><td>Antecedência do aviso, em minutos.</td></tr><tr><td>Observações</td><td>Texto</td><td>Não</td><td>Notas do agendamento.</td></tr></tbody>
+  </table>
+  <table>
+    <thead><tr><th>Mensagem / situação</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>Campos obrigatórios em branco (borda vermelha ou aviso)</td><td>Preencha os campos marcados e clique em <strong>Salvar</strong> de novo.</td></tr>
+      <tr><td>Registro duplicado (CPF, CRM, e-mail ou CNPJ já existente)</td><td>Busque o cadastro na lista e use <strong>Editar</strong>, ou vincule o existente em vez de criar outro.</td></tr>
+      <tr><td>Sem permissão / botão ausente</td><td>Seu perfil não tem criar/editar/excluir. Peça ao administrador para ajustar em <strong>Administração → Acessos</strong>.</td></tr>
+      <tr><td>Confirmação ao clicar em <strong>Excluir</strong></td><td>Confirme apenas se deseja inativar o consulta. A ação impacta listas e vínculos.</td></tr>
+      <tr><td>Sessão expirada (volta ao login)</td><td>Entre novamente. Alterações não salvas são perdidas.</td></tr>
+    </tbody>
+  </table>
+  <div class="box tip"><p><strong>💡 Dica prática.</strong> Cadastre o médico antes, em <strong>Profissionais da Saúde</strong>, para a busca trazer CRM e especialidade automaticamente.</p></div>
+
+  <h3>9.3 Rotina</h3>
+  <p><strong>Objetivo:</strong> tarefas recorrentes (horário, descrição, paciente) e acompanhamento do dia.</p>
+  <p><strong>Caminho:</strong> <code>/rotina</code>.</p>
+  <ol>
+    <li>Filtre o paciente, se necessário.</li>
+    <li>Clique em <strong>Novo Evento</strong>.</li>
+    <li>Informe paciente, tipo, horário, data e descrição.</li>
+    <li>Salve e acompanhe as execuções na lista.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/rotina.jpg" alt="Rotina de cuidados" />
+      <figcaption>Figura 9.4 — Rotina de cuidados</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Paciente</td><td>Seleção</td><td>Sim</td><td>Paciente da tarefa.</td></tr><tr><td>Tipo</td><td>Seleção</td><td>Não</td><td>Classificação da rotina.</td></tr><tr><td>Horário</td><td>Hora</td><td>Sim</td><td>Hora prevista.</td></tr><tr><td>Data</td><td>Data</td><td>Sim</td><td>Início da vigência ou do dia.</td></tr><tr><td>Descrição</td><td>Texto</td><td>Não</td><td>O que deve ser feito.</td></tr></tbody>
+  </table>
+
+  <h3>9.4 Linha do tempo</h3>
+  <p><strong>Objetivo:</strong> visão contínua para o médico e a família revisarem o histórico.</p>
+  <p><strong>Caminho:</strong> <code>/timeline</code>. Filtre por paciente e palavras-chave.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/timeline.jpg" alt="Linha do tempo no módulo Atividades" />
+      <figcaption>Figura 9.5 — Linha do tempo no módulo Atividades</figcaption>
+    </figure>
+
+  <h2 id="s10">10. Administração</h2>
+  <h3>10.1 Usuários</h3>
+  <p><strong>Objetivo:</strong> criar contas, associar perfil, inativar e redefinir senha.</p>
+  <p><strong>Caminho:</strong> <strong>Administração → Usuários</strong> · <code>/usuarios</code>.</p>
+  <p><strong>Pré-requisitos:</strong> perfil administrador. O responsável, quando permitido, só cria perfis da própria rede (cuidador, responsável, paciente).</p>
+  <ol>
+    <li>Abra <strong>Usuários</strong>.</li>
+    <li>Clique em <strong>Novo cadastro</strong> ou <strong>Editar</strong>.</li>
+    <li>Informe nome, e-mail e <strong>Perfil</strong>.</li>
+    <li>Salve. Para senha, use a ação de redefinição da tela quando disponível.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/usuarios.jpg" alt="Gestão de usuários" />
+      <figcaption>Figura 10.1 — Gestão de usuários</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Nome</td><td>Texto</td><td>Sim</td><td>Nome da pessoa da conta.</td></tr><tr><td>E-mail</td><td>E-mail</td><td>Sim</td><td>Login. Precisa ser único.</td></tr><tr><td>Perfil</td><td>Seleção</td><td>Sim</td><td>Administrador, Médico, Cuidador etc.</td></tr><tr><td>Status</td><td>Seleção</td><td>Sim</td><td>Ativo entra; inativo é recusado no login.</td></tr></tbody>
+  </table>
+  <div class="box warn"><p><strong>⚠️ Atenção.</strong> Inativar um usuário impede o próximo login. Confirme se não é o único administrador.</p></div>
+  <table>
+    <thead><tr><th>Mensagem / situação</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td>Campos obrigatórios em branco (borda vermelha ou aviso)</td><td>Preencha os campos marcados e clique em <strong>Salvar</strong> de novo.</td></tr>
+      <tr><td>Registro duplicado (CPF, CRM, e-mail ou CNPJ já existente)</td><td>Busque o cadastro na lista e use <strong>Editar</strong>, ou vincule o existente em vez de criar outro.</td></tr>
+      <tr><td>Sem permissão / botão ausente</td><td>Seu perfil não tem criar/editar/excluir. Peça ao administrador para ajustar em <strong>Administração → Acessos</strong>.</td></tr>
+      <tr><td>Confirmação ao clicar em <strong>Excluir</strong></td><td>Confirme apenas se deseja inativar o usuário. A ação impacta listas e vínculos.</td></tr>
+      <tr><td>Sessão expirada (volta ao login)</td><td>Entre novamente. Alterações não salvas são perdidas.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>10.2 Perfis</h3>
+  <p><strong>Caminho:</strong> <code>/perfis</code>. Nome e status do papel (Administrador, Médico, Cuidador…).</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/perfis.jpg" alt="Cadastro de perfis" />
+      <figcaption>Figura 10.2 — Cadastro de perfis</figcaption>
+    </figure>
+
+  <h3>10.3 Acessos</h3>
+  <p>Ver o capítulo 5. A matriz é a fonte da verdade dos menus.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/acessos.jpg" alt="Permissões por perfil e menu" />
+      <figcaption>Figura 10.3 — Permissões por perfil e menu</figcaption>
+    </figure>
+
+  <h3>10.4 Auditoria</h3>
+  <p><strong>Objetivo:</strong> trilha de quem fez o quê (login, cadastros, alterações), sem gravar o conteúdo clínico completo (LGPD).</p>
+  <p><strong>Caminho:</strong> <code>/auditoria</code>.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/auditoria.jpg" alt="Logs de auditoria" />
+      <figcaption>Figura 10.4 — Logs de auditoria</figcaption>
+    </figure>
+  <div class="box note"><p><strong>📌 Nota.</strong> Use a auditoria para investigar acessos indevidos, não para reler o prontuário. O detalhe clínico está nas telas de saúde.</p></div>
+
+  <h2 id="s11">11. Meus dados e termos</h2>
+  <h3>11.1 Meus dados</h3>
+  <p><strong>Objetivo:</strong> ver a identificação da conta logada e solicitar troca de senha. Isto <strong>não</strong> é a ficha clínica do paciente.</p>
+  <p><strong>Caminho:</strong> menu da conta → <strong>Meus Dados</strong> · <code>/meus-dados</code>.</p>
+  <ol>
+    <li>Abra <strong>Meus Dados</strong>.</li>
+    <li>Confira nome, e-mail e perfil (somente leitura nesta área de identificação).</li>
+    <li>Para senha: preencha senha atual, nova senha e confirmação e envie o formulário.</li>
+  </ol>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/meus-dados.jpg" alt="Dados da conta logada e formulário de senha" />
+      <figcaption>Figura 11.1 — Dados da conta logada e formulário de senha</figcaption>
+    </figure>
+  <table class="fields">
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição do dado esperado</th></tr></thead>
+    <tbody><tr><td>Senha atual</td><td>Senha</td><td>Sim</td><td>Senha em uso.</td></tr><tr><td>Nova senha</td><td>Senha</td><td>Sim</td><td>Regra de senha forte (mínimo 8 caracteres, maiúscula, minúscula, número e especial).</td></tr><tr><td>Confirmar nova senha</td><td>Senha</td><td>Sim</td><td>Deve ser idêntica à nova senha.</td></tr></tbody>
+  </table>
+  <table>
+    <thead><tr><th>Mensagem</th><th>Como corrigir</th></tr></thead>
+    <tbody>
+      <tr><td>Preencha os campos de senha.</td><td>Informe senha atual e nova senha.</td></tr>
+      <tr><td>Texto da senha fraca</td><td>Siga o hint abaixo do campo (tamanho e tipos de caractere).</td></tr>
+      <tr><td>A confirmação não confere com a nova senha.</td><td>Digite a mesma senha nos dois campos.</td></tr>
+    </tbody>
+  </table>
+  <div class="box note"><p><strong>📌 Nota.</strong> A troca de senha nesta tela pode estar em integração com a API. Se a mensagem indicar “em breve”, peça a redefinição ao administrador em <strong>Usuários</strong>.</p></div>
+
+  <h3>11.2 Termos</h3>
+  <p><strong>Caminho:</strong> <strong>Termos e Privacidade</strong> · <code>/termos</code>. O aceite é exigido no cadastro da conta.</p>
+  
+    <figure class="shot">
+      <img src="screenshots/pdf/termos.jpg" alt="Termos de uso e privacidade" />
+      <figcaption>Figura 11.2 — Termos de uso e privacidade</figcaption>
+    </figure>
+
+  <h2 id="s12">12. Perguntas frequentes gerais</h2>
+  <p><strong>Não vejo um menu.</strong> Falta permissão de leitura. Peça ajuste em <strong>Acessos</strong>.</p>
+  <p><strong>Troquei o paciente e a ficha não mudou.</strong> Salve ou cancele a edição, confira o nome no topo e, se preciso, atualize a página.</p>
+  <p><strong>Não entro no Início.</strong> Cadastre ou vincule um paciente (onboarding ou <strong>Pacientes</strong>).</p>
+  <p><strong>Farmácia ou hospital não aparece na busca.</strong> Digite parte do nome. Fora da Grande Florianópolis, cadastre em Farmácias ou Estabelecimentos.</p>
+  <p><strong>A sessão caiu.</strong> O token expira em algumas horas. Entre de novo.</p>
+  <p><strong>Posso usar no celular?</strong> Sim. Menu hambúrguer no topo; no Início, barra inferior.</p>
+
+  <h2 id="indice">Índice remissivo das telas</h2>
+  <table>
+    <thead><tr><th>Tela</th><th>Caminho no menu</th><th>Rota</th></tr></thead>
+    <tbody>
+      <tr><td>Login</td><td>—</td><td>/login</td></tr>
+      <tr><td>Criar conta</td><td>Login → Criar conta</td><td>/registro</td></tr>
+      <tr><td>Esqueci a senha</td><td>Login → Esqueceu a senha?</td><td>/esqueci-senha</td></tr>
+      <tr><td>Onboarding</td><td>Automático no primeiro uso</td><td>/onboarding</td></tr>
+      <tr><td>Painel</td><td>Dashboard</td><td>/dashboard</td></tr>
+      <tr><td>Início / Sintomas</td><td>Início</td><td>/inicio</td></tr>
+      <tr><td>Ficha do paciente</td><td>Início → Perfil</td><td>/inicio/perfil</td></tr>
+      <tr><td>Eventos</td><td>Início → Eventos</td><td>/inicio/eventos</td></tr>
+      <tr><td>Especialistas</td><td>Início → Especial.</td><td>/inicio/especialistas</td></tr>
+      <tr><td>Agenda (Início)</td><td>Início → Agenda</td><td>/inicio/agenda</td></tr>
+      <tr><td>Corpo</td><td>Início → Corpo</td><td>/inicio/corpo</td></tr>
+      <tr><td>Linha (Início)</td><td>Início → Linha</td><td>/inicio/linha</td></tr>
+      <tr><td>Medicamentos (Início)</td><td>Início → Medicamentos</td><td>/inicio/meds</td></tr>
+      <tr><td>Exames (Início)</td><td>Início → Exames/Receitas</td><td>/inicio/docs</td></tr>
+      <tr><td>Pacientes</td><td>Saúde → Pacientes</td><td>/pacientes</td></tr>
+      <tr><td>Médicos</td><td>Saúde → Profissionais da Saúde</td><td>/medicos</td></tr>
+      <tr><td>Remédios</td><td>Saúde → Medicamentos</td><td>/remedios</td></tr>
+      <tr><td>Exames e receitas</td><td>Saúde → Exames / Receitas</td><td>/exames-receitas</td></tr>
+      <tr><td>Estabelecimentos</td><td>Saúde → Estabelecimentos de Saúde</td><td>/hospitais</td></tr>
+      <tr><td>Farmácias</td><td>Saúde → Farmácias</td><td>/farmacias</td></tr>
+      <tr><td>Empresas cuidadoras</td><td>Saúde → Empresas Cuidadoras</td><td>/empresas-cuidadoras</td></tr>
+      <tr><td>Cuidadores</td><td>Saúde → Cuidadores</td><td>/cuidadores</td></tr>
+      <tr><td>Responsáveis</td><td>Saúde → Responsáveis</td><td>/responsaveis</td></tr>
+      <tr><td>Agenda</td><td>Atividades → Agenda</td><td>/agenda</td></tr>
+      <tr><td>Consultas</td><td>Atividades → Consultas</td><td>/consultas</td></tr>
+      <tr><td>Rotina</td><td>Atividades → Rotina</td><td>/rotina</td></tr>
+      <tr><td>Linha do tempo</td><td>Atividades → Timeline</td><td>/timeline</td></tr>
+      <tr><td>Usuários</td><td>Administração → Usuários</td><td>/usuarios</td></tr>
+      <tr><td>Perfis</td><td>Administração → Perfis</td><td>/perfis</td></tr>
+      <tr><td>Acessos</td><td>Administração → Acessos</td><td>/acessos</td></tr>
+      <tr><td>Auditoria</td><td>Administração → Auditoria</td><td>/auditoria</td></tr>
+      <tr><td>Meus dados</td><td>Menu da conta → Meus Dados</td><td>/meus-dados</td></tr>
+      <tr><td>Termos</td><td>Termos e Privacidade</td><td>/termos</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="figuras">Índice de figuras</h2>
+      <table class="fields">
+        <thead><tr><th>Nº</th><th>Título</th></tr></thead>
+        <tbody><tr><td>Figura 2.1</td><td>Tela de login, com o botão Entrar no Sistema em destaque</td></tr><tr><td>Figura 2.2</td><td>Formulário Criar conta, com o botão Cadastrar em destaque</td></tr><tr><td>Figura 2.3</td><td>Tela Esqueceu a senha? para solicitar o link por e-mail</td></tr><tr><td>Figura 2.4</td><td>Menu da conta com Meus Dados e Sair em destaque</td></tr><tr><td>Figura 4.1</td><td>Área autenticada: menu à esquerda, paciente no topo e conteúdo do Painel</td></tr><tr><td>Figura 4.2</td><td>Login no celular</td></tr><tr><td>Figura 4.3</td><td>Início no celular, com menu hambúrguer e barra inferior</td></tr><tr><td>Figura 5.1</td><td>Matriz de acessos: permissões de ler, criar, editar e excluir por perfil</td></tr><tr><td>Figura 6.1</td><td>Painel operacional com cartões de resumo, compromissos e calendário da semana</td></tr><tr><td>Figura 7.1</td><td>Início do paciente ativo, com barra inferior de atalhos</td></tr><tr><td>Figura 7.2</td><td>Início no celular: hambúrguer, paciente no topo e barra Sintomas / Agenda / Medicamentos</td></tr><tr><td>Figura 7.3</td><td>Ficha em modo leitura, com o botão Editar ficha em destaque</td></tr><tr><td>Figura 7.4</td><td>Ficha desbloqueada para edição, com Salvar alterações em destaque</td></tr><tr><td>Figura 7.5</td><td>Lista e inclusão de eventos do paciente ativo</td></tr><tr><td>Figura 7.6</td><td>Especialistas vinculados ao cuidado do paciente</td></tr><tr><td>Figura 7.7</td><td>Agenda do paciente no módulo Início</td></tr><tr><td>Figura 7.8</td><td>Mapa do corpo e registros associados</td></tr><tr><td>Figura 7.9</td><td>Linha do tempo no Início</td></tr><tr><td>Figura 7.10</td><td>Medicamentos do paciente ativo, com cadastro e ações da lista</td></tr><tr><td>Figura 7.11</td><td>Exames e receitas no Início</td></tr><tr><td>Figura 8.1</td><td>Lista de pacientes com busca, status e o botão Novo cadastro em destaque</td></tr><tr><td>Figura 8.2</td><td>Formulário de novo paciente, com o botão Salvar em destaque</td></tr><tr><td>Figura 8.3</td><td>Cadastro de médicos</td></tr><tr><td>Figura 8.4</td><td>Formulário de novo médico, com Salvar em destaque</td></tr><tr><td>Figura 8.5</td><td>Catálogo de remédios</td></tr><tr><td>Figura 8.6</td><td>Estabelecimentos de saúde</td></tr><tr><td>Figura 8.7</td><td>Cadastro de farmácias</td></tr><tr><td>Figura 8.8</td><td>Cadastro de cuidadores</td></tr><tr><td>Figura 8.9</td><td>Cadastro de responsáveis</td></tr><tr><td>Figura 8.10</td><td>Empresas cuidadoras</td></tr><tr><td>Figura 8.11</td><td>Lista de exames e receitas</td></tr><tr><td>Figura 8.12</td><td>Inclusão de exame ou receita, com campos e anexo</td></tr><tr><td>Figura 9.1</td><td>Agenda mensal e lista de compromissos</td></tr><tr><td>Figura 9.2</td><td>Lista de consultas, com o botão Nova consulta em destaque</td></tr><tr><td>Figura 9.3</td><td>Formulário de nova consulta/sessão</td></tr><tr><td>Figura 9.4</td><td>Rotina de cuidados</td></tr><tr><td>Figura 9.5</td><td>Linha do tempo no módulo Atividades</td></tr><tr><td>Figura 10.1</td><td>Gestão de usuários</td></tr><tr><td>Figura 10.2</td><td>Cadastro de perfis</td></tr><tr><td>Figura 10.3</td><td>Permissões por perfil e menu</td></tr><tr><td>Figura 10.4</td><td>Logs de auditoria</td></tr><tr><td>Figura 11.1</td><td>Dados da conta logada e formulário de senha</td></tr><tr><td>Figura 11.2</td><td>Termos de uso e privacidade</td></tr></tbody>
+      </table>
+  <p class="small">Documentação técnica (API, banco, arquitetura) permanece na pasta docs/. Prints capturados a partir de http://localhost:5173.</p>
+</body>
+</html>

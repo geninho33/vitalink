@@ -1,0 +1,12 @@
+{
+  "name": "vitalink-manual-pdf",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pdf": "node gerar-pdf.mjs",
+    "pdf:only": "node gerar-pdf.mjs --pdf-only"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.22.3"
+  }
+}

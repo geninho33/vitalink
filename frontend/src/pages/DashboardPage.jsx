@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import { isPacienteOuAutocuidado } from '../utils/perfis';
 import PageHeader, { PlaceholderCard } from '../components/PageHeader';
 import { Modal } from '../components/forms/FormControls';
 import { apiRequest } from '../services/api';
@@ -149,6 +150,7 @@ function WeekHeatmap({ events, onDayClick }) {
 
 export default function DashboardPage() {
   const { usuario, menus } = useAuth();
+  const selfCare = isPacienteOuAutocuidado(usuario);
   const firstName = usuario?.nome?.split(' ')[0] || 'bem-vindo';
   const [loading, setLoading] = useState(true);
   const [agenda, setAgenda] = useState([]);
@@ -343,31 +345,31 @@ export default function DashboardPage() {
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          label="Pacientes ativos"
-          value={loading ? '…' : pacientesAtivos}
-          hint="Cadastros com status ativo"
-          to="/pacientes"
+          label={selfCare ? 'Meu cadastro' : 'Pacientes ativos'}
+          value={loading ? '…' : selfCare ? 1 : pacientesAtivos}
+          hint={selfCare ? 'Seus dados de saúde' : 'Cadastros com status ativo'}
+          to={selfCare ? '/inicio/perfil' : '/pacientes'}
           accent="aqua"
         />
         <KpiCard
           label="Eventos de hoje"
           value={loading ? '…' : metrics.eventosHoje}
           hint={`${metrics.concluidosHoje} de ${metrics.eventosHoje || 0} concluídos`}
-          to="/agenda"
+          to={selfCare ? '/inicio' : '/agenda'}
           accent="emerald"
         />
         <KpiCard
           label="Consultas na semana"
           value={loading ? '…' : metrics.consultasSemana}
           hint="Próximos 7 dias"
-          to="/consultas"
+          to={selfCare ? '/inicio/agenda' : '/consultas'}
           accent="sky"
         />
         <KpiCard
           label="Alertas / ações"
           value={loading ? '…' : metrics.alertas}
           hint={metrics.alertas ? 'Pendentes ou atrasados hoje' : 'Nenhuma ação urgente'}
-          to="/rotina"
+          to={selfCare ? '/inicio/meds' : '/rotina'}
           accent="amber"
         />
       </div>
@@ -377,7 +379,7 @@ export default function DashboardPage() {
         <PlaceholderCard>
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-ink">Próximos compromissos (7 dias)</h2>
-            <Link to="/agenda" className="text-xs font-semibold text-aqua hover:underline">
+            <Link to={selfCare ? '/inicio/agenda' : '/agenda'} className="text-xs font-semibold text-aqua hover:underline">
               Ver agenda
             </Link>
           </div>
@@ -426,7 +428,7 @@ export default function DashboardPage() {
                 ? ' — atenção: aderência abaixo de 80%.'
                 : ' — aderência saudável.'}
             </p>
-            <Link to="/rotina" className="mt-1 inline-block text-xs font-semibold text-amber-800 hover:underline">
+            <Link to={selfCare ? '/inicio/meds' : '/rotina'} className="mt-1 inline-block text-xs font-semibold text-amber-800 hover:underline">
               Abrir medicamentos e atendimento
             </Link>
           </div>
