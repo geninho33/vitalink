@@ -175,6 +175,11 @@ async function listConsultas(req, res, next) {
   try {
     const where = [];
     const params = {};
+    if (req.query.paciente_id) {
+      await assertPacienteAccess(req.user, req.query.paciente_id);
+      where.push('c.paciente_id = :paciente_id');
+      params.paciente_id = Number(req.query.paciente_id);
+    }
     const scope = await applyPacienteScope(req.user, 'c.paciente_id');
     if (scope?.sql) {
       where.push(`(${scope.sql})`);
