@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { apiUpload, assetUrl } from '../services/api';
 import { Field } from './forms/FormControls';
+import { prepareUploadFile } from '../utils/prepareUploadFile';
 
 /**
  * Upload de imagem/documento com preview e captura pela câmera (mobile).
@@ -22,11 +23,12 @@ export default function FileUploadField({
   const preview = valuePath ? assetUrl(valuePath) : '';
   const isImage = String(accept || '').includes('image');
 
-  async function uploadFile(file) {
-    if (!file) return;
+  async function uploadFile(raw) {
+    if (!raw) return;
     setBusy(true);
     setError('');
     try {
+      const file = await prepareUploadFile(raw);
       const res = await apiUpload('/arquivos', file);
       onUploaded?.({
         id: res.id,
@@ -42,9 +44,18 @@ export default function FileUploadField({
   }
 
   async function handleChange(e) {
+    e.preventDefault();
+    e.stopPropagation();
     const file = e.target.files?.[0];
+    if (!file) return;
+    // Copia os bytes antes de zerar o input — no iOS o File some ao limpar o campo.
+    const buffer = await file.arrayBuffer();
+    const snapshot = new File([buffer], file.name || 'foto.jpg', {
+      type: file.type || 'image/jpeg',
+      lastModified: file.lastModified || Date.now(),
+    });
     e.target.value = '';
-    await uploadFile(file);
+    await uploadFile(snapshot);
   }
 
   return (
@@ -78,7 +89,7 @@ export default function FileUploadField({
                 className="inline-flex min-h-11 items-center justify-center rounded-xl bg-vita px-4 text-sm font-semibold text-white hover:bg-vita/90 disabled:opacity-60"
                 onClick={() => cameraRef.current?.click()}
               >
-                Usar câmera
+                {busy ? 'Enviando...' : 'Usar câmera'}
               </button>
               <input
                 ref={cameraRef}

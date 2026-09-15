@@ -19,7 +19,7 @@ function errorHandler(err, req, res, _next) {
   if (err && (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE')) {
     return res.status(400).json({
       error: 'validation_error',
-      message: err.code === 'LIMIT_FILE_SIZE' ? 'Arquivo excede 8 MB.' : err.message,
+      message: err.code === 'LIMIT_FILE_SIZE' ? 'Arquivo excede 20 MB.' : err.message,
     });
   }
 

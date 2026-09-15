@@ -104,7 +104,7 @@ export async function apiUpload(path, file, { skipAuthRedirect = false } = {}) {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', file, file.name || 'arquivo.jpg');
 
   const response = await fetch(buildUrl(path), {
     method: 'POST',

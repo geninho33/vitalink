@@ -18,24 +18,36 @@ const storage = multer.diskStorage({
     cb(null, UPLOAD_ROOT);
   },
   filename(_req, file, cb) {
-    const safe = String(file.originalname || 'arquivo')
+    const safe = String(file.originalname || 'foto.jpg')
       .replace(/[^\w.\-()+ ]+/g, '_')
-      .slice(0, 80);
+      .slice(0, 80) || 'foto.jpg';
     cb(null, `${Date.now()}-${Math.round(Math.random() * 1e6)}-${safe}`);
   },
 });
 
+const ALLOWED_MIME = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+function isAllowedUpload(file) {
+  const mime = String(file.mimetype || '').toLowerCase();
+  const name = String(file.originalname || '').toLowerCase();
+  if (/^image\//.test(mime)) return true;
+  if (ALLOWED_MIME.has(mime)) return true;
+  // Câmera no celular às vezes manda sem MIME ou como octet-stream.
+  if (!mime || mime === 'application/octet-stream') {
+    return /\.(jpe?g|png|gif|webp|heic|heif|pdf|doc|docx)$/i.test(name) || !name;
+  }
+  return false;
+}
+
 const upload = multer({
   storage,
-  limits: { fileSize: 8 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter(_req, file, cb) {
-    const ok =
-      /^image\//.test(file.mimetype) ||
-      file.mimetype === 'application/pdf' ||
-      file.mimetype === 'application/msword' ||
-      file.mimetype ===
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    if (!ok) {
+    if (!isAllowedUpload(file)) {
       const err = new Error('Tipo de arquivo não permitido.');
       err.status = 400;
       return cb(err);
