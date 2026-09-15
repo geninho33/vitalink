@@ -176,7 +176,7 @@ export default function ExamesReceitasPage() {
     <div>
       <PageHeader
         title="Exames / Receitas"
-        description="Documentos clínicos agrupados por especialidade, em ordem cronológica."
+        description="Documentos clínicos agrupados por especialidade, incluindo receitas anexadas em Medicamentos."
       />
 
       <PlaceholderCard>

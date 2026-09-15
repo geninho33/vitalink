@@ -52,7 +52,7 @@ async function list(req, res, next) {
     const agendaEventoId = req.query.agenda_evento_id;
     const consultaId = req.query.consulta_id;
     const page = Math.max(1, Number(req.query.page) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
+    const pageSize = Math.min(200, Math.max(1, Number(req.query.pageSize) || 10));
     const offset = (page - 1) * pageSize;
 
     const where = [];

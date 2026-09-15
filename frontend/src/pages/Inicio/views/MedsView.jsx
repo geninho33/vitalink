@@ -3,8 +3,9 @@ import { DateBrInput, Field, MoneyInput, Modal, TextInput, TextSelect } from '..
 import AutocompleteSelect from '../../../components/forms/AutocompleteSelect';
 import { formatLocalLabel, searchFarmacias } from '../../../utils/redeSaude';
 import MedicamentoCatalogoFields from '../../../components/forms/MedicamentoCatalogoFields';
+import FileUploadField from '../../../components/FileUploadField';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
-import { apiRequest } from '../../../services/api';
+import { apiRequest, assetUrl } from '../../../services/api';
 import { printMedicamentos } from '../../../utils/printMedicamentos';
 import { medicamentoToCalendarEvent } from '../../../utils/googleCalendar';
 import GoogleCalendarButton from '../../../components/GoogleCalendarButton';
@@ -28,6 +29,8 @@ const empty = () => ({
   concentracao: '',
   catalogoDosagens: [],
   catalogoFormas: [],
+  receita_arquivo_id: '',
+  receita_caminho: '',
 });
 
 const emptyCompra = () => ({
@@ -55,6 +58,7 @@ export default function MedsView() {
   const [compras, setCompras] = useState([]);
   const [compraForm, setCompraForm] = useState(emptyCompra);
   const [compraOpen, setCompraOpen] = useState(null);
+  const [receitaOf, setReceitaOf] = useState(null);
   const [printing, setPrinting] = useState(null);
 
   function handlePrint(mode) {
@@ -118,6 +122,7 @@ export default function MedsView() {
           quantidade_estoque: Number(form.quantidade_estoque),
           consumo_diario: Number(form.consumo_diario) || 1,
           intervalo_horas: Number(form.intervalo_horas) || null,
+          receita_arquivo_id: form.receita_arquivo_id || null,
         },
       });
       setForm(empty());
@@ -137,6 +142,15 @@ export default function MedsView() {
     } catch (err) {
       window.alert(err.message || 'Não foi possível excluir.');
     }
+  }
+
+  async function attachReceita(med, arquivoId) {
+    await apiRequest(`/inicio/medicamentos/${med.id}/receita`, {
+      method: 'POST',
+      body: { arquivo_id: arquivoId },
+    });
+    setReceitaOf(null);
+    await refresh();
   }
 
   async function openHistorico(med) {
@@ -349,6 +363,25 @@ export default function MedsView() {
               placeholder="Ex.: Controle da pressão"
             />
           </Field>
+          <div className="sm:col-span-2">
+            <FileUploadField
+              label="Receita do medicamento"
+              hint="Opcional — o arquivo também aparece em Exames/Receitas."
+              accept="image/*,.pdf,application/pdf"
+              valueId={form.receita_arquivo_id}
+              valuePath={form.receita_caminho}
+              onUploaded={({ id, caminho }) =>
+                setForm({
+                  ...form,
+                  receita_arquivo_id: id,
+                  receita_caminho: caminho || '',
+                })
+              }
+              onCleared={() =>
+                setForm({ ...form, receita_arquivo_id: '', receita_caminho: '' })
+              }
+            />
+          </div>
           {error ? <p className="sm:col-span-2 text-sm text-red-600">{error}</p> : null}
           <div className="sm:col-span-2">
             <PrimaryButton type="submit" className="w-full" disabled={saving || !pacienteId}>
@@ -365,6 +398,25 @@ export default function MedsView() {
           {list.map((m) => (
             <article key={m.id} className="rounded-2xl border border-[#d7e8e7] bg-white p-4">
               <strong className="block text-lg text-ink">{m.nome_comercial}</strong>
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                {m.receita_caminho ? (
+                  <a
+                    href={assetUrl(m.receita_caminho)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block text-xs font-semibold text-aqua-deep hover:underline"
+                  >
+                    Ver receita anexada
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-slate-health hover:underline"
+                  onClick={() => setReceitaOf(m)}
+                >
+                  {m.receita_caminho ? 'Trocar receita' : 'Anexar receita'}
+                </button>
+              </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -498,6 +550,30 @@ export default function MedsView() {
             />
             <PrimaryButton type="submit">Registrar e atualizar agenda</PrimaryButton>
           </form>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(receitaOf)}
+        title={receitaOf ? `Receita · ${receitaOf.nome_comercial}` : 'Receita'}
+        onClose={() => setReceitaOf(null)}
+      >
+        {receitaOf ? (
+          <FileUploadField
+            label="Arquivo da receita"
+            hint="Opcional — também fica disponível em Exames/Receitas."
+            accept="image/*,.pdf,application/pdf"
+            valueId={receitaOf.receita_arquivo_id}
+            valuePath={receitaOf.receita_caminho}
+            onUploaded={async ({ id }) => {
+              try {
+                await attachReceita(receitaOf, id);
+              } catch (err) {
+                window.alert(err.message || 'Não foi possível anexar a receita.');
+              }
+            }}
+            onCleared={() => {}}
+          />
         ) : null}
       </Modal>
 

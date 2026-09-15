@@ -12,6 +12,7 @@ const {
   clearFutureDoses,
 } = require('../services/medicamentoAgenda.service');
 const { parseIsoDate, validationError } = require('../utils/validation');
+const { syncReceitaMedicamento } = require('../services/receitaMedicamento.service');
 
 function parseMoney(value) {
   if (value == null || value === '') return null;
@@ -59,9 +60,20 @@ async function list(req, res, next) {
     }
 
     const rows = await query(
-      `SELECT r.*, f.nome_fantasia AS farmacia_nome
+      `SELECT r.*, f.nome_fantasia AS farmacia_nome,
+              rec.id AS receita_exame_id,
+              rec.arquivo_id AS receita_arquivo_id,
+              ar.caminho AS receita_caminho
        FROM remedios r
        LEFT JOIN farmacias f ON f.id = r.farmacia_id
+       LEFT JOIN LATERAL (
+         SELECT er.id, er.arquivo_id
+         FROM exames_receitas er
+         WHERE er.remedio_id = r.id AND er.tipo = 'receita'
+         ORDER BY er.id DESC
+         LIMIT 1
+       ) rec ON TRUE
+       LEFT JOIN arquivos ar ON ar.id = rec.arquivo_id
        WHERE ${where.join(' AND ')}
        ORDER BY r.nome_comercial ASC, r.id DESC`,
       params
@@ -210,6 +222,13 @@ async function create(req, res, next) {
       pacienteId,
       fromDate: parseIsoDate(b.data_compra),
     });
+    if (b.receita_arquivo_id) {
+      await syncReceitaMedicamento(result.insertId, {
+        arquivoId: b.receita_arquivo_id,
+        pacienteId,
+        nomeComercial: nome,
+      });
+    }
 
     await writeAudit({
       usuarioId: req.user.id,
@@ -330,6 +349,42 @@ async function createCompra(req, res, next) {
   }
 }
 
+async function attachReceita(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const arquivoId = req.body?.arquivo_id || req.body?.receita_arquivo_id;
+    if (!arquivoId) validationError('Envie o arquivo da receita.');
+
+    const rows = await query(`SELECT * FROM remedios WHERE id = :id LIMIT 1`, { id });
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'not_found', message: 'Medicamento não encontrado.' });
+    }
+    const remedio = rows[0];
+    if (remedio.paciente_id) await assertPacienteAccess(req.user, remedio.paciente_id);
+    if (!remedio.paciente_id) validationError('Medicamento sem paciente vinculado.');
+
+    await syncReceitaMedicamento(id, {
+      arquivoId,
+      pacienteId: remedio.paciente_id,
+      nomeComercial: remedio.nome_comercial,
+    });
+
+    await writeAudit({
+      usuarioId: req.user.id,
+      acao: 'editar',
+      recurso: 'remedios',
+      recursoId: id,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      metadados: { receita_arquivo_id: Number(arquivoId) },
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function remove(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -361,5 +416,6 @@ module.exports = {
   create,
   listCompras,
   createCompra,
+  attachReceita,
   remove,
 };

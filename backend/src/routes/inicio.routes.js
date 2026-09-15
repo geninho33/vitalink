@@ -16,6 +16,7 @@ router.get('/medicamentos', requirePermission(rota, 'ler'), medicamentos.list);
 router.post('/medicamentos', requirePermission(rota, 'criar'), medicamentos.create);
 router.get('/medicamentos/:id/compras', requirePermission(rota, 'ler'), medicamentos.listCompras);
 router.post('/medicamentos/:id/compras', requirePermission(rota, 'criar'), medicamentos.createCompra);
+router.post('/medicamentos/:id/receita', requirePermission(rota, 'editar'), medicamentos.attachReceita);
 router.delete('/medicamentos/:id', requirePermission(rota, 'deletar'), medicamentos.remove);
 router.get('/corpo-marcas', requirePermission(rota, 'ler'), corpoMarcas.list);
 router.post('/corpo-marcas', requirePermission(rota, 'criar'), corpoMarcas.create);

@@ -78,12 +78,25 @@ async function listAgenda(req, res, next) {
   }
 }
 
+function toDateOnly(value) {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const s = String(value);
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 /** Documentos (exames/receitas) vinculados a um evento da agenda. */
 async function listAgendaDocumentos(req, res, next) {
   try {
     const id = req.params.id;
     const events = await query(
-      `SELECT a.*, c.especialidade AS consulta_especialidade, c.id AS consulta_id
+      `SELECT a.*, c.especialidade AS consulta_especialidade, c.id AS consulta_id,
+              to_char(a.data_hora_inicio AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS data_evento
        FROM agenda_eventos a
        LEFT JOIN consultas c
          ON a.origem_tabela = 'consultas' AND c.id = a.origem_id
@@ -95,6 +108,7 @@ async function listAgendaDocumentos(req, res, next) {
     if (!ev) {
       return res.status(404).json({ error: 'not_found', message: 'Evento não encontrado.' });
     }
+    await assertPacienteAccess(req.user, ev.paciente_id);
 
     let especialidade = ev.consulta_especialidade || null;
     if (!especialidade && ev.titulo) {
@@ -102,33 +116,37 @@ async function listAgendaDocumentos(req, res, next) {
       if (m) especialidade = m[1].trim();
     }
 
-    const day = String(ev.data_hora_inicio || '').slice(0, 10);
+    const day = ev.data_evento || toDateOnly(ev.data_hora_inicio);
+    const params = {
+      pacienteId: ev.paciente_id,
+      eventoId: ev.id,
+    };
+    const orParts = ['e.agenda_evento_id = :eventoId'];
+    if (ev.consulta_id) {
+      orParts.push('e.consulta_id = :consultaId');
+      params.consultaId = ev.consulta_id;
+    }
+    if (day) {
+      params.day = day;
+      if (especialidade) {
+        orParts.push(
+          "(e.data_documento = CAST(:day AS date) AND e.especialidade ILIKE :espLike)"
+        );
+        params.espLike = `%${especialidade}%`;
+      } else {
+        orParts.push('e.data_documento = CAST(:day AS date)');
+      }
+    }
+
     const rows = await query(
       `SELECT e.*, a.caminho AS arquivo_caminho, p.nome AS paciente_nome
        FROM exames_receitas e
        LEFT JOIN arquivos a ON a.id = e.arquivo_id
        LEFT JOIN pacientes p ON p.id = e.paciente_id
        WHERE e.paciente_id = :pacienteId
-         AND (
-           e.agenda_evento_id = :eventoId
-           OR (:consultaId::int IS NOT NULL AND e.consulta_id = :consultaId)
-           OR (
-             e.data_documento = :day::date
-             AND (
-               :especialidade::text IS NULL
-               OR e.especialidade ILIKE :espLike
-             )
-           )
-         )
+         AND (${orParts.join(' OR ')})
        ORDER BY e.data_documento DESC, e.id DESC`,
-      {
-        pacienteId: ev.paciente_id,
-        eventoId: ev.id,
-        consultaId: ev.consulta_id || null,
-        day,
-        especialidade: especialidade || null,
-        espLike: especialidade ? `%${especialidade}%` : '%',
-      }
+      params
     );
 
     return res.json({

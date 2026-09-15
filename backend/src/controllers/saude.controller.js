@@ -14,6 +14,7 @@ const {
   syncRemedioAgenda,
   clearFutureDoses,
 } = require('../services/medicamentoAgenda.service');
+const { syncReceitaMedicamento } = require('../services/receitaMedicamento.service');
 const {
   findPacienteByCpf,
   resolveResponsavelIds,
@@ -469,13 +470,30 @@ const remedios = createCrudController({
     else n.intervalo_horas = Number(n.intervalo_horas);
     return n;
   },
-  selectExtra: ', mp.nome AS medico_prescritor_nome, f.nome_fantasia AS farmacia_nome',
-  joins:
-    'LEFT JOIN medicos mp ON mp.id = remedios.medico_prescritor_id LEFT JOIN farmacias f ON f.id = remedios.farmacia_id',
-  afterSave: async (id) => {
+  selectExtra: `, mp.nome AS medico_prescritor_nome, f.nome_fantasia AS farmacia_nome,
+    rec.id AS receita_exame_id, rec.arquivo_id AS receita_arquivo_id, ar.caminho AS receita_caminho`,
+  joins: `LEFT JOIN medicos mp ON mp.id = remedios.medico_prescritor_id
+    LEFT JOIN farmacias f ON f.id = remedios.farmacia_id
+    LEFT JOIN LATERAL (
+      SELECT er.id, er.arquivo_id
+      FROM exames_receitas er
+      WHERE er.remedio_id = remedios.id AND er.tipo = 'receita'
+      ORDER BY er.id DESC
+      LIMIT 1
+    ) rec ON TRUE
+    LEFT JOIN arquivos ar ON ar.id = rec.arquivo_id`,
+  afterSave: async (id, payload, req) => {
     const rows = await query('SELECT * FROM remedios WHERE id = :id LIMIT 1', { id });
     if (rows[0]?.paciente_id) {
       await syncRemedioAgenda(rows[0]);
+    }
+    const arquivoId = req?.body?.receita_arquivo_id ?? payload?.receita_arquivo_id;
+    if (arquivoId && rows[0]?.paciente_id) {
+      await syncReceitaMedicamento(id, {
+        arquivoId,
+        pacienteId: rows[0].paciente_id,
+        nomeComercial: rows[0].nome_comercial,
+      });
     }
   },
   beforeDelete: async (id) => {

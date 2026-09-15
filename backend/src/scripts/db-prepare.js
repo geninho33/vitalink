@@ -387,6 +387,22 @@ async function applySeedRedeSaude(client) {
   }
 }
 
+async function applyPatchReceitaMedicamento(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_receita_medicamento.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch receita medicamento não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch receita medicamento OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch receita medicamento: ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -403,6 +419,7 @@ async function main() {
     await applySeedRedeSaude(client);
     await applyPatchCatalogoMedicamentos(client);
     await applySeedCatalogoMedicamentos(client);
+    await applyPatchReceitaMedicamento(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

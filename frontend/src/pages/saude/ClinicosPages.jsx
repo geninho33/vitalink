@@ -17,7 +17,7 @@ import AutocompleteSelect, { AutocompleteMulti } from '../../components/forms/Au
 import MedicamentoCatalogoFields from '../../components/forms/MedicamentoCatalogoFields';
 import { formatLocalLabel, formatMedicoLabel, searchEspecialidades, searchLocais, searchMedicos, searchFarmacias } from '../../utils/redeSaude';
 import { isValidCrm, isValidUf, UF_LIST } from '../../utils/validation';
-import { apiRequest } from '../../services/api';
+import { apiRequest, assetUrl } from '../../services/api';
 import { printMedicamentosFromLoader } from '../../utils/printMedicamentos';
 import {
   buscarPacientePorCpf,
@@ -1019,6 +1019,8 @@ export function RemediosPage() {
     consumo_diario: '',
     catalogoDosagens: [],
     catalogoFormas: [],
+    receita_arquivo_id: '',
+    receita_caminho: '',
   });
 
   return (
@@ -1046,6 +1048,23 @@ export function RemediosPage() {
       )}
       columns={[
         { key: 'nome_comercial', label: 'Nome comercial' },
+        {
+          key: 'receita',
+          label: 'Receita',
+          render: (r) =>
+            r.receita_caminho ? (
+              <a
+                href={assetUrl(r.receita_caminho)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-aqua-deep hover:underline"
+              >
+                Ver arquivo
+              </a>
+            ) : (
+              '—'
+            ),
+        },
         { key: 'farmacia_nome', label: 'Farmácia', render: (r) => r.farmacia_nome || '—' },
         {
           key: 'valor',
@@ -1117,6 +1136,8 @@ export function RemediosPage() {
         }) : row.farmacia_nome || '',
         valor: row.valor != null ? Number(row.valor) : null,
         consumo_diario: row.consumo_diario ?? '',
+        receita_arquivo_id: row.receita_arquivo_id ?? '',
+        receita_caminho: row.receita_caminho || '',
       })}
       renderForm={(form, setForm) => (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -1214,6 +1235,25 @@ export function RemediosPage() {
               })
             }
           />
+          <div className="sm:col-span-2">
+            <FileUploadField
+              label="Receita do medicamento"
+              hint="Opcional — o arquivo também fica em Exames/Receitas."
+              accept="image/*,.pdf,application/pdf"
+              valueId={form.receita_arquivo_id}
+              valuePath={form.receita_caminho}
+              onUploaded={({ id, caminho }) =>
+                setForm({
+                  ...form,
+                  receita_arquivo_id: id,
+                  receita_caminho: caminho || '',
+                })
+              }
+              onCleared={() =>
+                setForm({ ...form, receita_arquivo_id: '', receita_caminho: '' })
+              }
+            />
+          </div>
           <Field label="Forma farmacêutica">
             <TextSelect
               value={form.forma_farmaceutica}
@@ -1325,6 +1365,7 @@ export function RemediosPage() {
             : null,
         laboratorio: form.laboratorio || null,
         numero_controle_pessoal: form.numero_controle_pessoal || null,
+        receita_arquivo_id: form.receita_arquivo_id || null,
       })}
     />
   );
