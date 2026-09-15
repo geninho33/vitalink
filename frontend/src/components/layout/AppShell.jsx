@@ -42,7 +42,7 @@ export default function AppShell() {
           locked={locked}
           onOpenMobile={() => setMobileOpen(true)}
         />
-        <main className="min-w-0 flex-1 overflow-x-hidden p-3 sm:p-6">
+        <main className="min-w-0 flex-1 overflow-x-hidden p-3 pt-[calc(4rem+0.75rem+env(safe-area-inset-top))] sm:p-6 sm:pt-[calc(4rem+1.5rem+env(safe-area-inset-top))] lg:p-6">
           <Outlet />
         </main>
       </div>

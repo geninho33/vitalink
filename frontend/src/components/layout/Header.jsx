@@ -45,7 +45,7 @@ export default function Header({ onOpenMobile, usuario, locked }) {
   }
 
   return (
-    <header className="sticky top-0 z-[70] flex h-16 min-w-0 items-center justify-between gap-2 border-b border-[#d7e8e7] bg-white/90 px-3 backdrop-blur-md sm:gap-3 sm:px-6">
+    <header className="fixed inset-x-0 top-0 z-[70] flex h-[calc(4rem+env(safe-area-inset-top))] min-w-0 items-center justify-between gap-2 border-b border-[#d7e8e7] bg-white/95 px-3 pt-[env(safe-area-inset-top)] shadow-[0_1px_8px_rgba(24,59,66,0.08)] backdrop-blur-md sm:gap-3 sm:px-6 lg:sticky lg:inset-x-auto lg:h-16 lg:pt-0 lg:shadow-none">
       <div className="flex items-center gap-2">
         <button
           type="button"
