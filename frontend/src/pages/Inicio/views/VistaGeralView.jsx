@@ -5,7 +5,7 @@ import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { Field, TextTextarea } from '../../../components/forms/FormControls';
 import { apiRequest } from '../../../services/api';
 import { formatMedicoLabel } from '../../../utils/redeSaude';
-import { Panel } from '../ui';
+import { Panel, PrimaryButton } from '../ui';
 
 const PERFIL = { ADMIN: 1, CUIDADOR: 4, RESPONSAVEL: 5, PACIENTE: 6, AUTOCUIDADO: 7 };
 
