@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CuidadorVinculosPanel from '../../components/CuidadorVinculosPanel';
 import EntityCrudPage from '../../components/EntityCrudPage';
 import FileUploadField, { extractConvenioHints } from '../../components/FileUploadField';
+import { usePacienteAtivo } from '../../context/PacienteAtivoContext';
 import {
   AddressFields,
   DateBrInput,
@@ -829,6 +830,8 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
 }
 
 export function PacientesPage() {
+  const navigate = useNavigate();
+  const { setPacienteId } = usePacienteAtivo();
   const responsaveis = useOptions('/responsaveis');
   const medicos = useOptions('/medicos');
 
@@ -890,6 +893,18 @@ export function PacientesPage() {
           ),
         },
       ]}
+      extraRowActions={(row) => (
+        <button
+          type="button"
+          className="min-h-10 rounded-lg border border-vita px-3 text-xs font-semibold text-vita hover:bg-vita-soft"
+          onClick={() => {
+            setPacienteId(row.id);
+            navigate('/inicio/perfil');
+          }}
+        >
+          Visualizar
+        </button>
+      )}
       emptyForm={empty}
       mapRow={(row) => ({
         ...empty(),
@@ -997,6 +1012,7 @@ function PrintRemediosButtons() {
 }
 
 export function RemediosPage() {
+  const { pacienteId } = usePacienteAtivo();
   const empty = () => ({
     nome_comercial: '',
     principio_ativo: '',
@@ -1021,6 +1037,7 @@ export function RemediosPage() {
     catalogoFormas: [],
     receita_arquivo_id: '',
     receita_caminho: '',
+    paciente_id: pacienteId || '',
   });
 
   return (
@@ -1346,6 +1363,7 @@ export function RemediosPage() {
       )}
       toPayload={(form) => ({
         ...form,
+        paciente_id: form.paciente_id || pacienteId || null,
         uso_continuo: Boolean(form.uso_continuo),
         periodo_horario: form.periodo_horario || 'manha',
         hora_exata:

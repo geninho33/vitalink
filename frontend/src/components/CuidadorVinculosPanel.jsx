@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   AddressFields,
   DateBrInput,
@@ -7,8 +6,31 @@ import {
   TextInput,
   TextSelect,
 } from './forms/FormControls';
+import AutocompleteSelect from './forms/AutocompleteSelect';
 import { apiRequest } from '../services/api';
 import { maskCpf, maskPhone, onlyDigits } from '../hooks/useCep';
+
+async function searchEmpresasCuidadoras(q) {
+  const res = await apiRequest('/empresas-cuidadoras', {
+    query: { q: q || undefined, pageSize: 50, status: 'ativo' },
+  });
+  return (res.data || []).map((e) => ({
+    value: String(e.id),
+    label: e.nome_fantasia,
+    raw: e,
+  }));
+}
+
+async function searchCuidadores(q) {
+  const res = await apiRequest('/cuidadores', {
+    query: { q: q || undefined, pageSize: 50, status: 'ativo' },
+  });
+  return (res.data || []).map((c) => ({
+    value: String(c.id),
+    label: c.nome,
+    raw: c,
+  }));
+}
 
 const emptyVinculo = () => ({
   tipo: 'pj',
@@ -175,21 +197,12 @@ export default function CuidadorVinculosPanel({ pacienteId }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            to="/empresas-cuidadoras"
-            className="text-xs font-semibold text-vita hover:underline"
-          >
-            Empresas
-          </Link>
-          <Link to="/cuidadores" className="text-xs font-semibold text-vita hover:underline">
-            + Novo cuidador
-          </Link>
           <button
             type="button"
             onClick={openCreate}
             className="min-h-9 rounded-lg bg-vita px-3 text-xs font-semibold text-white"
           >
-            Novo vínculo
+            Vincular empresa ou cuidador
           </button>
         </div>
       </div>
@@ -307,42 +320,42 @@ export default function CuidadorVinculosPanel({ pacienteId }) {
 
           {form.tipo === 'pj' ? (
             <>
-              <Field label="Empresa cuidadora" required>
-                <TextSelect
-                  value={form.empresa_cuidadora_id || ''}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      empresa_cuidadora_id: e.target.value ? Number(e.target.value) : '',
-                    })
-                  }
-                >
-                  <option value="">Selecione</option>
-                  {empresas.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.nome_fantasia}
-                    </option>
-                  ))}
-                </TextSelect>
-              </Field>
-              <Field label="Cuidador escalado (cadastro)">
-                <TextSelect
-                  value={form.cuidador_id || ''}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      cuidador_id: e.target.value ? Number(e.target.value) : '',
-                    })
-                  }
-                >
-                  <option value="">—</option>
-                  {cuidadores.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                    </option>
-                  ))}
-                </TextSelect>
-              </Field>
+              <AutocompleteSelect
+                label="Empresa cuidadora"
+                required
+                hint="Busque uma empresa já cadastrada"
+                value={form.empresa_cuidadora_id ? String(form.empresa_cuidadora_id) : ''}
+                selectedLabel={
+                  empresas.find((e) => Number(e.id) === Number(form.empresa_cuidadora_id))
+                    ?.nome_fantasia || ''
+                }
+                fetchOptions={searchEmpresasCuidadoras}
+                placeholder="Buscar empresa cuidadora…"
+                onChange={(value) =>
+                  setForm({
+                    ...form,
+                    empresa_cuidadora_id: value ? Number(value) : '',
+                  })
+                }
+              />
+              <AutocompleteSelect
+                label="Cuidador escalado (cadastro)"
+                hint="Opcional — busque um cuidador já cadastrado"
+                value={form.cuidador_id ? String(form.cuidador_id) : ''}
+                selectedLabel={
+                  cuidadores.find((c) => Number(c.id) === Number(form.cuidador_id))?.nome || ''
+                }
+                fetchOptions={searchCuidadores}
+                placeholder="Buscar cuidador…"
+                onChange={(value, opt) =>
+                  setForm({
+                    ...form,
+                    cuidador_id: value ? Number(value) : '',
+                    nome_escalado: opt?.raw?.nome || form.nome_escalado,
+                    contato_escalado: opt?.raw?.telefone_principal || form.contato_escalado,
+                  })
+                }
+              />
               <Field label="Nome do cuidador escalado">
                 <TextInput
                   value={form.nome_escalado || ''}
@@ -363,29 +376,26 @@ export default function CuidadorVinculosPanel({ pacienteId }) {
             </>
           ) : (
             <>
-              <Field label="Cuidador cadastrado">
-                <TextSelect
-                  value={form.cuidador_id || ''}
-                  onChange={(e) => {
-                    const id = e.target.value ? Number(e.target.value) : '';
-                    const c = cuidadores.find((x) => x.id === id);
-                    setForm({
-                      ...form,
-                      cuidador_id: id,
-                      profissional_nome: c?.nome || form.profissional_nome,
-                      profissional_cpf: c?.cpf || form.profissional_cpf,
-                      contato: c?.telefone_principal || form.contato,
-                    });
-                  }}
-                >
-                  <option value="">— ou preencha manualmente —</option>
-                  {cuidadores.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                    </option>
-                  ))}
-                </TextSelect>
-              </Field>
+              <AutocompleteSelect
+                label="Cuidador cadastrado"
+                hint="Busque um cuidador já cadastrado ou preencha os dados abaixo"
+                value={form.cuidador_id ? String(form.cuidador_id) : ''}
+                selectedLabel={
+                  cuidadores.find((c) => Number(c.id) === Number(form.cuidador_id))?.nome || ''
+                }
+                fetchOptions={searchCuidadores}
+                placeholder="Buscar cuidador…"
+                onChange={(value, opt) => {
+                  const c = opt?.raw;
+                  setForm({
+                    ...form,
+                    cuidador_id: value ? Number(value) : '',
+                    profissional_nome: c?.nome || form.profissional_nome,
+                    profissional_cpf: c?.cpf || form.profissional_cpf,
+                    contato: c?.telefone_principal || form.contato,
+                  });
+                }}
+              />
               <Field label="Nome do profissional" required>
                 <TextInput
                   value={form.profissional_nome || ''}

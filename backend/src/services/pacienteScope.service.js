@@ -60,6 +60,8 @@ async function listAllowedPacienteIds(user) {
       { uid }
     );
   } else if (perfilId === PERFIL.RESPONSAVEL) {
+    const { healResponsavelPacienteLinks } = require('./vinculoPaciente.service');
+    await healResponsavelPacienteLinks(user);
     rows = await query(
       `SELECT DISTINCT x.paciente_id
        FROM (
@@ -78,6 +80,16 @@ async function listAllowedPacienteIds(user) {
          WHERE up.usuario_id = :uid
            AND up.paciente_id IS NOT NULL
            AND COALESCE(up.ativo, TRUE) = TRUE
+         UNION
+         SELECT v.paciente_id
+         FROM paciente_cuidador_vinculos v
+         INNER JOIN cuidadores c ON c.id = v.cuidador_id
+         WHERE c.usuario_id = :uid
+         UNION
+         SELECT p.id AS paciente_id
+         FROM pacientes p
+         INNER JOIN cuidadores c ON c.id = p.cuidador_id
+         WHERE c.usuario_id = :uid
        ) x`,
       { uid }
     );
@@ -152,7 +164,17 @@ async function medicosScopeForCrud(req) {
 }
 
 async function remediosScopeForCrud(req) {
-  return applyPacienteScope(req.user, 'remedios.paciente_id');
+  const ids = await listAllowedPacienteIds(req.user);
+  if (ids === null) return null;
+  const params = { scopeOwnerId: Number(req.user.id) };
+  if (!ids.length) {
+    return { sql: 'remedios.usuario_id = :scopeOwnerId', params };
+  }
+  params.scopePacienteIds = ids;
+  return {
+    sql: '(remedios.paciente_id = ANY(:scopePacienteIds) OR remedios.usuario_id = :scopeOwnerId)',
+    params,
+  };
 }
 
 async function hospitaisScopeForCrud(req) {
@@ -190,10 +212,17 @@ async function farmaciasScopeForCrud(req) {
 }
 
 async function cuidadoresScopeForCrud(req) {
+  const perfilId = Number(req.user?.perfilId);
+  // Responsável precisa buscar cuidadores já cadastrados para vincular ao paciente.
+  if (perfilId === PERFIL.RESPONSAVEL) return null;
   return ownerOrLinkedScope(req.user, 'cuidadores.usuario_id = :scopeOwnerId', [
     `cuidadores.id IN (
       SELECT p.cuidador_id FROM pacientes p
       WHERE p.cuidador_id IS NOT NULL AND p.id = ANY(:scopePacienteIds)
+    )`,
+    `cuidadores.id IN (
+      SELECT v.cuidador_id FROM paciente_cuidador_vinculos v
+      WHERE v.cuidador_id IS NOT NULL AND v.paciente_id = ANY(:scopePacienteIds)
     )`,
   ]);
 }

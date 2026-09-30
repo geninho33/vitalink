@@ -1,9 +1,18 @@
 const { query } = require('../config/database');
 
+const PERFIL_ADMIN = 1;
 const PERFIL_PACIENTE = 6;
 const PERFIL_AUTOCUIDADO = 7;
 /** Paciente e Autocuidado: apenas Dashboard e Início no menu lateral. */
 const MENU_SOMENTE_DASHBOARD_INICIO = new Set([1, 2]);
+/** Rede de cuidados unificada no Início — menus individuais só para Admin. */
+const MENUS_REDE_UNIFICADA = new Set([
+  '/medicos',
+  '/hospitais',
+  '/farmacias',
+  '/empresas-cuidadoras',
+  '/cuidadores',
+]);
 
 async function getMenusByPerfil(perfilId) {
   let rows = await query(
@@ -20,6 +29,8 @@ async function getMenusByPerfil(perfilId) {
 
   if ([PERFIL_PACIENTE, PERFIL_AUTOCUIDADO].includes(Number(perfilId))) {
     rows = rows.filter((r) => MENU_SOMENTE_DASHBOARD_INICIO.has(Number(r.id)));
+  } else if (Number(perfilId) !== PERFIL_ADMIN) {
+    rows = rows.filter((r) => !MENUS_REDE_UNIFICADA.has(String(r.rota || '')));
   }
 
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -41,6 +52,13 @@ async function getMenusByPerfil(perfilId) {
       byId.set(parents[0].id, parents[0]);
     }
   }
+
+  const childOf = new Set(rows.map((r) => r.menu_pai_id).filter(Boolean));
+  rows = rows.filter((r) => {
+    const rota = String(r.rota || '').trim();
+    if (rota) return true;
+    return childOf.has(r.id);
+  });
 
   return rows
     .sort((a, b) => a.ordem - b.ordem || a.id - b.id)

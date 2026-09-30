@@ -23,43 +23,106 @@ function weekRange() {
   return { de: start.toISOString(), ate: end.toISOString() };
 }
 
+function parseJsonIds(value) {
+  if (Array.isArray(value)) return value.map(Number).filter((n) => Number.isFinite(n));
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value || '[]');
+      return Array.isArray(parsed) ? parsed.map(Number).filter((n) => Number.isFinite(n)) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function matchesQuery(text, q) {
+  if (!q) return true;
+  return String(text || '')
+    .toLocaleLowerCase('pt-BR')
+    .includes(q);
+}
+
 function RedeDirectory({ pacienteId, hideWhenEmpty, title, somenteVinculados = false }) {
   const [hospitais, setHospitais] = useState([]);
   const [medicos, setMedicos] = useState([]);
+  const [farmacias, setFarmacias] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
+  const [cuidadores, setCuidadores] = useState([]);
+  const [vinculos, setVinculos] = useState([]);
+  const [catalog, setCatalog] = useState({
+    hospitais: [],
+    medicos: [],
+    farmacias: [],
+    empresas: [],
+    cuidadores: [],
+  });
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     Promise.all([
-      apiRequest('/hospitais', { query: { pageSize: 200, status: 'ativo' } }),
-      apiRequest('/medicos', { query: { pageSize: 200, status: 'ativo' } }),
+      apiRequest('/hospitais', { query: { pageSize: 200, status: 'ativo' } }).catch(() => ({ data: [] })),
+      apiRequest('/medicos', { query: { pageSize: 200, status: 'ativo' } }).catch(() => ({ data: [] })),
+      apiRequest('/farmacias', { query: { pageSize: 200, status: 'ativo' } }).catch(() => ({ data: [] })),
+      apiRequest('/empresas-cuidadoras', { query: { pageSize: 200, status: 'ativo' } }).catch(() => ({
+        data: [],
+      })),
+      apiRequest('/cuidadores', { query: { pageSize: 200, status: 'ativo' } }).catch(() => ({ data: [] })),
+      pacienteId ? apiRequest(`/pacientes/${pacienteId}`).catch(() => null) : Promise.resolve(null),
       pacienteId
-        ? apiRequest(`/pacientes/${pacienteId}`).catch(() => null)
-        : Promise.resolve(null),
+        ? apiRequest(`/pacientes/${pacienteId}/cuidador-vinculos`).catch(() => ({ data: [] }))
+        : Promise.resolve({ data: [] }),
+      pacienteId
+        ? apiRequest('/inicio/medicamentos', { query: { paciente_id: pacienteId } }).catch(() => ({
+            data: [],
+          }))
+        : Promise.resolve({ data: [] }),
     ])
-      .then(([hRes, mRes, pacienteRes]) => {
+      .then(([hRes, mRes, fRes, eRes, cRes, pacienteRes, vRes, medsRes]) => {
         if (cancelled) return;
-        let hosps = hRes.data || [];
-        let meds = mRes.data || [];
+        const allHosp = hRes.data || [];
+        const allMeds = mRes.data || [];
+        const allFarm = fRes.data || [];
+        const allEmp = eRes.data || [];
+        const allCuid = cRes.data || [];
+        setCatalog({
+          hospitais: allHosp,
+          medicos: allMeds,
+          farmacias: allFarm,
+          empresas: allEmp,
+          cuidadores: allCuid,
+        });
         const paciente = pacienteRes?.data || pacienteRes;
-        if (somenteVinculados && !paciente?.id) {
-          meds = [];
-          hosps = [];
-        } else if (paciente?.id) {
-          const medicoIds = new Set(
-            (Array.isArray(paciente.medico_ids)
-              ? paciente.medico_ids
-              : typeof paciente.medico_ids === 'string'
-                ? JSON.parse(paciente.medico_ids || '[]')
-                : []
-            ).map(Number)
-          );
-          if (somenteVinculados && !medicoIds.size) {
-            meds = [];
-            hosps = [];
-          } else if (medicoIds.size) {
-            meds = meds.filter((m) => medicoIds.has(Number(m.id)));
+        const vinculosRows = vRes.data || [];
+        setVinculos(vinculosRows);
+
+        const medicoIds = new Set(parseJsonIds(paciente?.medico_ids));
+        if (paciente?.medico_id) medicoIds.add(Number(paciente.medico_id));
+        const farmIds = new Set(
+          (medsRes.data || [])
+            .map((r) => Number(r.farmacia_id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        );
+        const empIds = new Set(
+          vinculosRows.map((v) => Number(v.empresa_cuidadora_id)).filter((id) => id > 0)
+        );
+        const cuidIds = new Set(
+          vinculosRows.map((v) => Number(v.cuidador_id)).filter((id) => id > 0)
+        );
+        if (paciente?.cuidador_id) cuidIds.add(Number(paciente.cuidador_id));
+
+        let meds = allMeds;
+        let hosps = allHosp;
+        let farms = allFarm;
+        let emps = allEmp;
+        let cuids = allCuid;
+
+        if (somenteVinculados || paciente?.id) {
+          if (medicoIds.size) {
+            meds = allMeds.filter((m) => medicoIds.has(Number(m.id)));
             const estIds = new Set();
             for (const m of meds) {
               let est = m.estabelecimentos;
@@ -70,22 +133,32 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title, somenteVinculados = f
                   est = [];
                 }
               }
-              if (Array.isArray(est)) {
-                est.forEach((e) => estIds.add(Number(e.id)));
-              }
+              if (Array.isArray(est)) est.forEach((e) => estIds.add(Number(e.id)));
               if (m.hospital_clinica_id) estIds.add(Number(m.hospital_clinica_id));
             }
-            if (estIds.size) hosps = hosps.filter((h) => estIds.has(Number(h.id)));
-            else if (somenteVinculados) hosps = [];
+            hosps = estIds.size ? allHosp.filter((h) => estIds.has(Number(h.id))) : [];
+          } else if (somenteVinculados || paciente?.id) {
+            meds = [];
+            hosps = [];
           }
+          farms = farmIds.size ? allFarm.filter((f) => farmIds.has(Number(f.id))) : [];
+          emps = empIds.size ? allEmp.filter((e) => empIds.has(Number(e.id))) : [];
+          cuids = cuidIds.size ? allCuid.filter((c) => cuidIds.has(Number(c.id))) : [];
         }
+
         setHospitais(hosps);
         setMedicos(meds);
+        setFarmacias(farms);
+        setEmpresas(emps);
+        setCuidadores(cuids);
       })
       .catch(() => {
         if (!cancelled) {
           setHospitais([]);
           setMedicos([]);
+          setFarmacias([]);
+          setEmpresas([]);
+          setCuidadores([]);
         }
       })
       .finally(() => {
@@ -95,6 +168,9 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title, somenteVinculados = f
       cancelled = true;
     };
   }, [pacienteId, somenteVinculados]);
+
+  const q = busca.trim().toLocaleLowerCase('pt-BR');
+  const buscaAtiva = q.length >= 2;
 
   const byTipo = useMemo(() => {
     const map = { hospital: [], clinica: [], laboratorio: [] };
@@ -116,99 +192,199 @@ function RedeDirectory({ pacienteId, hideWhenEmpty, title, somenteVinculados = f
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
   }, [medicos]);
 
+  const sugestoes = useMemo(() => {
+    if (!buscaAtiva) return [];
+    const items = [];
+    const push = (tipo, id, label) => {
+      items.push({ tipo, id, label });
+    };
+    catalog.medicos
+      .filter((m) => matchesQuery(`${m.nome} ${m.especialidade}`, q))
+      .slice(0, 8)
+      .forEach((m) => push('Profissional', m.id, formatMedicoLabel(m)));
+    catalog.hospitais
+      .filter((h) => matchesQuery(h.nome_fantasia, q))
+      .slice(0, 6)
+      .forEach((h) => push('Estabelecimento', h.id, h.nome_fantasia));
+    catalog.farmacias
+      .filter((f) => matchesQuery(f.nome_fantasia, q))
+      .slice(0, 6)
+      .forEach((f) => push('Farmácia', f.id, f.nome_fantasia));
+    catalog.empresas
+      .filter((e) => matchesQuery(e.nome_fantasia, q))
+      .slice(0, 6)
+      .forEach((e) => push('Empresa cuidadora', e.id, e.nome_fantasia));
+    catalog.cuidadores
+      .filter((c) => matchesQuery(c.nome, q))
+      .slice(0, 6)
+      .forEach((c) => push('Cuidador', c.id, c.nome));
+    return items;
+  }, [buscaAtiva, catalog, q]);
+
   if (loading) {
     return hideWhenEmpty ? null : (
       <p className="text-sm text-slate-health">Carregando rede de cuidado…</p>
     );
   }
 
-  const hasData = hospitais.length > 0 || medicos.length > 0;
-  if (hideWhenEmpty && !hasData) return null;
+  const hasData =
+    hospitais.length > 0 ||
+    medicos.length > 0 ||
+    farmacias.length > 0 ||
+    empresas.length > 0 ||
+    cuidadores.length > 0 ||
+    vinculos.length > 0;
 
-  if (!hasData && somenteVinculados) {
-    return (
-      <div className={title ? 'mt-6' : ''}>
-        {title ? (
-          <h2 className="mb-3 font-display text-xl font-bold text-ink">{title}</h2>
-        ) : null}
-        <Panel>
-          <p className="text-sm text-slate-health">
-            Sua rede de cuidado lista apenas os profissionais vinculados ao seu atendimento.
-            Nenhum vínculo encontrado ainda.
-          </p>
-        </Panel>
-      </div>
-    );
-  }
+  if (hideWhenEmpty && !hasData && !buscaAtiva) return null;
 
   return (
     <div className={title ? 'mt-6' : 'grid gap-4'}>
       {title ? (
         <h2 className="mb-3 font-display text-xl font-bold text-ink">{title}</h2>
       ) : null}
-      <div className="grid gap-4">
-      {['hospital', 'clinica', 'laboratorio'].map((tipo) => {
-        if (hideWhenEmpty && !byTipo[tipo]?.length) return null;
-        return (
-        <Panel key={tipo}>
-          <h2 className="mb-2 font-display text-lg font-bold text-aqua-deep">{TIPO_LABEL[tipo]}</h2>
-          {byTipo[tipo]?.length ? (
-            <ul className="grid gap-1">
-              {byTipo[tipo].map((h) => (
-                <li key={h.id}>
-                  <Link
-                    to={somenteVinculados ? '#' : `/hospitais?edit=${h.id}`}
-                    onClick={somenteVinculados ? (e) => e.preventDefault() : undefined}
-                    className={`block rounded-lg px-2 py-1.5 text-sm font-semibold text-ink ${
-                      somenteVinculados ? '' : 'hover:bg-vita-soft/50'
-                    }`}
-                  >
-                    {h.nome_fantasia}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-health">Nenhum cadastrado.</p>
-          )}
-        </Panel>
-        );
-      })}
-
-      {hideWhenEmpty && byEsp.length === 0 ? null : (
       <Panel>
-        <h2 className="mb-3 font-display text-lg font-bold text-aqua-deep">
-          Profissionais por Especialidade
-        </h2>
-        {byEsp.length === 0 ? (
-          <p className="text-sm text-slate-health">Nenhum profissional cadastrado.</p>
+        <label className="grid gap-1 text-sm">
+          <span className="font-semibold text-ink">Buscar na rede (lista suspensa)</span>
+          <input
+            className="min-h-11 rounded-xl border border-[#d7e8e7] px-3 text-sm"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Profissionais, estabelecimentos, farmácias, empresas ou cuidadores…"
+          />
+        </label>
+        {buscaAtiva ? (
+          <ul className="mt-2 max-h-56 overflow-auto rounded-xl border border-[#d7e8e7] bg-white">
+            {sugestoes.length ? (
+              sugestoes.map((s) => (
+                <li
+                  key={`${s.tipo}-${s.id}`}
+                  className="border-b border-[#eef6f5] px-3 py-2 last:border-b-0"
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-health">
+                    {s.tipo}
+                  </span>
+                  <p className="text-sm font-semibold text-ink">{s.label}</p>
+                </li>
+              ))
+            ) : (
+              <li className="px-3 py-3 text-sm text-slate-health">Nenhum resultado.</li>
+            )}
+          </ul>
         ) : (
-          <div className="grid gap-4">
-            {byEsp.map(([esp, lista]) => (
-              <div key={esp}>
-                <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-vita">{esp}</h3>
+          <p className="mt-2 text-xs text-slate-health">
+            Abaixo aparecem apenas os vínculos do paciente. Use a busca para localizar os demais cadastros.
+          </p>
+        )}
+      </Panel>
+
+      {!hasData && somenteVinculados ? (
+        <Panel>
+          <p className="text-sm text-slate-health">
+            Sua rede de cuidado lista apenas os profissionais e estabelecimentos vinculados ao paciente.
+            Nenhum vínculo encontrado ainda.
+          </p>
+        </Panel>
+      ) : (
+        <div className="grid gap-4">
+          {['hospital', 'clinica', 'laboratorio'].map((tipo) => {
+            if (hideWhenEmpty && !byTipo[tipo]?.length) return null;
+            return (
+              <Panel key={tipo}>
+                <h2 className="mb-2 font-display text-lg font-bold text-aqua-deep">{TIPO_LABEL[tipo]}</h2>
+                {byTipo[tipo]?.length ? (
+                  <ul className="grid gap-1">
+                    {byTipo[tipo].map((h) => (
+                      <li key={h.id} className="rounded-lg px-2 py-1.5 text-sm font-semibold text-ink">
+                        {h.nome_fantasia}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-health">Nenhum vinculado.</p>
+                )}
+              </Panel>
+            );
+          })}
+
+          {hideWhenEmpty && byEsp.length === 0 ? null : (
+            <Panel>
+              <h2 className="mb-3 font-display text-lg font-bold text-aqua-deep">
+                Profissionais por Especialidade
+              </h2>
+              {byEsp.length === 0 ? (
+                <p className="text-sm text-slate-health">Nenhum profissional vinculado.</p>
+              ) : (
+                <div className="grid gap-4">
+                  {byEsp.map(([esp, lista]) => (
+                    <div key={esp}>
+                      <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-vita">{esp}</h3>
+                      <ul className="grid gap-1">
+                        {lista.map((m) => (
+                          <li key={m.id} className="rounded-lg px-2 py-1.5 text-sm font-semibold text-ink">
+                            {formatMedicoLabel(m)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {hideWhenEmpty && !farmacias.length ? null : (
+            <Panel>
+              <h2 className="mb-2 font-display text-lg font-bold text-aqua-deep">Farmácias</h2>
+              {farmacias.length ? (
                 <ul className="grid gap-1">
-                  {lista.map((m) => (
-                    <li key={m.id}>
-                      <Link
-                        to={somenteVinculados ? '#' : `/medicos?edit=${m.id}`}
-                        onClick={somenteVinculados ? (e) => e.preventDefault() : undefined}
-                        className={`block rounded-lg px-2 py-1.5 text-sm font-semibold text-ink ${
-                          somenteVinculados ? '' : 'hover:bg-vita-soft/50'
-                        }`}
-                      >
-                        {formatMedicoLabel(m)}
-                      </Link>
+                  {farmacias.map((f) => (
+                    <li key={f.id} className="rounded-lg px-2 py-1.5 text-sm font-semibold text-ink">
+                      {f.nome_fantasia}
                     </li>
                   ))}
                 </ul>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+              ) : (
+                <p className="text-sm text-slate-health">Nenhuma farmácia vinculada aos medicamentos.</p>
+              )}
+            </Panel>
+          )}
+
+          {hideWhenEmpty && !empresas.length && !cuidadores.length ? null : (
+            <Panel>
+              <h2 className="mb-2 font-display text-lg font-bold text-aqua-deep">Cuidado no domicílio</h2>
+              {empresas.length ? (
+                <>
+                  <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-vita">
+                    Empresas cuidadoras
+                  </h3>
+                  <ul className="mb-3 grid gap-1">
+                    {empresas.map((e) => (
+                      <li key={e.id} className="rounded-lg px-2 py-1.5 text-sm font-semibold text-ink">
+                        {e.nome_fantasia}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {cuidadores.length ? (
+                <>
+                  <h3 className="mb-1 text-xs font-bold uppercase tracking-wider text-vita">Cuidadores</h3>
+                  <ul className="grid gap-1">
+                    {cuidadores.map((c) => (
+                      <li key={c.id} className="rounded-lg px-2 py-1.5 text-sm font-semibold text-ink">
+                        {c.nome}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {!empresas.length && !cuidadores.length ? (
+                <p className="text-sm text-slate-health">Nenhuma empresa ou cuidador vinculado.</p>
+              ) : null}
+            </Panel>
+          )}
+        </div>
       )}
-      </div>
     </div>
   );
 }
@@ -251,7 +427,7 @@ export default function VistaGeralView() {
         query: { paciente_id: pacienteId },
       }).catch(() => ({ data: [] })),
     ]);
-    setAppointments(agendaRes.data || []);
+    setAppointments((agendaRes.data || []).filter((e) => String(e.tipo || '') !== 'medicamento'));
     setMedicines(medsRes.data || []);
     setTaken((admRes.data || []).map((r) => String(r.remedio_id)));
   }, [pacienteId]);
@@ -342,7 +518,7 @@ export default function VistaGeralView() {
             Olá, <span className="font-semibold text-ink">{firstName}</span>
           </p>
           <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            Rede de cuidado
+            Sua Rede de Cuidados
           </h1>
           <p className="mt-1 text-sm text-slate-health">
             Resumo das instituições e profissionais cadastrados no sistema.
@@ -517,9 +693,9 @@ export default function VistaGeralView() {
       {!isAdmin ? (
         <RedeDirectory
           pacienteId={pacienteId || undefined}
-          hideWhenEmpty={!isSelfCare}
-          somenteVinculados={isSelfCare}
-          title="Sua rede de cuidado"
+          hideWhenEmpty={false}
+          somenteVinculados
+          title="Sua Rede de Cuidados"
         />
       ) : null}
       </>

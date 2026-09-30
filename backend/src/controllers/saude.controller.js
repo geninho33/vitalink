@@ -66,20 +66,9 @@ async function syncPacienteMedicos(pacienteId, medicoIds) {
 async function syncPacienteResponsaveis(pacienteId, responsavelIds) {
   if (!Array.isArray(responsavelIds)) return;
   await query('DELETE FROM paciente_responsaveis WHERE paciente_id = :pacienteId', { pacienteId });
-  const ids = responsavelIds.map(Number).filter((id) => id > 0);
+  const ids = [...new Set(responsavelIds.map(Number).filter((id) => id > 0))];
   for (const responsavel_id of ids) {
-    await query(
-      `INSERT INTO paciente_responsaveis (paciente_id, responsavel_id)
-       VALUES (:pacienteId, :responsavel_id)
-       ON CONFLICT DO NOTHING`,
-      { pacienteId, responsavel_id }
-    );
-  }
-  if (ids.length) {
-    await query('UPDATE pacientes SET responsavel_id = :rid WHERE id = :pacienteId', {
-      rid: ids[0],
-      pacienteId,
-    });
+    await linkResponsavelPaciente(pacienteId, responsavel_id);
   }
 }
 

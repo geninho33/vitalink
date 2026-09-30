@@ -217,13 +217,13 @@ const baseColumns = [
 function personToPayload(form, extra = {}) {
   return {
     ...form,
-    usuario_id: null,
     cpf: onlyDigits(form.cpf),
     telefone_principal: onlyDigits(form.telefone_principal),
     telefone_secundario: form.telefone_secundario ? onlyDigits(form.telefone_secundario) : null,
     cep: onlyDigits(form.cep),
     foto_url: form.foto_url || null,
     ...extra,
+    usuario_id: undefined,
   };
 }
 

@@ -94,20 +94,40 @@ function printViaIframe(html) {
   }
 }
 
+function periodoSortKey(row) {
+  const periodo = String(row?.periodo_horario || '').toLowerCase();
+  const order = { manha: 1, tarde: 2, noite: 3, personalizado: 4 };
+  const base = order[periodo] || 9;
+  const hora = String(row?.hora_exata || '').padStart(5, '0');
+  return `${base}-${hora}-${String(row?.nome_comercial || '')}`;
+}
+
+function periodoLabel(row) {
+  const periodo = String(row?.periodo_horario || '').toLowerCase();
+  if (periodo === 'personalizado' && row?.hora_exata) return String(row.hora_exata).slice(0, 5);
+  if (periodo === 'manha') return 'Manhã';
+  if (periodo === 'tarde') return 'Tarde';
+  if (periodo === 'noite') return 'Noite';
+  return row?.periodo_horario || '—';
+}
+
 function buildPrintHtml(rows = [], { mode = 'lista', pacienteNome = '' } = {}) {
   const now = new Date().toLocaleString('pt-BR');
   const title =
     mode === 'estoque' ? 'Estoque de Medicamentos' : 'Lista de Medicamentos';
   const logoUrl = `${window.location.origin}${import.meta.env.BASE_URL}vitalink-logo.png`;
+  const sorted = [...(rows || [])].sort((a, b) =>
+    periodoSortKey(a).localeCompare(periodoSortKey(b), 'pt-BR')
+  );
 
   const headCols =
     mode === 'estoque'
-      ? `<th>Medicamento</th><th>Dose</th><th>Total de comprimidos / Total em mL</th><th>Uso/dia*</th><th>Dias restantes</th><th>Reposição</th>`
-      : `<th>#</th><th>Medicamento</th><th>Princípio</th><th>Dose</th><th>Total de comprimidos / Total em mL</th><th>Indicação</th><th>Prescritor</th>`;
+      ? `<th>Período / Horário</th><th>Medicamento</th><th>Dose</th><th>Total de comprimidos / Total em mL</th><th>Uso/dia*</th><th>Dias restantes</th><th>Reposição</th>`
+      : `<th>Período / Horário</th><th>Medicamento</th><th>Princípio</th><th>Dose</th><th>Total de comprimidos / Total em mL</th><th>Indicação</th><th>Prescritor</th>`;
 
-  const body = (rows || [])
+  const body = sorted
     .slice(0, 20)
-    .map((r, i) => {
+    .map((r) => {
       const dose = r.quantidade_administrar || '—';
       const estoque = Number(r.quantidade_estoque ?? 0);
       const perDay = parseFloat(String(dose).replace(',', '.').match(/[\d.]+/)?.[0] || '1') || 1;
@@ -120,8 +140,10 @@ function buildPrintHtml(rows = [], { mode = 'lista', pacienteNome = '' } = {}) {
               ? 'Em breve'
               : 'OK'
           : '—';
+      const periodo = periodoLabel(r);
       if (mode === 'estoque') {
         return `<tr>
+          <td>${esc(periodo)}</td>
           <td>${esc(r.nome_comercial)}</td>
           <td>${esc(dose)}</td>
           <td>${esc(estoque)}</td>
@@ -131,7 +153,7 @@ function buildPrintHtml(rows = [], { mode = 'lista', pacienteNome = '' } = {}) {
         </tr>`;
       }
       return `<tr>
-        <td>${i + 1}</td>
+        <td>${esc(periodo)}</td>
         <td>${esc(r.nome_comercial)}</td>
         <td>${esc(r.principio_ativo || '—')}</td>
         <td>${esc(dose)}</td>

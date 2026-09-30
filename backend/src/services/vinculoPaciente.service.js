@@ -1,5 +1,8 @@
-const { query } = require('../config/database');
+const crypto = require('crypto');
+const { query, isDuplicateKey } = require('../config/database');
+const { hashPassword } = require('../utils/password');
 const { PERFIL } = require('./pacienteScope.service');
+const { syncUsuarioPerfilPadrao } = require('./papel.service');
 
 function onlyDigits(value) {
   return String(value || '').replace(/\D/g, '');
@@ -255,6 +258,173 @@ async function upsertPacienteAutocuidado({
   return { id: pacienteId, nome: paciente.nome, vinculado: !created };
 }
 
+function cuidadorLoginEmail(cuidadorId, cpfDigits) {
+  const local = cpfDigits.length === 11 ? `cuidador.${cpfDigits}` : `cuidador.${cuidadorId}`;
+  return `${local}@vitalink.app.br`;
+}
+
+/**
+ * Garante um usuário de perfil Cuidador para o cadastro de cuidador,
+ * para que apareça em Administração > Usuários.
+ */
+async function ensureUsuarioForCuidador(cuidadorId, payload = {}) {
+  const rows = await query('SELECT * FROM cuidadores WHERE id = :id LIMIT 1', { id: cuidadorId });
+  const c = rows[0];
+  if (!c) return null;
+
+  if (c.usuario_id) {
+    const owned = await query(
+      'SELECT id, perfil_id FROM usuarios WHERE id = :id LIMIT 1',
+      { id: c.usuario_id }
+    );
+    if (owned[0] && Number(owned[0].perfil_id) === PERFIL.CUIDADOR) {
+      return Number(owned[0].id);
+    }
+  }
+
+  const cpfDigits = onlyDigits(c.cpf || payload.cpf);
+  let email = String(c.email || payload.email || '')
+    .trim()
+    .toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    email = cuidadorLoginEmail(cuidadorId, cpfDigits);
+  }
+
+  async function attach(usuarioId) {
+    await query('UPDATE cuidadores SET usuario_id = :uid WHERE id = :id', {
+      uid: usuarioId,
+      id: cuidadorId,
+    });
+    return Number(usuarioId);
+  }
+
+  const byEmail = await query(
+    'SELECT id, perfil_id FROM usuarios WHERE LOWER(email) = :email LIMIT 1',
+    { email }
+  );
+  if (byEmail[0] && Number(byEmail[0].perfil_id) === PERFIL.CUIDADOR) {
+    return attach(byEmail[0].id);
+  }
+  if (byEmail[0] && Number(byEmail[0].perfil_id) !== PERFIL.CUIDADOR) {
+    email = cuidadorLoginEmail(cuidadorId, cpfDigits);
+  }
+
+  if (cpfDigits.length === 11) {
+    const byCpf = await query(
+      `SELECT id, perfil_id FROM usuarios
+       WHERE regexp_replace(COALESCE(cpf, ''), '[^0-9]', '', 'g') = :cpf
+       LIMIT 1`,
+      { cpf: cpfDigits }
+    );
+    if (byCpf[0] && Number(byCpf[0].perfil_id) === PERFIL.CUIDADOR) {
+      return attach(byCpf[0].id);
+    }
+  }
+
+  const senha = `VlLink#${(cpfDigits || String(cuidadorId)).slice(-4)}${crypto.randomBytes(2).toString('hex')}`;
+  const senha_hash = await hashPassword(senha);
+  try {
+    const result = await query(
+      `INSERT INTO usuarios (nome, email, senha_hash, status, perfil_id, cpf)
+       VALUES (:nome, :email, :senha_hash, 'ativo', :perfil_id, :cpf)`,
+      {
+        nome: c.nome,
+        email,
+        senha_hash,
+        perfil_id: PERFIL.CUIDADOR,
+        cpf: cpfDigits.length === 11 ? cpfDigits : null,
+      }
+    );
+    const uid = result.insertId;
+    await syncUsuarioPerfilPadrao(uid, PERFIL.CUIDADOR);
+    return attach(uid);
+  } catch (err) {
+    if (isDuplicateKey(err)) {
+      const again = await query(
+        'SELECT id FROM usuarios WHERE LOWER(email) = :email LIMIT 1',
+        { email }
+      );
+      if (again[0]) return attach(again[0].id);
+    }
+    throw err;
+  }
+}
+
+async function healResponsavelPacienteLinks(user) {
+  if (Number(user?.perfilId) !== PERFIL.RESPONSAVEL || !user?.id) return;
+  const uid = Number(user.id);
+  await query(
+    `UPDATE responsaveis r
+     SET usuario_id = :uid
+     FROM usuarios u
+     WHERE u.id = :uid
+       AND r.usuario_id IS NULL
+       AND (
+         (
+           length(regexp_replace(COALESCE(u.cpf, ''), '[^0-9]', '', 'g')) = 11
+           AND regexp_replace(COALESCE(r.cpf, ''), '[^0-9]', '', 'g')
+             = regexp_replace(COALESCE(u.cpf, ''), '[^0-9]', '', 'g')
+         )
+         OR (
+           COALESCE(r.email, '') <> ''
+           AND LOWER(TRIM(r.email)) = LOWER(TRIM(u.email))
+         )
+       )`,
+    { uid }
+  );
+  const mine = await query('SELECT id FROM responsaveis WHERE usuario_id = :uid', { uid });
+  for (const r of mine) {
+    const links = await query(
+      `SELECT paciente_id FROM paciente_responsaveis WHERE responsavel_id = :rid
+       UNION
+       SELECT id AS paciente_id FROM pacientes WHERE responsavel_id = :rid`,
+      { rid: r.id }
+    );
+    for (const p of links) {
+      await linkResponsavelPaciente(p.paciente_id, r.id);
+    }
+  }
+}
+
+async function healCuidadoresUsuarios(user, pacienteIds = []) {
+  if (!user?.id) return;
+  const uid = Number(user.id);
+  const ids = (Array.isArray(pacienteIds) ? pacienteIds : [])
+    .map(Number)
+    .filter((id) => Number.isFinite(id) && id > 0);
+  const params = { uid };
+  let where = 'c.usuario_id = :uid';
+  if (ids.length) {
+    params.ids = ids;
+    where = `c.usuario_id = :uid
+      OR (
+        c.usuario_id IS NULL
+        AND (
+          c.id IN (
+            SELECT p.cuidador_id FROM pacientes p
+            WHERE p.cuidador_id IS NOT NULL AND p.id = ANY(:ids)
+          )
+          OR c.id IN (
+            SELECT v.cuidador_id FROM paciente_cuidador_vinculos v
+            WHERE v.cuidador_id IS NOT NULL AND v.paciente_id = ANY(:ids)
+          )
+        )
+      )
+      OR c.id IN (
+        SELECT p.cuidador_id FROM pacientes p
+        WHERE p.cuidador_id IS NOT NULL AND p.id = ANY(:ids)
+      )
+      OR c.id IN (
+        SELECT v.cuidador_id FROM paciente_cuidador_vinculos v
+        WHERE v.cuidador_id IS NOT NULL AND v.paciente_id = ANY(:ids)
+      )`;
+  }
+  const rows = await query(`SELECT c.id FROM cuidadores c WHERE ${where}`, params);
+  for (const r of rows) {
+    await ensureUsuarioForCuidador(r.id);
+  }
+}
+
 module.exports = {
   onlyDigits,
   findPacienteByCpf,
@@ -266,4 +436,7 @@ module.exports = {
   linkPacientesComMesmoCpfAoResponsavel,
   upsertPacienteOnboarding,
   upsertPacienteAutocuidado,
+  ensureUsuarioForCuidador,
+  healResponsavelPacienteLinks,
+  healCuidadoresUsuarios,
 };

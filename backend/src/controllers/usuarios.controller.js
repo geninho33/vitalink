@@ -3,6 +3,8 @@ const { hashPassword } = require('../utils/password');
 const { writeAudit } = require('../services/audit.service');
 const { syncUsuarioPerfilPadrao } = require('../services/papel.service');
 const { assertEmail, assertPassword, assertCpf, assertAdult } = require('../utils/validation');
+const { listAllowedPacienteIds } = require('../services/pacienteScope.service');
+const { healCuidadoresUsuarios } = require('../services/vinculoPaciente.service');
 
 function clientMeta(req) {
   return { ip: req.ip, userAgent: req.get('user-agent') };
@@ -16,18 +18,57 @@ function isResponsavel(req) {
 
 async function listUsuarios(req, res, next) {
   try {
-    const where = isResponsavel(req)
-      ? 'WHERE u.perfil_id IN (4, 5, 6)'
-      : '';
+    let where = '';
+    const params = {};
+    if (isResponsavel(req)) {
+      const ids = await listAllowedPacienteIds(req.user);
+      params.me = Number(req.user.id);
+      const pacienteIds = Array.isArray(ids) ? ids : [];
+      await healCuidadoresUsuarios(req.user, pacienteIds);
+      if (!pacienteIds.length) {
+        where = `WHERE u.id = :me OR u.perfil_id = 4`;
+      } else {
+        params.ids = pacienteIds;
+        where = `WHERE u.perfil_id IN (4, 5, 6)
+          AND (
+            u.id = :me
+            OR u.perfil_id = 4
+            OR u.id IN (
+              SELECT r.usuario_id FROM responsaveis r
+              WHERE r.usuario_id IS NOT NULL
+                AND (
+                  r.id IN (SELECT pr.responsavel_id FROM paciente_responsaveis pr WHERE pr.paciente_id = ANY(:ids))
+                  OR r.id IN (SELECT p.responsavel_id FROM pacientes p WHERE p.id = ANY(:ids) AND p.responsavel_id IS NOT NULL)
+                )
+            )
+            OR u.id IN (
+              SELECT c.usuario_id FROM cuidadores c
+              WHERE c.usuario_id IS NOT NULL
+                AND (
+                  c.id IN (SELECT p.cuidador_id FROM pacientes p WHERE p.id = ANY(:ids) AND p.cuidador_id IS NOT NULL)
+                  OR c.id IN (
+                    SELECT v.cuidador_id FROM paciente_cuidador_vinculos v
+                    WHERE v.paciente_id = ANY(:ids) AND v.cuidador_id IS NOT NULL
+                  )
+                )
+            )
+            OR u.id IN (SELECT up.usuario_id FROM usuario_paciente up WHERE up.paciente_id = ANY(:ids))
+          )`;
+      }
+    }
     const rows = await query(
       `SELECT u.id, u.nome, u.email, u.status, u.perfil_id, p.nome AS perfil_nome,
               u.cpf, u.data_nascimento, u.created_at, u.updated_at
        FROM usuarios u
        INNER JOIN perfis p ON p.id = u.perfil_id
        ${where}
-       ORDER BY u.nome ASC`
+       ORDER BY u.created_at DESC NULLS LAST, u.nome ASC`,
+      params
     );
-    return res.json({ data: rows });
+    return res.json({
+      data: rows,
+      pagination: { page: 1, pageSize: Math.max(10, rows.length), total: rows.length },
+    });
   } catch (err) {
     return next(err);
   }

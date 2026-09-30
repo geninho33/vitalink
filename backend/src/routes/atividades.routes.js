@@ -22,6 +22,11 @@ function mount() {
   r.get('/timeline/:pacienteId', requirePermission('/timeline', 'ler'), atividades.listTimeline);
 
   r.get('/consultas', requirePermission('/consultas', 'ler'), atividades.listConsultas);
+  r.get(
+    '/consultas/:id/documentos',
+    requirePermission('/consultas', 'ler'),
+    atividades.listConsultaDocumentos
+  );
   r.post('/consultas', requirePermission('/consultas', 'criar'), atividades.createConsulta);
   r.put('/consultas/:id', requirePermission('/consultas', 'editar'), atividades.updateConsulta);
   r.delete('/consultas/:id', requirePermission('/consultas', 'deletar'), atividades.deleteConsulta);

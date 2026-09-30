@@ -38,10 +38,12 @@ function createCrudController({
   buildScope,
   afterSave,
   beforeDelete,
+  skipStampOwner = false,
 }) {
   const allFields = [...new Set([...requiredCreate, ...optional])];
 
   function stampOwner(payload, req) {
+    if (skipStampOwner) return payload;
     if (allFields.includes('usuario_id') && (payload.usuario_id == null || payload.usuario_id === '')) {
       payload.usuario_id = req.user?.id || null;
     }

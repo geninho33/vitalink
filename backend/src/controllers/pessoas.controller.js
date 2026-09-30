@@ -68,6 +68,11 @@ const cuidadores = createCrudController({
   },
   selectExtra: ', u.email AS usuario_email, u.nome AS usuario_nome',
   joins: 'LEFT JOIN usuarios u ON u.id = cuidadores.usuario_id',
+  skipStampOwner: true,
+  afterSave: async (cuidadorId, payload) => {
+    const { ensureUsuarioForCuidador } = require('../services/vinculoPaciente.service');
+    await ensureUsuarioForCuidador(cuidadorId, payload || {});
+  },
   buildScope: cuidadoresScopeForCrud,
 });
 

@@ -32,9 +32,15 @@ const STATUS_META = {
     icon: 'alert',
   },
   cancelado: {
-    label: 'Cancelado',
+    label: 'Cancelada',
     dot: 'bg-slate-400 text-white',
-    card: 'border-slate-200 bg-slate-50 text-slate-700',
+    card: 'border-slate-200 bg-slate-50 text-slate-700 line-through',
+    icon: 'x',
+  },
+  cancelada: {
+    label: 'Cancelada',
+    dot: 'bg-slate-400 text-white',
+    card: 'border-slate-200 bg-slate-50 text-slate-700 line-through',
     icon: 'x',
   },
 };

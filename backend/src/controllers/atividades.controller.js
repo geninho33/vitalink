@@ -27,6 +27,8 @@ async function listAgenda(req, res, next) {
     if (tipo) {
       where.push('a.tipo = :tipo');
       params.tipo = tipo;
+    } else {
+      where.push(`COALESCE(a.tipo, '') <> 'medicamento'`);
     }
     if (de) {
       where.push('a.data_hora_inicio >= :de');
@@ -179,7 +181,8 @@ async function listTimeline(req, res, next) {
        FROM agenda_eventos a
        INNER JOIN pacientes p ON p.id = a.paciente_id
        WHERE a.paciente_id = :pacienteId
-       ORDER BY a.data_hora_inicio DESC
+         AND COALESCE(a.tipo, '') <> 'medicamento'
+       ORDER BY a.data_hora_inicio ASC
        LIMIT 300`,
       { pacienteId }
     );
@@ -210,7 +213,7 @@ async function listConsultas(req, res, next) {
        INNER JOIN pacientes p ON p.id = c.paciente_id
        LEFT JOIN hospitais_clinicas h ON h.id = c.hospital_clinica_id
        ${whereSql}
-       ORDER BY c.data_hora DESC
+       ORDER BY c.data_hora ASC
        LIMIT 200`,
       params
     );
@@ -346,6 +349,56 @@ async function updateConsulta(req, res, next) {
   }
 }
 
+async function listConsultaDocumentos(req, res, next) {
+  try {
+    const id = req.params.id;
+    const rows = await query(
+      `SELECT c.*, p.nome AS paciente_nome
+       FROM consultas c
+       INNER JOIN pacientes p ON p.id = c.paciente_id
+       WHERE c.id = :id
+       LIMIT 1`,
+      { id }
+    );
+    const consulta = rows[0];
+    if (!consulta) {
+      return res.status(404).json({ error: 'not_found', message: 'Consulta não encontrada.' });
+    }
+    await assertPacienteAccess(req.user, consulta.paciente_id);
+    const day = toDateOnly(consulta.data_hora);
+    const params = { consultaId: consulta.id, pacienteId: consulta.paciente_id };
+    const orParts = ['e.consulta_id = :consultaId'];
+    if (consulta.especialidade && day) {
+      orParts.push(
+        "(e.data_documento = CAST(:day AS date) AND e.especialidade ILIKE :espLike)"
+      );
+      params.day = day;
+      params.espLike = `%${consulta.especialidade}%`;
+    }
+    const docs = await query(
+      `SELECT e.*, a.caminho AS arquivo_caminho, p.nome AS paciente_nome
+       FROM exames_receitas e
+       LEFT JOIN arquivos a ON a.id = e.arquivo_id
+       LEFT JOIN pacientes p ON p.id = e.paciente_id
+       WHERE e.paciente_id = :pacienteId
+         AND (${orParts.join(' OR ')})
+       ORDER BY e.data_documento DESC, e.id DESC`,
+      params
+    );
+    return res.json({
+      data: docs,
+      meta: {
+        consulta_id: Number(consulta.id),
+        paciente_id: Number(consulta.paciente_id),
+        data: day,
+        especialidade: consulta.especialidade || null,
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function deleteConsulta(req, res, next) {
   try {
     await removeAgendaEvento('consultas', req.params.id);
@@ -368,6 +421,7 @@ module.exports = {
   listAgendaDocumentos,
   listTimeline,
   listConsultas,
+  listConsultaDocumentos,
   createConsulta,
   updateConsulta,
   deleteConsulta,

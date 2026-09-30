@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import AgendaDocsLinks from '../../components/AgendaDocsLinks';
 import GoogleCalendarButton from '../../components/GoogleCalendarButton';
 import { useAuth } from '../../context/AuthContext';
@@ -14,7 +14,7 @@ import TimelineRail from '../../components/TimelineRail';
 import { DateBrInput, Field, TextInput, TextSelect, TextTextarea, Modal } from '../../components/forms/FormControls';
 import AutocompleteSelect from '../../components/forms/AutocompleteSelect';
 import { searchEspecialidades, searchMedicos } from '../../utils/redeSaude';
-import { apiRequest } from '../../services/api';
+import { apiRequest, assetUrl } from '../../services/api';
 
 function dayKey(d = new Date()) {
   const y = d.getFullYear();
@@ -133,6 +133,17 @@ function ConsultaFormFields({ form, setForm, pacientes, hidePaciente }) {
           <option value="outro">Outro</option>
         </TextSelect>
       </Field>
+      <Field label="Status">
+        <TextSelect
+          value={form.status || 'pendente'}
+          onChange={(e) => setForm({ ...form, status: e.target.value })}
+        >
+          <option value="pendente">Pendente</option>
+          <option value="concluido">Concluída</option>
+          <option value="atrasado">Atrasada</option>
+          <option value="cancelado">Cancelada</option>
+        </TextSelect>
+      </Field>
       <Field label="Data/Hora" required>
         <TextInput
           type="datetime-local"
@@ -160,16 +171,102 @@ function ConsultaFormFields({ form, setForm, pacientes, hidePaciente }) {
   );
 }
 
+function statusLabel(status) {
+  if (status === 'cancelado' || status === 'cancelada') return 'Cancelada';
+  if (status === 'concluido') return 'Concluída';
+  if (status === 'atrasado') return 'Atrasada';
+  return status || '—';
+}
+
 function statusColor(status) {
   if (status === 'concluido') return 'bg-emerald-100 text-emerald-800 border-emerald-200';
   if (status === 'atrasado' || status === 'nao_realizado') return 'bg-red-100 text-red-800 border-red-200';
-  if (status === 'cancelado') return 'bg-slate-100 text-slate-600 border-slate-200';
+  if (status === 'cancelado' || status === 'cancelada') return 'bg-slate-100 text-slate-600 border-slate-200';
   return 'bg-amber-100 text-amber-900 border-amber-200';
 }
 
 function statusChip(status) {
   const base = 'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide';
   return `${base} ${statusColor(status)}`;
+}
+
+function ConsultaDocsPanel({ consulta }) {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!consulta?.id) return undefined;
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    apiRequest(`/consultas/${consulta.id}/documentos`)
+      .then((res) => {
+        if (!cancelled) setDocs(res.data || []);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message || 'Falha ao carregar documentos.');
+          setDocs([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [consulta?.id]);
+
+  const query = new URLSearchParams();
+  if (consulta?.paciente_id) query.set('paciente_id', String(consulta.paciente_id));
+  if (consulta?.id) query.set('consulta_id', String(consulta.id));
+  const href = `/exames-receitas?${query.toString()}`;
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm text-slate-health">
+        {consulta?.profissional_nome} · {consulta?.especialidade}
+      </p>
+      {loading ? <p className="text-xs text-slate-health">Carregando documentos…</p> : null}
+      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {!loading && !error && !docs.length ? (
+        <p className="text-sm text-slate-health">Nenhum documento vinculado a esta consulta.</p>
+      ) : null}
+      <ul className="grid gap-1">
+        {docs.map((d) => {
+          const fileHref = d.arquivo_caminho ? assetUrl(d.arquivo_caminho) : null;
+          return (
+            <li key={d.id}>
+              {fileHref ? (
+                <a
+                  href={fileHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg border border-[#e2eeee] bg-white px-2 py-1.5 text-xs font-semibold text-ink hover:bg-vita-soft/40"
+                >
+                  <span className="rounded bg-sky-100 px-1 py-0.5 text-[10px] uppercase text-sky-800">
+                    {d.tipo}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{d.titulo}</span>
+                </a>
+              ) : (
+                <div className="rounded-lg border border-[#e2eeee] px-2 py-1.5 text-xs font-semibold">
+                  {d.titulo}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <Link
+        to={href}
+        className="mt-1 inline-flex min-h-10 items-center justify-center rounded-xl bg-vita px-4 text-sm font-semibold text-white"
+      >
+        Abrir pasta de exames e receitas
+      </Link>
+    </div>
+  );
 }
 
 function usePacientes() {
@@ -233,7 +330,11 @@ export function AgendaPage() {
         key={e.id}
         type="button"
         onClick={() => setSelectedEvent(e)}
-        className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-[#e2eeee] bg-[#fbfefe] px-2 py-1.5 text-left text-sm transition hover:border-vita/40 hover:bg-vita-soft/30"
+        className={`flex w-full flex-wrap items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-sm transition hover:border-vita/40 hover:bg-vita-soft/30 ${
+          e.status === 'cancelado'
+            ? 'border-slate-200 bg-slate-50 text-slate-500 line-through'
+            : 'border-[#e2eeee] bg-[#fbfefe]'
+        }`}
       >
         <span className="text-[11px] font-bold tabular-nums text-aqua-deep">{time}</span>
         <span className="min-w-0 flex-1 font-semibold text-ink">{e.titulo}</span>
@@ -245,7 +346,7 @@ export function AgendaPage() {
             {docs} doc{docs > 1 ? 's' : ''}
           </span>
         ) : null}
-        <span className={statusChip(e.status)}>{e.status}</span>
+        <span className={statusChip(e.status)}>{statusLabel(e.status)}</span>
         <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] capitalize text-slate-health">
           {e.tipo}
         </span>
@@ -257,7 +358,7 @@ export function AgendaPage() {
     <div>
       <PageHeader
         title="Agenda do Paciente"
-        description="Calendário mensal com consultas, doses e cuidados."
+        description="Calendário com eventos e consultas. Medicamentos ministrados ficam no módulo de medicamentos."
       />
       <PlaceholderCard>
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
@@ -279,14 +380,13 @@ export function AgendaPage() {
               <option value="pendente">Pendente</option>
               <option value="concluido">Concluído</option>
               <option value="atrasado">Atrasado</option>
-              <option value="cancelado">Cancelado</option>
+              <option value="cancelado">Cancelada</option>
             </TextSelect>
           </Field>
           <Field label="Tipo">
             <TextSelect value={tipo} onChange={(e) => setTipo(e.target.value)}>
-              <option value="">Todos</option>
+              <option value="">Eventos e consultas</option>
               <option value="consulta">Consulta</option>
-              <option value="medicamento">Medicamento</option>
               <option value="cuidado">Cuidado</option>
             </TextSelect>
           </Field>
@@ -449,7 +549,7 @@ export function AgendaPage() {
               <div>
                 <dt className="text-xs font-bold uppercase text-slate-health">Status</dt>
                 <dd className="font-semibold capitalize text-ink">
-                  {selectedEvent.status || '—'}
+                  {statusLabel(selectedEvent.status)}
                 </dd>
               </div>
               {selectedEvent.observacoes ? (
@@ -478,6 +578,7 @@ export function ConsultasPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ ...EMPTY_CONSULTA_FORM });
+  const [docsConsulta, setDocsConsulta] = useState(null);
 
   async function load() {
     const res = await apiRequest('/consultas');
@@ -536,6 +637,11 @@ export function ConsultasPage() {
     await load();
   }
 
+  async function marcarCancelada(id) {
+    await apiRequest(`/consultas/${id}`, { method: 'PUT', body: { status: 'cancelado' } });
+    await load();
+  }
+
   async function excluir(id) {
     if (!window.confirm('Excluir esta consulta?')) return;
     await apiRequest(`/consultas/${id}`, { method: 'DELETE' });
@@ -572,19 +678,32 @@ export function ConsultasPage() {
             return (
               <article
                 key={r.id}
-                className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-[#e2eeee] bg-[#fbfefe] px-2.5 py-2"
+                className={`flex w-full flex-wrap items-center gap-2 rounded-xl border px-2.5 py-2 ${
+                  r.status === 'cancelado'
+                    ? 'border-slate-200 bg-slate-50 text-slate-500'
+                    : 'border-[#e2eeee] bg-[#fbfefe]'
+                }`}
               >
                 <span className="shrink-0 rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold text-sky-800">
                   {time}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                <span className={`min-w-0 flex-1 truncate text-sm font-semibold text-ink ${
+                  r.status === 'cancelado' ? 'line-through' : ''
+                }`}>
                   {r.profissional_nome}
                   <span className="font-normal text-slate-health"> · {r.especialidade}</span>
                 </span>
                 <span className="truncate text-[11px] text-slate-health">{r.paciente_nome}</span>
-                <span className={statusChip(r.status)}>{r.status}</span>
+                <span className={statusChip(r.status)}>{statusLabel(r.status)}</span>
                 <div className="flex shrink-0 flex-wrap gap-1">
                   <GoogleCalendarButton compact event={consultaToCalendarEvent(r)} />
+                  <button
+                    type="button"
+                    onClick={() => setDocsConsulta(r)}
+                    className="rounded-md border border-vita px-2 py-1 text-[11px] font-bold text-vita hover:bg-vita-soft"
+                  >
+                    Visualizar
+                  </button>
                   <button
                     type="button"
                     onClick={() => openEdit(r)}
@@ -592,13 +711,22 @@ export function ConsultasPage() {
                   >
                     Editar
                   </button>
-                  {r.status !== 'concluido' ? (
+                  {r.status !== 'concluido' && r.status !== 'cancelado' ? (
                     <button
                       type="button"
                       onClick={() => marcarConcluida(r.id)}
                       className="rounded-md border border-emerald-200 px-2 py-1 text-[11px] font-bold text-emerald-800 hover:bg-emerald-50"
                     >
-                      Concluído(a)
+                      Concluída
+                    </button>
+                  ) : null}
+                  {r.status !== 'cancelado' ? (
+                    <button
+                      type="button"
+                      onClick={() => marcarCancelada(r.id)}
+                      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      Cancelada
                     </button>
                   ) : null}
                   <button
@@ -641,6 +769,14 @@ export function ConsultasPage() {
             {editingId ? 'Salvar alterações' : 'Salvar e enviar à agenda'}
           </button>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(docsConsulta)}
+        title="Documentos da consulta"
+        onClose={() => setDocsConsulta(null)}
+      >
+        {docsConsulta ? <ConsultaDocsPanel consulta={docsConsulta} /> : null}
       </Modal>
     </div>
   );
@@ -985,9 +1121,10 @@ export function TimelinePage() {
   }, [pacienteId]);
 
   const filtered = useMemo(() => {
+    const base = (events || []).filter((e) => String(e.tipo || '') !== 'medicamento');
     const term = q.trim().toLocaleLowerCase('pt-BR');
-    if (!term) return events;
-    return events.filter((e) => {
+    if (!term) return base;
+    return base.filter((e) => {
       const hay = [
         e.titulo,
         e.descricao,
@@ -1026,14 +1163,25 @@ export function TimelinePage() {
       ? new Date(e.data_hora_inicio).toLocaleString('pt-BR')
       : '',
     selected: highlightId != null && Number(highlightId) === Number(e.id),
-    onClick: () => navigate(detailHref(e)),
+    onClick: () => {
+      const isConsulta = e.tipo === 'consulta' || e.origem_tabela === 'consultas';
+      if (isConsulta) {
+        const params = new URLSearchParams();
+        if (pacienteId) params.set('paciente_id', String(pacienteId));
+        if (e.origem_id) params.set('consulta_id', String(e.origem_id));
+        if (e.id) params.set('agenda_evento_id', String(e.id));
+        navigate(`/exames-receitas?${params.toString()}`);
+        return;
+      }
+      navigate(detailHref(e));
+    },
   }));
 
   return (
     <div>
       <PageHeader
         title="Linha do Tempo"
-        description="Histórico contínuo do que foi agendado e realizado. Clique no card para abrir o registro detalhado."
+        description="Eventos e consultas em ordem cronológica (mais antigos à esquerda). Clique na consulta para abrir os documentos anexos."
       />
       <PlaceholderCard>
         <div className="grid gap-3 sm:grid-cols-2">
