@@ -45,8 +45,8 @@ services:
       API_PREFIX: ${API_PREFIX:-/api/v1}
       DB_HOST: vitalink-db
       DB_PORT: 5432
-      DB_USER: ${DB_USER:-vitalink}
-      DB_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
+      DB_USER: ${APP_DB_USER:-${DB_USER:-vitalink}}
+      DB_PASSWORD: ${APP_DB_PASSWORD:-${DB_PASSWORD:-vitalink_secret}}
       DB_NAME: ${DB_NAME:-vitalink}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       SEED_REDE_SAUDE: ${SEED_REDE_SAUDE:-true}

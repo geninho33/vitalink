@@ -95,11 +95,21 @@ async function listAllowedPacienteIds(user) {
     );
   } else if (perfilId === PERFIL.PACIENTE || perfilId === PERFIL.AUTOCUIDADO) {
     rows = await query(
-      `SELECT DISTINCT up.paciente_id
-       FROM usuario_perfis up
-       WHERE up.usuario_id = :uid
-         AND up.paciente_id IS NOT NULL
-         AND COALESCE(up.ativo, TRUE) = TRUE`,
+      `SELECT DISTINCT x.paciente_id
+       FROM (
+         SELECT up.paciente_id
+         FROM usuario_perfis up
+         WHERE up.usuario_id = :uid
+           AND up.paciente_id IS NOT NULL
+           AND COALESCE(up.ativo, TRUE) = TRUE
+         UNION
+         SELECT p.id AS paciente_id
+         FROM pacientes p
+         INNER JOIN usuarios u ON u.id = :uid
+         WHERE length(regexp_replace(COALESCE(u.cpf, ''), '[^0-9]', '', 'g')) = 11
+           AND regexp_replace(COALESCE(p.cpf, ''), '[^0-9]', '', 'g')
+             = regexp_replace(COALESCE(u.cpf, ''), '[^0-9]', '', 'g')
+       ) x`,
       { uid }
     );
     if (user.pacienteId) linked.add(Number(user.pacienteId));

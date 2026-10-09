@@ -159,7 +159,7 @@ export default function Sidebar({
         <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4">
           {locked ? (
             <p className="mb-3 rounded-xl bg-white/10 px-3 py-2 text-xs leading-relaxed text-white/85">
-              Cadastre um paciente para liberar os demais módulos.
+              Complete seu cadastro de saúde em Início → Perfil para liberar o acompanhamento.
             </p>
           ) : null}
           {tree.map((item) => (

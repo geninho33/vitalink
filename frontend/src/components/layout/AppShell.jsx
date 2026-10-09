@@ -5,16 +5,18 @@ import Header from './Header';
 import { useAuth } from '../../context/AuthContext';
 import { usePacienteAtivo } from '../../context/PacienteAtivoContext';
 import { filterMenusWithoutPatient } from '../../utils/pacienteGate';
+import { isPacienteOuAutocuidado } from '../../utils/perfis';
 
 export default function AppShell() {
   const { usuario, menus, refreshSession } = useAuth();
   const { pacientes, loading } = usePacienteAtivo();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const selfCare = isPacienteOuAutocuidado(usuario);
   const locked = !loading && pacientes.length === 0;
   const visibleMenus = useMemo(
-    () => (locked ? filterMenusWithoutPatient(menus) : menus),
-    [locked, menus]
+    () => (locked ? filterMenusWithoutPatient(menus, { selfCare }) : menus),
+    [locked, menus, selfCare]
   );
 
   useEffect(() => {

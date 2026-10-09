@@ -425,12 +425,61 @@ async function healCuidadoresUsuarios(user, pacienteIds = []) {
   }
 }
 
+async function healAutocuidadoPacienteLinks(user) {
+  const perfilId = Number(user?.perfilId);
+  if (perfilId !== PERFIL.PACIENTE && perfilId !== PERFIL.AUTOCUIDADO) return null;
+  if (!user?.id) return null;
+
+  const uid = Number(user.id);
+  const already = await query(
+    `SELECT paciente_id FROM usuario_paciente WHERE usuario_id = :uid LIMIT 1`,
+    { uid }
+  );
+  if (already[0]?.paciente_id) return Number(already[0].paciente_id);
+
+  const rows = await query(
+    `SELECT id, nome, cpf, data_nascimento, telefone, email
+     FROM usuarios WHERE id = :uid LIMIT 1`,
+    { uid }
+  );
+  const u = rows[0];
+  if (!u) return null;
+
+  const cpf = onlyDigits(u.cpf);
+  if (cpf.length === 11) {
+    const byCpf = await findPacienteByCpf(cpf);
+    if (byCpf?.id) {
+      await linkUsuarioPaciente(uid, byCpf.id, 'autocuidado');
+      await ensurePapel(uid, PERFIL.AUTOCUIDADO, byCpf.id, 'Autocuidado');
+      await ensurePapel(uid, PERFIL.PACIENTE, byCpf.id, 'Paciente');
+      return Number(byCpf.id);
+    }
+  }
+
+  if (perfilId === PERFIL.AUTOCUIDADO && cpf.length === 11) {
+    const nasc = u.data_nascimento ? String(u.data_nascimento).slice(0, 10) : null;
+    if (!nasc) return null;
+    const created = await upsertPacienteAutocuidado({
+      usuarioId: uid,
+      nome: u.nome,
+      cpf,
+      telefone: u.telefone || null,
+      dataNascimento: nasc,
+    });
+    return created?.id ? Number(created.id) : null;
+  }
+
+  return null;
+}
+
 module.exports = {
   onlyDigits,
   findPacienteByCpf,
   findPacienteById,
   findResponsavelByUsuarioId,
   resolveResponsavelIds,
+  linkUsuarioPaciente,
+  ensurePapel,
   linkResponsavelPaciente,
   attachDualRoleIfSameCpf,
   linkPacientesComMesmoCpfAoResponsavel,
@@ -439,4 +488,5 @@ module.exports = {
   ensureUsuarioForCuidador,
   healResponsavelPacienteLinks,
   healCuidadoresUsuarios,
+  healAutocuidadoPacienteLinks,
 };

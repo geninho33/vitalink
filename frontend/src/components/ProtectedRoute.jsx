@@ -1,7 +1,12 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePacienteAtivo } from '../context/PacienteAtivoContext';
-import { isPacienteGatePath, pacienteGateTarget } from '../utils/pacienteGate';
+import {
+  isPacienteGatePath,
+  isSelfCareGatePath,
+  pacienteGateTarget,
+} from '../utils/pacienteGate';
+import { isPacienteOuAutocuidado } from '../utils/perfis';
 
 const FREE_PATHS = ['/meus-dados', '/onboarding', '/termos'];
 
@@ -36,12 +41,17 @@ export default function ProtectedRoute() {
     !requerOnboarding &&
     pacientesReady &&
     !loadingPacientes &&
-    pacientes.length === 0 &&
-    !isPacienteGatePath(location.pathname)
+    pacientes.length === 0
   ) {
-    const target = pacienteGateTarget(usuario);
-    if (target !== location.pathname) {
-      return <Navigate to={target} replace />;
+    const selfCare = isPacienteOuAutocuidado(usuario);
+    const allowedEmpty = selfCare
+      ? isSelfCareGatePath(location.pathname)
+      : isPacienteGatePath(location.pathname);
+    if (!allowedEmpty) {
+      const target = pacienteGateTarget(usuario);
+      if (target !== location.pathname) {
+        return <Navigate to={target} replace />;
+      }
     }
   }
 

@@ -6,6 +6,7 @@ const {
 const { parseIsoDate, isValidEmail } = require('../utils/validation');
 const { pick } = require('../utils/crudFactory');
 const { writeAudit, buildAuditDiff } = require('../services/audit.service');
+const { healAutocuidadoPacienteLinks } = require('../services/vinculoPaciente.service');
 
 const PACIENTE_SELF_FIELDS = [
   'nome',
@@ -45,7 +46,11 @@ async function resolveOwnPacienteId(user, requestedId = null) {
 
 async function listMeusPacientes(req, res, next) {
   try {
-    const ids = await listAllowedPacienteIds(req.user);
+    let ids = await listAllowedPacienteIds(req.user);
+    if (ids !== null && ids.length === 0) {
+      await healAutocuidadoPacienteLinks(req.user);
+      ids = await listAllowedPacienteIds(req.user);
+    }
     if (ids !== null && ids.length === 0) {
       return res.json({ data: [] });
     }
