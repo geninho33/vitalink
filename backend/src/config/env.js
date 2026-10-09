@@ -46,7 +46,7 @@ module.exports = {
     const corsEnv = process.env.CORS_ORIGIN || '';
     
     // Em produção, se CORS_ORIGIN não estiver configurado ou for '*', recusar
-    if (isProduction && (!corsEnv || corsEnv === '*')) {
+    if (isProduction && (!corsEnv || corsEnv.trim() === '*')) {
       throw new Error(
         'CORS_ORIGIN não configurado ou com wildcard (*) em produção. ' +
         'Defina uma lista explícita de origens permitidas (ex.: https://homolog.vitalink.app.br)'
@@ -62,6 +62,11 @@ module.exports = {
     // Avisar se wildcard for usado fora de produção
     if (origins.includes('*') && !isProduction) {
       console.warn('⚠️  AVISO: CORS com wildcard (*) permitido apenas em desenvolvimento');
+    }
+    
+    // Em produção, rejeitar wildcard mesmo que passe pela validação acima (segurança adicional)
+    if (isProduction && origins.includes('*')) {
+      throw new Error('CORS com wildcard (*) não é permitido em produção');
     }
     
     return origins;

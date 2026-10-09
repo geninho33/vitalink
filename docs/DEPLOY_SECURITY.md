@@ -184,7 +184,40 @@ Testes implementados:
 
 ---
 
-## 📞 Suporte
+## 7. **Senha do PostgreSQL: ALTER USER**
+
+Como o volume do PostgreSQL (`vitalink_pg_data`) já existe, trocar a variável `DB_PASSWORD` no `.env` **NÃO altera a senha do banco automaticamente**.
+
+**Procedimento correto:**
+
+1. **Definir nova senha no `.env`:**
+   ```env
+   DB_PASSWORD=<nova_senha_forte>
+   ```
+
+2. **Conectar ao banco com a senha ANTIGA** e executar ALTER USER:
+   ```bash
+   # Conectar ao container do banco
+   docker exec -it vitalink-db psql -U vitalink vitalink
+   
+   # Dentro do psql:
+   ALTER USER vitalink WITH PASSWORD '<nova_senha_forte>';
+   \q
+   ```
+
+3. **Reiniciar o backend:**
+   ```bash
+   docker-compose restart vitalink-backend
+   ```
+
+4. **Verificar se backend conecta com sucesso:**
+   ```bash
+   docker-compose logs vitalink-backend | grep "conectado\|connected\|error"
+   ```
+
+**⚠️ IMPORTANTE:** Nunca execute comandos SQL com senhas reais em logs públicos ou documentação versionada. Use sempre placeholders.
+
+---
 
 Em caso de problemas no deploy:
 
@@ -227,6 +260,4 @@ Se houver problemas críticos:
 
 **Nota:** Rollback após aplicar patch SQL pode requerer reverter manualmente as constraints criadas.
 
----
-
-**Última atualização:** 09/10/2026
+## 📞 Suporte

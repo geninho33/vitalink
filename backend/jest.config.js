@@ -9,6 +9,7 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.test.js',
   ],
+  setupFiles: ['<rootDir>/__tests__/setup.js'],
   testTimeout: 10000,
   verbose: true,
 };

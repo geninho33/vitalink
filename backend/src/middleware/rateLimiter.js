@@ -1,10 +1,9 @@
 const rateLimit = require('express-rate-limit');
 
 // Rate limiter estrito para endpoints de autenticação sensíveis
-// 5 tentativas por 15 minutos por IP
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5,
+  max: Number(process.env.RATE_LIMIT_AUTH) || 5, // Padrão: 5 tentativas
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -15,10 +14,9 @@ const authLimiter = rateLimit({
 });
 
 // Rate limiter moderado para registro e recuperação de senha
-// 3 tentativas por hora por IP
 const sensitiveAuthLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora
-  max: 3,
+  max: Number(process.env.RATE_LIMIT_SENSITIVE) || 3, // Padrão: 3 tentativas
   standardHeaders: true,
   legacyHeaders: false,
   message: {

@@ -31,9 +31,10 @@ const { ensureUploadDir, serveFile } = require('./controllers/arquivos.controlle
 function createApp() {
   const app = express();
 
-  // Trust proxy: API está atrás de nginx (container frontend) e nginx do host
-  // Isso garante que req.ip reflita o IP real do cliente
-  app.set('trust proxy', true);
+  // Trust proxy: API está atrás de 2 proxies (nginx host → nginx container frontend → API)
+  // Configurável via env para flexibilidade em diferentes ambientes
+  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS) || 2;
+  app.set('trust proxy', trustProxyHops);
   
   // Headers de segurança com CSP
   app.use(helmet({
@@ -73,17 +74,17 @@ function createApp() {
   
   app.use(express.json({ limit: '2mb' }));
   
-  // Rate limiting global: 100 requisições por 15 minutos por IP
+  // Rate limiting global: alto o suficiente para uso normal do SPA
+  // mas ainda protege contra abusos (configurável via env)
   const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // limite de requisições
-    standardHeaders: true, // Retorna info de rate limit nos headers `RateLimit-*`
-    legacyHeaders: false, // Desabilita headers `X-RateLimit-*`
+    max: Number(process.env.RATE_LIMIT_GLOBAL) || 1000, // Padrão: 1000 req/15min por IP
+    standardHeaders: true,
+    legacyHeaders: false,
     message: {
       error: 'too_many_requests',
-      message: 'Muitas requisições deste IP. Tente novamente em 15 minutos.',
+      message: 'Muitas requisições deste IP. Tente novamente em alguns minutos.',
     },
-    // Usa req.ip que já considera trust proxy
     skip: (req) => {
       // Não aplica rate limit no health check
       return req.path === '/health';

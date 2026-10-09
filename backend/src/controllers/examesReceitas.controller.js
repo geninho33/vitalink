@@ -1,7 +1,7 @@
 const { query, isDuplicateKey } = require('../config/database');
 const { writeAudit, buildAuditDiff } = require('../services/audit.service');
 const { createCrudController, pick, requireFields } = require('../utils/crudFactory');
-const { applyPacienteScope } = require('../services/pacienteScope.service');
+const { applyPacienteScope, assertPacienteAccess } = require('../services/pacienteScope.service');
 
 const table = 'exames_receitas';
 const recurso = 'exames_receitas';
@@ -41,6 +41,7 @@ const base = createCrudController({
   normalize,
   selectExtra,
   joins,
+  buildScope: async (req) => applyPacienteScope(req.user, `${table}.paciente_id`),
 });
 
 async function list(req, res, next) {
@@ -153,8 +154,26 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
+    // Verificar se o documento existe e se o usuário tem acesso ao paciente
+    const existing = await query(
+      `SELECT paciente_id FROM ${table} WHERE id = :id LIMIT 1`,
+      { id: req.params.id }
+    );
+    if (!existing[0]) {
+      return res.status(404).json({ error: 'not_found', message: 'Registro não encontrado.' });
+    }
+    
+    // Verificar escopo de acesso ao paciente
+    await assertPacienteAccess(req.user, existing[0].paciente_id);
+    
     let payload = pick(req.body || {}, allFields);
     payload = normalize(payload, 'update');
+    
+    // Se mudar de paciente, verificar acesso ao novo paciente também
+    if (payload.paciente_id && payload.paciente_id !== existing[0].paciente_id) {
+      await assertPacienteAccess(req.user, payload.paciente_id);
+    }
+    
     const cols = Object.keys(payload);
     if (!cols.length) {
       return res.status(400).json({
