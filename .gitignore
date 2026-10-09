@@ -33,3 +33,6 @@ database/_medicos_cache.json
 Thumbs.db
 *.tmp
 *.log
+
+# Credenciais de acesso ao servidor (nunca versionar)
+acesso.srv
