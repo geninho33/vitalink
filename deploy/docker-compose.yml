@@ -8,9 +8,11 @@ services:
     container_name: vitalink-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-vitalink}
-      POSTGRES_USER: ${DB_USER:-vitalink}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-vitalink_secret}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      # DB_PASSWORD deve ser configurado no .env com valor forte
+      # Nunca use valores padrão em produção!
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?ERRO: DB_PASSWORD não definido no .env}
     ports:
       - "${VITALINK_DB_HOST_PORT:-5433}:5432"
     volumes:
@@ -45,15 +47,19 @@ services:
       API_PREFIX: ${API_PREFIX:-/api/v1}
       DB_HOST: vitalink-db
       DB_PORT: 5432
-      DB_USER: ${APP_DB_USER:-${DB_USER:-vitalink}}
-      DB_PASSWORD: ${APP_DB_PASSWORD:-${DB_PASSWORD:-vitalink_secret}}
-      DB_NAME: ${DB_NAME:-vitalink}
+      DB_USER: ${APP_DB_USER:-${DB_USER}}
+      DB_PASSWORD: ${APP_DB_PASSWORD:-${DB_PASSWORD}}
+      DB_NAME: ${DB_NAME}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       SEED_REDE_SAUDE: ${SEED_REDE_SAUDE:-true}
       UPLOAD_DIR: /app/uploads
-      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-vitalink-2026}
+      # JWT_SECRET deve ser configurado no .env com valor forte (min. 32 chars)
+      # Nunca use valores padrão em produção!
+      JWT_SECRET: ${JWT_SECRET:?ERRO: JWT_SECRET não definido no .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # CORS_ORIGIN deve listar explicitamente as origens permitidas
+      # Em produção, NUNCA use wildcard (*)
+      CORS_ORIGIN: ${CORS_ORIGIN:?ERRO: CORS_ORIGIN não definido no .env}
     ports:
       - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
     volumes:

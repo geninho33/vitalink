@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const env = require('./config/env');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
@@ -25,22 +26,43 @@ const catalogoMedicamentos = require('./controllers/catalogoMedicamentos.control
 const { mountRemediosRoutes } = require('./routes/remedios.routes');
 const { mountPacienteVinculosRoutes } = require('./routes/pacienteVinculos.routes');
 const vinculoPaciente = require('./controllers/vinculoPaciente.controller');
-const { ensureUploadDir, UPLOAD_ROOT } = require('./controllers/arquivos.controller');
+const { ensureUploadDir, serveFile } = require('./controllers/arquivos.controller');
 
 function createApp() {
   const app = express();
 
-  app.set('trust proxy', 1);
+  // Trust proxy: API está atrás de 2 proxies (nginx host → nginx container frontend → API)
+  // Configurável via env para flexibilidade em diferentes ambientes
+  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS) || 2;
+  app.set('trust proxy', trustProxyHops);
+  
+  // Headers de segurança com CSP
   app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind usa inline styles
+        imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'", 'blob:'],
+        frameSrc: ["'none'"],
+      },
+    },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginEmbedderPolicy: false, // Necessário para imagens externas
   }));
 
+  // CORS: apenas origens explicitamente permitidas
   const allowAllCors = env.corsOrigin.includes('*');
   app.use(
     cors({
       origin: allowAllCors
         ? true
         : (origin, cb) => {
+            // Permitir requisições sem origin (ex.: Postman, curl, mobile apps)
             if (!origin || env.corsOrigin.includes(origin)) {
               return cb(null, true);
             }
@@ -49,10 +71,33 @@ function createApp() {
       credentials: true,
     })
   );
+  
   app.use(express.json({ limit: '2mb' }));
+  
+  // Rate limiting global: alto o suficiente para uso normal do SPA
+  // mas ainda protege contra abusos (configurável via env)
+  const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: Number(process.env.RATE_LIMIT_GLOBAL) || 1000, // Padrão: 1000 req/15min por IP
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: 'too_many_requests',
+      message: 'Muitas requisições deste IP. Tente novamente em alguns minutos.',
+    },
+    skip: (req) => {
+      // Não aplica rate limit no health check
+      return req.path === '/health';
+    },
+  });
+  
+  app.use(globalLimiter);
 
   ensureUploadDir();
-  app.use('/uploads', express.static(UPLOAD_ROOT));
+  
+  // Endpoint protegido para servir arquivos (substitui express.static)
+  // Requer autenticação e verifica escopo de acesso ao paciente
+  app.get('/uploads/:filename', authenticate, serveFile);
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'vitalink-api' });

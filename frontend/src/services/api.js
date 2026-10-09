@@ -148,6 +148,65 @@ export function assetUrl(caminho) {
 /** Alias para URLs de upload (preview de fotos/arquivos). */
 export const resolveUploadUrl = assetUrl;
 
+/**
+ * Busca arquivo protegido de /uploads com autenticação.
+ * Retorna uma URL blob que pode ser usada em <img src> ou <a href>.
+ * 
+ * USO:
+ *   const blobUrl = await fetchProtectedFile('/uploads/123-arquivo.pdf');
+ *   setBlobUrl(blobUrl);
+ *   // Depois: <img src={blobUrl} /> ou <a href={blobUrl} download>
+ */
+export async function fetchProtectedFile(caminho) {
+  if (!caminho) return null;
+  
+  // Se já for blob ou URL externa, retornar direto
+  if (caminho.startsWith('blob:') || /^https?:\/\//i.test(caminho)) {
+    return caminho;
+  }
+  
+  const token = getToken();
+  if (!token) {
+    throw new Error('Autenticação necessária para acessar arquivos.');
+  }
+  
+  const url = assetUrl(caminho);
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearSession();
+      emitUnauthorized('Sessão expirada. Faça login novamente.');
+    }
+    throw new Error(`Erro ao carregar arquivo: ${response.statusText}`);
+  }
+  
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Revoga uma blob URL criada por fetchProtectedFile.
+ * Importante: sempre revogar blob URLs quando não forem mais necessárias
+ * para evitar vazamento de memória.
+ * 
+ * USO:
+ *   useEffect(() => {
+ *     return () => {
+ *       if (blobUrl) revokeProtectedFile(blobUrl);
+ *     };
+ *   }, [blobUrl]);
+ */
+export function revokeProtectedFile(blobUrl) {
+  if (blobUrl && blobUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(blobUrl);
+  }
+}
+
 export async function loginRequest({ email, senha }) {
   return apiRequest('/auth/login', {
     method: 'POST',
