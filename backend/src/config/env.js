@@ -8,6 +8,25 @@ for (const key of required) {
   }
 }
 
+// Validação de JWT_SECRET forte em produção
+const isProduction = (process.env.NODE_ENV || 'development') === 'production';
+const jwtSecret = process.env.JWT_SECRET || '';
+
+if (isProduction && jwtSecret.length < 32) {
+  throw new Error(
+    'JWT_SECRET muito fraco para produção. Use pelo menos 32 caracteres. ' +
+    'Gere um segredo forte com: openssl rand -base64 48'
+  );
+}
+
+if (jwtSecret === 'troque-este-segredo-em-producao-vitalink-2026') {
+  const msg = 'JWT_SECRET padrão detectado! NUNCA use valores de exemplo em produção.';
+  if (isProduction) {
+    throw new Error(msg);
+  }
+  console.warn(`⚠️  AVISO DE SEGURANÇA: ${msg}`);
+}
+
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 3333),
@@ -23,10 +42,30 @@ module.exports = {
     secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
   },
-  corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
+  corsOrigin: (() => {
+    const corsEnv = process.env.CORS_ORIGIN || '';
+    
+    // Em produção, se CORS_ORIGIN não estiver configurado ou for '*', recusar
+    if (isProduction && (!corsEnv || corsEnv === '*')) {
+      throw new Error(
+        'CORS_ORIGIN não configurado ou com wildcard (*) em produção. ' +
+        'Defina uma lista explícita de origens permitidas (ex.: https://homolog.vitalink.app.br)'
+      );
+    }
+    
+    // Em desenvolvimento, fallback para localhost
+    const origins = (corsEnv || 'http://localhost:5173')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    
+    // Avisar se wildcard for usado fora de produção
+    if (origins.includes('*') && !isProduction) {
+      console.warn('⚠️  AVISO: CORS com wildcard (*) permitido apenas em desenvolvimento');
+    }
+    
+    return origins;
+  })(),
   mail: {
     host: process.env.SMTP_HOST || '',
     port: Number(process.env.SMTP_PORT || 587),

@@ -287,7 +287,29 @@ async function createConsulta(req, res, next) {
 async function updateConsulta(req, res, next) {
   try {
     const id = req.params.id;
+    
+    // Verificar se a consulta existe e se o usuário tem acesso ao paciente
+    const existing = await query(
+      `SELECT paciente_id FROM consultas WHERE id = :id LIMIT 1`,
+      { id }
+    );
+    if (!existing[0]) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'Consulta não encontrada.',
+      });
+    }
+    
+    // Verificar escopo de acesso ao paciente
+    await assertPacienteAccess(req.user, existing[0].paciente_id);
+    
     const b = req.body || {};
+    
+    // Se mudar de paciente, verificar acesso ao novo paciente também
+    if (b.paciente_id != null && b.paciente_id !== existing[0].paciente_id) {
+      await assertPacienteAccess(req.user, b.paciente_id);
+    }
+    
     const dataHora = b.data_hora ? toSqlTimestamp(b.data_hora) : null;
     await query(
       `UPDATE consultas SET
@@ -401,13 +423,30 @@ async function listConsultaDocumentos(req, res, next) {
 
 async function deleteConsulta(req, res, next) {
   try {
-    await removeAgendaEvento('consultas', req.params.id);
-    await query(`DELETE FROM consultas WHERE id = :id`, { id: req.params.id });
+    const id = req.params.id;
+    
+    // Verificar se a consulta existe e se o usuário tem acesso ao paciente
+    const existing = await query(
+      `SELECT paciente_id FROM consultas WHERE id = :id LIMIT 1`,
+      { id }
+    );
+    if (!existing[0]) {
+      return res.status(404).json({
+        error: 'not_found',
+        message: 'Consulta não encontrada.',
+      });
+    }
+    
+    // Verificar escopo de acesso ao paciente
+    await assertPacienteAccess(req.user, existing[0].paciente_id);
+    
+    await removeAgendaEvento('consultas', id);
+    await query(`DELETE FROM consultas WHERE id = :id`, { id });
     await writeAudit({
       usuarioId: req.user.id,
       acao: 'deletar',
       recurso: 'consultas',
-      recursoId: req.params.id,
+      recursoId: id,
       ...clientMeta(req),
     });
     return res.status(204).send();
