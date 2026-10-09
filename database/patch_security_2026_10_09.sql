@@ -145,13 +145,13 @@ BEGIN
     SELECT 1 FROM pg_constraint
     WHERE conname = 'uk_paciente_cuidador_vinculos'
   ) THEN
-    -- Deletar duplicatas antes de adicionar constraint (manter o mais recente)
+    -- Deletar duplicatas antes de adicionar constraint (manter o mais recente por ctid)
     DELETE FROM paciente_cuidador_vinculos
-    WHERE id IN (
-      SELECT id FROM (
-        SELECT id, ROW_NUMBER() OVER (
+    WHERE ctid IN (
+      SELECT ctid FROM (
+        SELECT ctid, ROW_NUMBER() OVER (
           PARTITION BY paciente_id, cuidador_id
-          ORDER BY id DESC
+          ORDER BY ctid DESC
         ) AS rn
         FROM paciente_cuidador_vinculos
       ) sub
@@ -173,13 +173,13 @@ BEGIN
     SELECT 1 FROM pg_constraint
     WHERE conname = 'uk_paciente_responsaveis'
   ) THEN
-    -- Deletar duplicatas antes de adicionar constraint (manter o mais recente)
+    -- Deletar duplicatas antes de adicionar constraint (manter o mais recente por created_at)
     DELETE FROM paciente_responsaveis
-    WHERE id IN (
-      SELECT id FROM (
-        SELECT id, ROW_NUMBER() OVER (
+    WHERE ctid IN (
+      SELECT ctid FROM (
+        SELECT ctid, ROW_NUMBER() OVER (
           PARTITION BY paciente_id, responsavel_id
-          ORDER BY id DESC
+          ORDER BY created_at DESC
         ) AS rn
         FROM paciente_responsaveis
       ) sub
@@ -200,36 +200,32 @@ END $$;
 -- ----------------------------------------------------------------------------
 
 -- 3.1. Inserir menu /pacientes se não existir
-INSERT INTO menus (nome, rota, ordem, ativo)
+INSERT INTO menus (titulo, rota, ordem, ativo)
 SELECT 'Pacientes', '/pacientes', 200, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM menus WHERE rota = '/pacientes');
 
 -- 3.2. Adicionar permissões de leitura e edição para Paciente (perfil 6)
 DO $$
 DECLARE
-  menu_id INTEGER;
+  v_menu_id INTEGER;
 BEGIN
-  SELECT id INTO menu_id FROM menus WHERE rota = '/pacientes' LIMIT 1;
+  SELECT id INTO v_menu_id FROM menus WHERE rota = '/pacientes' LIMIT 1;
   
-  IF menu_id IS NOT NULL THEN
-    -- Permissão de leitura
+  IF v_menu_id IS NOT NULL THEN
+    -- Permissão de leitura e edição
     IF NOT EXISTS (
       SELECT 1 FROM permissoes_acesso
-      WHERE perfil_id = 6 AND menu_id = menu_id AND acao = 'ler'
+      WHERE perfil_id = 6 AND menu_id = v_menu_id
     ) THEN
-      INSERT INTO permissoes_acesso (perfil_id, menu_id, acao)
-      VALUES (6, menu_id, 'ler');
-      RAISE NOTICE 'Permissão de leitura em /pacientes adicionada para perfil Paciente (6)';
-    END IF;
-    
-    -- Permissão de edição
-    IF NOT EXISTS (
-      SELECT 1 FROM permissoes_acesso
-      WHERE perfil_id = 6 AND menu_id = menu_id AND acao = 'editar'
-    ) THEN
-      INSERT INTO permissoes_acesso (perfil_id, menu_id, acao)
-      VALUES (6, menu_id, 'editar');
-      RAISE NOTICE 'Permissão de edição em /pacientes adicionada para perfil Paciente (6)';
+      INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_editar)
+      VALUES (6, v_menu_id, TRUE, TRUE);
+      RAISE NOTICE 'Permissões de leitura/edição em /pacientes adicionadas para perfil Paciente (6)';
+    ELSE
+      -- Atualizar se já existe
+      UPDATE permissoes_acesso
+      SET pode_ler = TRUE, pode_editar = TRUE
+      WHERE perfil_id = 6 AND menu_id = v_menu_id;
+      RAISE NOTICE 'Permissões de leitura/edição em /pacientes atualizadas para perfil Paciente (6)';
     END IF;
   END IF;
 END $$;
@@ -237,29 +233,25 @@ END $$;
 -- 3.3. Adicionar permissões de leitura e edição para Autocuidado (perfil 7)
 DO $$
 DECLARE
-  menu_id INTEGER;
+  v_menu_id INTEGER;
 BEGIN
-  SELECT id INTO menu_id FROM menus WHERE rota = '/pacientes' LIMIT 1;
+  SELECT id INTO v_menu_id FROM menus WHERE rota = '/pacientes' LIMIT 1;
   
-  IF menu_id IS NOT NULL THEN
-    -- Permissão de leitura
+  IF v_menu_id IS NOT NULL THEN
+    -- Permissão de leitura e edição
     IF NOT EXISTS (
       SELECT 1 FROM permissoes_acesso
-      WHERE perfil_id = 7 AND menu_id = menu_id AND acao = 'ler'
+      WHERE perfil_id = 7 AND menu_id = v_menu_id
     ) THEN
-      INSERT INTO permissoes_acesso (perfil_id, menu_id, acao)
-      VALUES (7, menu_id, 'ler');
-      RAISE NOTICE 'Permissão de leitura em /pacientes adicionada para perfil Autocuidado (7)';
-    END IF;
-    
-    -- Permissão de edição
-    IF NOT EXISTS (
-      SELECT 1 FROM permissoes_acesso
-      WHERE perfil_id = 7 AND menu_id = menu_id AND acao = 'editar'
-    ) THEN
-      INSERT INTO permissoes_acesso (perfil_id, menu_id, acao)
-      VALUES (7, menu_id, 'editar');
-      RAISE NOTICE 'Permissão de edição em /pacientes adicionada para perfil Autocuidado (7)';
+      INSERT INTO permissoes_acesso (perfil_id, menu_id, pode_ler, pode_editar)
+      VALUES (7, v_menu_id, TRUE, TRUE);
+      RAISE NOTICE 'Permissões de leitura/edição em /pacientes adicionadas para perfil Autocuidado (7)';
+    ELSE
+      -- Atualizar se já existe
+      UPDATE permissoes_acesso
+      SET pode_ler = TRUE, pode_editar = TRUE
+      WHERE perfil_id = 7 AND menu_id = v_menu_id;
+      RAISE NOTICE 'Permissões de leitura/edição em /pacientes atualizadas para perfil Autocuidado (7)';
     END IF;
   END IF;
 END $$;
