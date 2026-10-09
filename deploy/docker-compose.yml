@@ -12,7 +12,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       # DB_PASSWORD deve ser configurado no .env com valor forte
       # Nunca use valores padrão em produção!
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?ERRO: DB_PASSWORD não definido no .env}
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?ERRO: DB_PASSWORD não definido no .env}"
     ports:
       - "${VITALINK_DB_HOST_PORT:-5433}:5432"
     volumes:
@@ -55,11 +55,17 @@ services:
       UPLOAD_DIR: /app/uploads
       # JWT_SECRET deve ser configurado no .env com valor forte (min. 32 chars)
       # Nunca use valores padrão em produção!
-      JWT_SECRET: ${JWT_SECRET:?ERRO: JWT_SECRET não definido no .env}
+      JWT_SECRET: "${JWT_SECRET:?ERRO: JWT_SECRET não definido no .env}"
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       # CORS_ORIGIN deve listar explicitamente as origens permitidas
       # Em produção, NUNCA use wildcard (*)
-      CORS_ORIGIN: ${CORS_ORIGIN:?ERRO: CORS_ORIGIN não definido no .env}
+      CORS_ORIGIN: "${CORS_ORIGIN:?ERRO: CORS_ORIGIN não definido no .env}"
+      # Rate limiting
+      RATE_LIMIT_GLOBAL: ${RATE_LIMIT_GLOBAL:-1000}
+      RATE_LIMIT_AUTH: ${RATE_LIMIT_AUTH:-5}
+      RATE_LIMIT_SENSITIVE: ${RATE_LIMIT_SENSITIVE:-3}
+      # Trust proxy
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
     ports:
       - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
     volumes:

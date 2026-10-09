@@ -403,6 +403,22 @@ async function applyPatchReceitaMedicamento(client) {
   }
 }
 
+async function applyPatchSecurity20261009(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_security_2026_10_09.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch de segurança 2026-10-09 não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch de segurança 2026-10-09 OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch de segurança 2026-10-09: ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -420,6 +436,7 @@ async function main() {
     await applyPatchCatalogoMedicamentos(client);
     await applySeedCatalogoMedicamentos(client);
     await applyPatchReceitaMedicamento(client);
+    await applyPatchSecurity20261009(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});
