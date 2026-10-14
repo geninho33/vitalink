@@ -76,7 +76,7 @@ function PacienteSlot({ value, onChange, disableCpf }) {
         onChange={(data_nascimento) => onChange({ ...value, data_nascimento })}
       />
       <input
-        placeholder="CPF"
+        placeholder="CPF (opcional)"
         inputMode="numeric"
         disabled={disableCpf}
         className="min-h-11 rounded-xl border border-[#cfe0df] px-3 disabled:bg-slate-50"
@@ -173,7 +173,7 @@ export default function OnboardingPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!tipo) {
-      setError('Escolha se você é cuidador, responsável ou autocuidado.');
+      setError('Escolha como você vai usar: família, cuidador, responsável ou autocuidado.');
       return;
     }
     if (!isValidCpf(dados.cpf)) {
@@ -211,11 +211,12 @@ export default function OnboardingPage() {
       setError('Há um CPF de paciente inválido.');
       return;
     }
+    // CPF do paciente é opcional: basta nome e data de nascimento.
     const prontos = pacientes.filter(
-      (p) => p.paciente_id || (p.nome && p.data_nascimento && p.cpf)
+      (p) => p.paciente_id || (p.nome && p.data_nascimento)
     );
     if (!prontos.length) {
-      setError('Cadastre ou vincule ao menos um paciente (pelo CPF) para continuar.');
+      setError('Informe ao menos um paciente (nome e data de nascimento) para continuar.');
       return;
     }
     setSaving(true);
@@ -246,13 +247,19 @@ export default function OnboardingPage() {
         <p className="text-xs font-bold uppercase tracking-wider text-vita">Primeiro acesso</p>
         <h1 className="mt-1 font-display text-2xl font-bold text-ink">Como você vai usar o VitaLink?</h1>
         <p className="mt-1 text-sm text-slate-health">
-          Escolha seu perfil. Autocuidado gerencia só a sua saúde. Cuidador e responsável podem
-          cadastrar ou vincular pacientes pelo CPF.
+          Escolha seu perfil. Família: você cuida de um parente e cadastra só nome e nascimento
+          (CPF opcional). Autocuidado gerencia só a sua saúde. Cuidador e responsável podem
+          cadastrar ou vincular pacientes.
         </p>
 
         <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {[
+              {
+                id: 'familia',
+                title: 'Família',
+                desc: 'Cuido de um parente (pai, mãe, avó...). Cadastro rápido, sem clínica.',
+              },
               { id: 'cuidador', title: 'Cuidador', desc: 'Acompanho rotinas e cuidados no dia a dia.' },
               { id: 'responsavel', title: 'Responsável', desc: 'Sou familiar ou responsável legal.' },
               {
@@ -308,7 +315,7 @@ export default function OnboardingPage() {
               />
             </label>
             )}
-            {tipo === 'responsavel' ? (
+            {tipo === 'responsavel' || tipo === 'familia' ? (
               <label className="grid gap-1 text-sm">
                 <span className="font-semibold">Parentesco</span>
                 <input
@@ -338,7 +345,7 @@ export default function OnboardingPage() {
             )}
           </div>
 
-          {tipo !== 'autocuidado' ? (
+          {tipo !== 'autocuidado' && tipo !== 'familia' ? (
           <label className="flex items-start gap-2 rounded-2xl border border-[#d7e8e7] bg-[#f8fcfc] px-3 py-3 text-sm">
             <input
               type="checkbox"
@@ -354,7 +361,7 @@ export default function OnboardingPage() {
               </span>
             </span>
           </label>
-          ) : (
+          ) : tipo === 'familia' ? null : (
             <p className="rounded-2xl border border-aqua/30 bg-aqua-soft px-3 py-3 text-sm text-aqua-deep">
               No autocuidado você é o titular e o paciente. Não é necessário vincular outras pessoas.
             </p>
@@ -364,7 +371,7 @@ export default function OnboardingPage() {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-bold uppercase tracking-wider text-slate-health">
-                Paciente inicial (obrigatório)
+                {tipo === 'familia' ? 'Quem você cuida?' : 'Paciente inicial (obrigatório)'}
               </h2>
               <button
                 type="button"
@@ -376,8 +383,8 @@ export default function OnboardingPage() {
               </button>
             </div>
             <p className="mb-2 text-xs text-slate-health">
-              Se o paciente já existe (ex.: Juarez), informe só o CPF — o sistema vincula a ficha em
-              vez de cadastrar de novo.
+              Nome e data de nascimento bastam; o CPF é opcional. Se o paciente já existe, informe o
+              CPF — o sistema vincula a ficha em vez de cadastrar de novo.
             </p>
             {pacientes.map((p, idx) => (
               <PacienteSlot

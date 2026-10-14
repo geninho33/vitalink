@@ -609,7 +609,7 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
             medicos={medicos}
             medicoIds={form.medico_ids || []}
           />
-          <Field label="CPF" required error={cpfError}>
+          <Field label="CPF" hint="Opcional" error={cpfError}>
             <TextInput
               value={maskCpf(form.cpf)}
               onChange={(e) => {
@@ -944,7 +944,7 @@ export function PacientesPage() {
         foto_caminho: undefined,
         convenio_frente_caminho: undefined,
         convenio_verso_caminho: undefined,
-        cpf: onlyDigits(form.cpf),
+        cpf: onlyDigits(form.cpf) || null,
         sexo: form.sexo || null,
         telefone_principal: form.telefone_principal
           ? onlyDigits(form.telefone_principal)
