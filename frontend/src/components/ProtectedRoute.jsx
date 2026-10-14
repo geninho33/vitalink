@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ConsentGate from './ConsentGate';
 import { usePacienteAtivo } from '../context/PacienteAtivoContext';
 import {
   isPacienteGatePath,
@@ -21,8 +22,7 @@ function canAccessPath(pathname, menus) {
 }
 
 export default function ProtectedRoute() {
-  const { isAuthenticated, sessionChecked, requerOnboarding, menus, usuario } = useAuth();
-  const { pacientes, loading: loadingPacientes, ready: pacientesReady } = usePacienteAtivo();
+  const { isAuthenticated, sessionChecked } = useAuth();
   const location = useLocation();
 
   if (!sessionChecked) {
@@ -32,6 +32,19 @@ export default function ProtectedRoute() {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
+
+  // LGPD: sem aceite da versão vigente dos documentos obrigatórios, o app fica bloqueado.
+  return (
+    <ConsentGate>
+      <ProtectedContent />
+    </ConsentGate>
+  );
+}
+
+function ProtectedContent() {
+  const { requerOnboarding, menus, usuario } = useAuth();
+  const { pacientes, loading: loadingPacientes, ready: pacientesReady } = usePacienteAtivo();
+  const location = useLocation();
 
   if (requerOnboarding && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
