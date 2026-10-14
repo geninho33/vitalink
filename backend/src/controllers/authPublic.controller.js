@@ -235,7 +235,10 @@ function defaultAddress(payload) {
 
 async function onboarding(req, res, next) {
   try {
-    const tipo = String(req.body?.tipo || '').toLowerCase();
+    let tipo = String(req.body?.tipo || '').toLowerCase();
+    // Modo família: familiar (não clínica) cadastra um parente; reaproveita o papel "responsável".
+    const modoFamilia = tipo === 'familia' || req.body?.modo_familia === true;
+    if (tipo === 'familia') tipo = 'responsavel';
     if (tipo !== 'cuidador' && tipo !== 'responsavel' && tipo !== 'autocuidado') {
       return res.status(400).json({
         error: 'validation_error',
@@ -367,8 +370,9 @@ async function onboarding(req, res, next) {
       const pNome = String(p.nome || '').trim();
       const pCpf = onlyDigits(p.cpf);
       const existingId = p.paciente_id ? Number(p.paciente_id) : null;
-      if (!existingId && pCpf.length !== 11) continue;
-      if (pCpf.length === 11 && !isValidCpf(p.cpf)) {
+      // CPF do paciente é opcional: sem CPF, exige nome e data de nascimento.
+      if (!existingId && pCpf.length !== 11 && (!pNome || !p.data_nascimento)) continue;
+      if (pCpf.length > 0 && (pCpf.length !== 11 || !isValidCpf(p.cpf))) {
         return res.status(400).json({
           error: 'validation_error',
           message: `CPF inválido para o paciente ${pNome || pCpf}.`,
@@ -404,15 +408,16 @@ async function onboarding(req, res, next) {
     if (!createdPacientes.length) {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Informe ao menos um paciente (novo ou já cadastrado, pelo CPF).',
+        message: 'Informe ao menos um paciente (nome e data de nascimento; CPF opcional).',
       });
     }
 
     await query(
       `UPDATE usuarios
-       SET perfil_id = :perfilId, onboarding_concluido = TRUE, status = 'ativo', telefone = :telefone
+       SET perfil_id = :perfilId, onboarding_concluido = TRUE, status = 'ativo', telefone = :telefone,
+           modo_familia = :modoFamilia
        WHERE id = :id`,
-      { perfilId, id: req.user.id, telefone: telefoneOk }
+      { perfilId, id: req.user.id, telefone: telefoneOk, modoFamilia: tipo === 'responsavel' && modoFamilia }
     );
     await syncUsuarioPerfilPadrao(req.user.id, perfilId);
 
@@ -422,13 +427,14 @@ async function onboarding(req, res, next) {
       recurso: 'auth',
       ip: req.ip,
       userAgent: req.get('user-agent'),
-      metadados: { tipo, pacientes: createdPacientes.length },
+      metadados: { tipo, modo_familia: modoFamilia, pacientes: createdPacientes.length },
     });
 
     return res.json({
       ok: true,
       perfil_id: perfilId,
       pacientes: createdPacientes,
+      modo_familia: tipo === 'responsavel' && modoFamilia,
       message: 'Onboarding concluído.',
     });
   } catch (err) {

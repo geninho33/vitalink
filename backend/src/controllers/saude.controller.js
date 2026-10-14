@@ -19,6 +19,7 @@ const {
   findPacienteByCpf,
   resolveResponsavelIds,
   linkResponsavelPaciente,
+  linkUsuarioPaciente,
   attachDualRoleIfSameCpf,
 } = require('../services/vinculoPaciente.service');
 
@@ -98,7 +99,7 @@ function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, nor
         payload
       );
 
-      await afterSave(result.insertId, body);
+      await afterSave(result.insertId, body, req, 'create');
 
       await writeAudit({
         usuarioId: req.user.id,
@@ -158,7 +159,7 @@ function wrapCreateUpdate(base, { table, recurso, allFields, requiredCreate, nor
         });
       }
 
-      await afterSave(req.params.id, body);
+      await afterSave(req.params.id, body, req, 'update');
 
       const diff = cols.length ? buildAuditDiff(before, { ...before, ...payload }, cols) : undefined;
       await writeAudit({
@@ -261,12 +262,23 @@ const medicos = wrapCreateUpdate(medicosBase, {
   },
 });
 
+async function linkCriadorPaciente(user, pacienteId, body) {
+  const perfilId = Number(user?.perfilId);
+  if (!user?.id || !pacienteId || [1, 2, 3].includes(perfilId)) return; // admin/médico/atendente: sem restrição
+  if (perfilId === 5) {
+    const ids = await resolveResponsavelIds(user, body || {});
+    for (const rid of ids) await linkResponsavelPaciente(pacienteId, rid);
+  }
+  const papel = perfilId === 4 ? 'cuidador' : perfilId === 5 ? 'responsavel' : 'paciente';
+  await linkUsuarioPaciente(user.id, pacienteId, papel);
+}
+
 const pacientesConfig = {
   table: 'pacientes',
   recurso: 'pacientes',
   menuRota: '/pacientes',
   searchable: ['pacientes.nome', 'pacientes.cpf', 'pacientes.convenio_nome'],
-  requiredCreate: ['nome', 'data_nascimento', 'cpf'],
+  requiredCreate: ['nome', 'data_nascimento'],
   optional: [
     'sexo',
     'diagnostico_principal',
@@ -307,6 +319,11 @@ const pacientesConfig = {
     }
     if (n.convenio_validade) {
       n.convenio_validade = parseIsoDate(n.convenio_validade) || n.convenio_validade;
+    }
+    if ('cpf' in n) {
+      // CPF opcional: vazio vira NULL (índice único só vale para CPFs preenchidos).
+      const digits = String(n.cpf ?? '').replace(/\D/g, '');
+      n.cpf = digits || null;
     }
     if (n.cpf && !isValidCpf(n.cpf)) {
       const err = new Error('CPF inválido.');
@@ -362,7 +379,11 @@ const pacientes = wrapCreateUpdate(pacientesBase, {
   requiredCreate: pacientesConfig.requiredCreate,
   normalize: pacientesConfig.normalize,
   buildScope: pacientesScopeForCrud,
-  afterSave: async (pacienteId, body) => {
+  afterSave: async (pacienteId, body, req, mode) => {
+    if (mode === 'create') {
+      // Sem CPF não há vínculo automático: vincula ao usuário que criou a ficha.
+      await linkCriadorPaciente(req?.user, pacienteId, body);
+    }
     if (Array.isArray(body.medico_ids)) {
       await syncPacienteMedicos(pacienteId, body.medico_ids);
     }

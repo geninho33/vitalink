@@ -163,7 +163,8 @@ async function upsertPacienteOnboarding({ p, tipo, pessoaId, usuarioId, pessoaCp
   let created = false;
   if (!paciente) {
     const pNome = String(p.nome || '').trim();
-    if (!pNome || !p.data_nascimento || pCpf.length !== 11) {
+    // CPF opcional: sem CPF a ficha é criada e vinculada ao usuário que cadastrou.
+    if (!pNome || !p.data_nascimento) {
       return null;
     }
     const result = await query(
@@ -174,7 +175,7 @@ async function upsertPacienteOnboarding({ p, tipo, pessoaId, usuarioId, pessoaCp
       {
         nome: pNome,
         data_nascimento: p.data_nascimento,
-        cpf: pCpf,
+        cpf: pCpf.length === 11 ? pCpf : null,
         telefone: p.telefone || null,
         responsavel_id: tipo === 'responsavel' ? pessoaId : null,
         cuidador_id: tipo === 'cuidador' ? pessoaId : null,
@@ -209,7 +210,7 @@ async function upsertPacienteOnboarding({ p, tipo, pessoaId, usuarioId, pessoaCp
     `${rotuloTipo} · ${paciente.nome || ''}`.trim()
   );
 
-  if (onlyDigits(pessoaCpf) === pCpf) {
+  if (pCpf.length === 11 && onlyDigits(pessoaCpf) === pCpf) {
     await attachDualRoleIfSameCpf(pacienteId, pCpf);
   }
 

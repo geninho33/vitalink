@@ -83,6 +83,10 @@ BEGIN
     HAVING COUNT(*) > 1
   ) THEN
     RAISE WARNING 'CPFs duplicados encontrados na tabela pacientes. Constraint UNIQUE não será adicionada. Execute: SELECT cpf, COUNT(*) FROM pacientes GROUP BY cpf HAVING COUNT(*) > 1;';
+  ELSIF EXISTS (
+    SELECT 1 FROM pg_indexes WHERE indexname = 'uk_pacientes_cpf_nn'
+  ) THEN
+    RAISE NOTICE 'Índice parcial uk_pacientes_cpf_nn já garante CPF único em pacientes';
   ELSIF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'uk_pacientes_cpf'
