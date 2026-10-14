@@ -16,6 +16,7 @@ import EventosView from './pages/Inicio/views/EventosView';
 import AgendaView from './pages/Inicio/views/AgendaView';
 import InicioAgendaView from './pages/Inicio/views/InicioAgendaView';
 import CorpoView from './pages/Inicio/views/CorpoView';
+import SinaisView from './pages/Inicio/views/SinaisView';
 import LinhaView from './pages/Inicio/views/LinhaView';
 import MedsView from './pages/Inicio/views/MedsView';
 import DocsView from './pages/Inicio/views/DocsView';
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="especialistas" element={<AgendaView />} />
             <Route path="agenda" element={<InicioAgendaView />} />
             <Route path="corpo" element={<CorpoView />} />
+            <Route path="sinais" element={<SinaisView />} />
             <Route path="linha" element={<LinhaView />} />
             <Route path="meds" element={<MedsView />} />
             <Route path="docs" element={<DocsView />} />

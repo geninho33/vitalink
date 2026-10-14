@@ -8,6 +8,7 @@
  * | eventos       | #eventos (injetado JS)  | /inicio/eventos         | EventosView       |
  * | especialistas | #agenda (legado)        | /inicio/especialistas   | AgendaView        |
  * | agenda        | —                       | /inicio/agenda          | InicioAgendaView  |
+ * | sinais        | —                       | /inicio/sinais          | SinaisView        |
  * | corpo         | #corpo                  | /inicio/corpo           | CorpoView         |
  * | timeline      | #timeline               | /inicio/linha           | LinhaView         |
  * | medicamentos  | #medicamentos           | /inicio/meds            | MedsView          |
@@ -19,6 +20,7 @@
 
 export const BOTTOM_NAV_ITEMS = [
   { id: 'inicio', label: 'Sintomas', icon: 'thermometer', path: '/inicio', end: true },
+  { id: 'sinais', label: 'Sinais vitais', icon: 'heart-pulse', path: '/inicio/sinais' },
   { id: 'perfil', label: 'Perfil', icon: 'circle-user', path: '/inicio/perfil' },
   { id: 'eventos', label: 'Eventos', icon: 'plus', path: '/inicio/eventos' },
   { id: 'especialistas', label: 'Especial.', icon: 'stethoscope', path: '/inicio/especialistas' },
