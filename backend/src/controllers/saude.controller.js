@@ -282,6 +282,7 @@ const pacientesConfig = {
   searchable: ['pacientes.nome', 'pacientes.cpf', 'pacientes.convenio_nome'],
   requiredCreate: ['nome', 'data_nascimento'],
   optional: [
+    'cpf',
     'sexo',
     'diagnostico_principal',
     'alergias',
