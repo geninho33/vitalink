@@ -467,6 +467,22 @@ async function applyPatchLgpdConsentimento(client) {
   }
 }
 
+async function applyPatchPushSubscriptions(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_push_subscriptions.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch push não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch push subscriptions OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch push subscriptions: ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -488,6 +504,7 @@ async function main() {
     await applyPatchCpfOpcionalModoFamilia(client);
     await applyPatchSinaisVitais(client);
     await applyPatchLgpdConsentimento(client);
+    await applyPatchPushSubscriptions(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

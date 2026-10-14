@@ -66,6 +66,10 @@ services:
       RATE_LIMIT_SENSITIVE: ${RATE_LIMIT_SENSITIVE:-3}
       # Trust proxy
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
+      # Web Push (VAPID) — chaves só no .env do servidor, nunca no git
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:suporte@vitalink.app.br}
     ports:
       - "${VITALINK_BACKEND_HOST_PORT:-3002}:3333"
     volumes:
