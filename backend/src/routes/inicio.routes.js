@@ -2,6 +2,7 @@ const { Router } = require('express');
 const controller = require('../controllers/inicio.controller');
 const medicamentos = require('../controllers/medicamentos.controller');
 const corpoMarcas = require('../controllers/corpoMarcas.controller');
+const sinaisVitais = require('../controllers/sinaisVitais.controller');
 const { authenticate } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 
@@ -21,6 +22,9 @@ router.delete('/medicamentos/:id', requirePermission(rota, 'deletar'), medicamen
 router.get('/corpo-marcas', requirePermission(rota, 'ler'), corpoMarcas.list);
 router.post('/corpo-marcas', requirePermission(rota, 'criar'), corpoMarcas.create);
 router.delete('/corpo-marcas/:id', requirePermission(rota, 'deletar'), corpoMarcas.remove);
+router.get('/sinais-vitais', requirePermission(rota, 'ler'), sinaisVitais.list);
+router.post('/sinais-vitais', requirePermission(rota, 'criar'), sinaisVitais.create);
+router.delete('/sinais-vitais/:id', requirePermission(rota, 'deletar'), sinaisVitais.remove);
 router.get('/:id', requirePermission(rota, 'ler'), controller.getById);
 router.post('/', requirePermission(rota, 'criar'), controller.create);
 router.put('/:id', requirePermission(rota, 'editar'), controller.update);

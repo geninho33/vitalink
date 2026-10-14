@@ -435,6 +435,22 @@ async function applyPatchCpfOpcionalModoFamilia(client) {
   }
 }
 
+async function applyPatchSinaisVitais(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_sinais_vitais.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch sinais vitais não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch sinais vitais OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch sinais vitais: ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -454,6 +470,7 @@ async function main() {
     await applyPatchReceitaMedicamento(client);
     await applyPatchSecurity20261009(client);
     await applyPatchCpfOpcionalModoFamilia(client);
+    await applyPatchSinaisVitais(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});
