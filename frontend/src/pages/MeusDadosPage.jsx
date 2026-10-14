@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import PageHeader, { PlaceholderCard } from '../components/PageHeader';
+import { Link } from 'react-router-dom';
+import AppPwaPanel from '../components/AppPwaPanel';
 import { PASSWORD_HINT, validateStrongPassword } from '../utils/validation';
 
 export default function MeusDadosPage() {
@@ -95,6 +97,12 @@ export default function MeusDadosPage() {
           </form>
         </PlaceholderCard>
       </div>
+      <AppPwaPanel />
+      <p className="mt-4 text-sm">
+        <Link to="/termos" className="font-semibold text-vita hover:underline">
+          Termos de Uso, Privacidade e Consentimento (LGPD)
+        </Link>
+      </p>
     </div>
   );
 }

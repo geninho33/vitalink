@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { PacienteAtivoProvider } from './context/PacienteAtivoContext';
 import App from './App';
 import './index.css';
+import './services/pwa';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
