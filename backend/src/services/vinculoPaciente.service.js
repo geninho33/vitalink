@@ -66,7 +66,8 @@ async function linkUsuarioPaciente(usuarioId, pacienteId, papel) {
   await query(
     `INSERT INTO usuario_paciente (usuario_id, paciente_id, papel)
      VALUES (:usuarioId, :pacienteId, :papel)
-     ON CONFLICT DO NOTHING`,
+     ON CONFLICT DO NOTHING
+     RETURNING paciente_id AS id`,
     { usuarioId, pacienteId, papel: papel || null }
   ).catch(() => {});
 }
@@ -91,7 +92,8 @@ async function linkResponsavelPaciente(pacienteId, responsavelId) {
   await query(
     `INSERT INTO paciente_responsaveis (paciente_id, responsavel_id)
      VALUES (:pacienteId, :responsavelId)
-     ON CONFLICT DO NOTHING`,
+     ON CONFLICT DO NOTHING
+     RETURNING paciente_id AS id`,
     { pacienteId, responsavelId }
   );
   await query(

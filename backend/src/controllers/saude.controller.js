@@ -31,7 +31,8 @@ async function syncMedicoEstabelecimentos(medicoId, estabelecimentoIds) {
     await query(
       `INSERT INTO medico_estabelecimentos (medico_id, hospital_clinica_id)
        VALUES (:medicoId, :hospital_clinica_id)
-       ON CONFLICT DO NOTHING`,
+       ON CONFLICT DO NOTHING
+       RETURNING medico_id AS id`,
       { medicoId, hospital_clinica_id }
     );
   }
@@ -52,7 +53,8 @@ async function syncPacienteMedicos(pacienteId, medicoIds) {
   for (let i = 0; i < ids.length; i++) {
     await query(
       `INSERT INTO paciente_medicos (paciente_id, medico_id, principal)
-       VALUES (:pacienteId, :medico_id, :principal)`,
+       VALUES (:pacienteId, :medico_id, :principal)
+       RETURNING paciente_id AS id`,
       { pacienteId, medico_id: ids[i], principal: i === 0 }
     );
   }
