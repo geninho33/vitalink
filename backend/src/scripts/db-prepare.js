@@ -451,6 +451,22 @@ async function applyPatchSinaisVitais(client) {
   }
 }
 
+async function applyPatchLgpdConsentimento(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_lgpd_consentimento.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch LGPD consentimento não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch LGPD consentimento OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch LGPD consentimento: ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -471,6 +487,7 @@ async function main() {
     await applyPatchSecurity20261009(client);
     await applyPatchCpfOpcionalModoFamilia(client);
     await applyPatchSinaisVitais(client);
+    await applyPatchLgpdConsentimento(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

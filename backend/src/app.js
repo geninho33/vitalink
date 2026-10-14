@@ -7,6 +7,7 @@ const env = require('./config/env');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/auth.routes');
+const lgpdRoutes = require('./routes/lgpd.routes');
 const menusRoutes = require('./routes/menus.routes');
 const meController = require('./controllers/me.controller');
 const { authenticate } = require('./middleware/auth');
@@ -105,6 +106,7 @@ function createApp() {
 
   const api = express.Router();
   api.use('/auth', authRoutes);
+  api.use('/lgpd', lgpdRoutes);
   api.use('/menus', menusRoutes);
   api.get('/me/pacientes', authenticate, meController.listMeusPacientes);
   api.get('/me/paciente', authenticate, meController.getMeuPaciente);
