@@ -4,6 +4,8 @@ import { TextSelect } from '../../../components/forms/FormControls';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
 import { EmptyState, PageTitle, Panel, SecondaryButton } from '../ui';
+import FaixasPanel from './FaixasPanel';
+import SinaisGrafico, { origemLabel } from './SinaisGrafico';
 
 const TIPOS = [
   { id: 'pressao', label: 'Pressão', unidade: 'mmHg' },
@@ -69,6 +71,9 @@ export default function SinaisView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+  const [faixas, setFaixas] = useState({});
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [editarFaixa, setEditarFaixa] = useState(false);
   const firstRef = useRef(null);
   const diaRef = useRef(null);
 
@@ -85,6 +90,13 @@ export default function SinaisView() {
     } catch {
       setRows([]);
     }
+    try {
+      const fx = await apiRequest('/inicio/sinais-vitais/faixas', { query: { paciente_id: pacienteId } });
+      setFaixas(Object.fromEntries((fx.data || []).map((f) => [f.tipo, f])));
+    } catch {
+      setFaixas({});
+    }
+    setRefreshKey((k) => k + 1);
   }, [pacienteId]);
 
   useEffect(() => {
@@ -218,7 +230,9 @@ export default function SinaisView() {
                 {u ? formatValor(u) : '—'}
                 <span className="ml-1 text-[10px] font-semibold text-slate-health">{t.unidade}</span>
               </span>
-              <span className="text-[10px] text-slate-health">{u ? quando(u.medido_em) : 'sem registro'}</span>
+              <span className={`text-[10px] ${u?.fora_da_faixa ? 'font-semibold text-amber-700' : 'text-slate-health'}`}>
+                {u ? (u.fora_da_faixa ? 'fora da faixa definida' : quando(u.medido_em)) : 'sem registro'}
+              </span>
             </button>
           );
         })}
@@ -320,6 +334,37 @@ export default function SinaisView() {
       </Panel>
 
       <Panel>
+        <SinaisGrafico
+          pacienteId={pacienteId}
+          tipo={tipo}
+          label={atual.label}
+          unidade={atual.unidade}
+          faixa={faixas[tipo]}
+          refreshKey={refreshKey}
+        />
+        <button
+          type="button"
+          onClick={() => setEditarFaixa((v) => !v)}
+          className="mt-3 text-sm font-semibold text-vita hover:underline"
+        >
+          {editarFaixa ? 'Fechar faixa' : faixas[tipo] ? 'Editar faixa' : 'Definir faixa'} de {atual.label.toLowerCase()}
+        </button>
+        {editarFaixa ? (
+          <div className="mt-3 border-t border-[#e2eeee] pt-3">
+            <FaixasPanel
+              pacienteId={pacienteId}
+              tipo={tipo}
+              label={atual.label}
+              unidade={atual.unidade}
+              decimal={atual.decimal}
+              faixa={faixas[tipo]}
+              onChange={load}
+            />
+          </div>
+        ) : null}
+      </Panel>
+
+      <Panel>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-health">Histórico</h2>
           <TextSelect value={filtro} onChange={(e) => setFiltro(e.target.value)} className="max-w-xs">
@@ -339,6 +384,11 @@ export default function SinaisView() {
                   <p className="font-semibold text-ink">
                     {BY_ID[r.tipo]?.label || r.tipo}: {formatValor(r)} {r.unidade}
                   </p>
+                  {r.fora_da_faixa ? (
+                    <p className="text-xs font-semibold text-amber-700">
+                      Fora da faixa definida por {origemLabel(faixas[r.tipo]) || 'família/médico'}
+                    </p>
+                  ) : null}
                   <p className="text-xs text-slate-health">
                     {new Date(r.medido_em).toLocaleString('pt-BR')}
                     {r.registrado_por_nome ? ` · por ${r.registrado_por_nome}` : ''}
