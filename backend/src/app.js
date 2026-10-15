@@ -9,6 +9,8 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth.routes');
 const lgpdRoutes = require('./routes/lgpd.routes');
 const pushRoutes = require('./routes/push.routes');
+const convitesController = require('./controllers/convites.controller');
+const { conviteLimiter } = require('./middleware/rateLimiter');
 const dosesController = require('./controllers/doses.controller');
 const menusRoutes = require('./routes/menus.routes');
 const meController = require('./controllers/me.controller');
@@ -112,6 +114,14 @@ function createApp() {
   api.use('/push', pushRoutes);
   // Botões da notificação (service worker): autenticado por token assinado (dose+usuário), não JWT.
   api.post('/lembretes/acao', dosesController.acaoPorToken);
+  // Convites por link (rede de cuidado). Prévia é pública; aceite exige login. Ambos com rate limit.
+  api.get('/convites/publico/:token', conviteLimiter, convitesController.previa);
+  api.post('/convites/publico/:token/aceitar', conviteLimiter, authenticate, convitesController.aceitar);
+  api.post('/convites', authenticate, convitesController.criar);
+  api.get('/convites', authenticate, convitesController.listar);
+  api.post('/convites/:id/revogar', authenticate, convitesController.revogar);
+  api.get('/rede-cuidado/membros', authenticate, convitesController.membros);
+  api.delete('/rede-cuidado/membros/:usuarioId', authenticate, convitesController.removerMembro);
   api.use('/menus', menusRoutes);
   api.get('/me/pacientes', authenticate, meController.listMeusPacientes);
   api.get('/me/paciente', authenticate, meController.getMeuPaciente);

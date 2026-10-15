@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../context/AuthContext';
+import { lerConvitePendente } from './ConvitePage';
 import {
   clearSavedCredentials,
   loadSavedCredentials,
@@ -82,6 +83,11 @@ export default function Login() {
         saveCredentials({ email: email.trim(), senha });
       } else {
         clearSavedCredentials();
+      }
+      const convitePendente = lerConvitePendente();
+      if (convitePendente) {
+        navigate(`/convite/${encodeURIComponent(convitePendente)}`, { replace: true });
+        return;
       }
       navigate(data?.usuario?.onboarding_concluido === false ? '/onboarding' : '/dashboard', {
         replace: true,

@@ -111,4 +111,4 @@ async function meusConsentimentos(req, res, next) {
   }
 }
 
-module.exports = { listDocumentos, pendentes, aceitar, meusConsentimentos };
+module.exports = { listDocumentos, pendentes, aceitar, meusConsentimentos, pendentesDoUsuario };

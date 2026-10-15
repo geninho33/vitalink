@@ -25,7 +25,20 @@ const sensitiveAuthLimiter = rateLimit({
   },
 });
 
+// Convites: prévia/aceite públicos por token — limita tentativas de adivinhação.
+const conviteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_CONVITE) || 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'too_many_requests',
+    message: 'Muitas tentativas com convites. Tente novamente em 15 minutos.',
+  },
+});
+
 module.exports = {
+  conviteLimiter,
   authLimiter,
   sensitiveAuthLimiter,
 };

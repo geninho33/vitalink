@@ -18,6 +18,8 @@ import InicioAgendaView from './pages/Inicio/views/InicioAgendaView';
 import CorpoView from './pages/Inicio/views/CorpoView';
 import SinaisView from './pages/Inicio/views/SinaisView';
 import DosesView from './pages/Inicio/views/DosesView';
+import RedeView from './pages/Inicio/views/RedeView';
+import ConvitePage from './pages/ConvitePage';
 import LinhaView from './pages/Inicio/views/LinhaView';
 import MedsView from './pages/Inicio/views/MedsView';
 import DocsView from './pages/Inicio/views/DocsView';
@@ -84,6 +86,7 @@ export default function App() {
       />
       <Route path="/redefinir-senha" element={<RedefinirSenha />} />
       <Route path="/confirmar-email" element={<ConfirmarEmail />} />
+      <Route path="/convite/:token" element={<ConvitePage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
@@ -100,6 +103,7 @@ export default function App() {
             <Route path="corpo" element={<CorpoView />} />
             <Route path="sinais" element={<SinaisView />} />
             <Route path="doses" element={<DosesView />} />
+            <Route path="rede" element={<RedeView />} />
             <Route path="linha" element={<LinhaView />} />
             <Route path="meds" element={<MedsView />} />
             <Route path="docs" element={<DocsView />} />
