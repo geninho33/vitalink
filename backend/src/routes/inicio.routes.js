@@ -3,6 +3,7 @@ const controller = require('../controllers/inicio.controller');
 const medicamentos = require('../controllers/medicamentos.controller');
 const corpoMarcas = require('../controllers/corpoMarcas.controller');
 const sinaisVitais = require('../controllers/sinaisVitais.controller');
+const doses = require('../controllers/doses.controller');
 const { authenticate } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 
@@ -22,6 +23,12 @@ router.delete('/medicamentos/:id', requirePermission(rota, 'deletar'), medicamen
 router.get('/corpo-marcas', requirePermission(rota, 'ler'), corpoMarcas.list);
 router.post('/corpo-marcas', requirePermission(rota, 'criar'), corpoMarcas.create);
 router.delete('/corpo-marcas/:id', requirePermission(rota, 'deletar'), corpoMarcas.remove);
+router.get('/doses', requirePermission(rota, 'ler'), doses.list);
+router.post('/doses/:id/tomei', requirePermission(rota, 'editar'), doses.tomei);
+router.post('/doses/:id/pular', requirePermission(rota, 'editar'), doses.pular);
+router.post('/doses/:id/adiar', requirePermission(rota, 'editar'), doses.adiar);
+router.get('/lembretes-config', requirePermission(rota, 'ler'), doses.getConfig);
+router.put('/lembretes-config', requirePermission(rota, 'editar'), doses.putConfig);
 router.get('/sinais-vitais/faixas', requirePermission(rota, 'ler'), sinaisVitais.listFaixas);
 router.put('/sinais-vitais/faixas', requirePermission(rota, 'editar'), sinaisVitais.salvarFaixa);
 router.delete('/sinais-vitais/faixas', requirePermission(rota, 'editar'), sinaisVitais.removerFaixa);

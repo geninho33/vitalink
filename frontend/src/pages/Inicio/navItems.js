@@ -27,6 +27,7 @@ export const BOTTOM_NAV_ITEMS = [
   { id: 'agenda', label: 'Agenda', icon: 'calendar', path: '/inicio/agenda' },
   { id: 'corpo', label: 'Corpo', icon: 'target', path: '/inicio/corpo' },
   { id: 'timeline', label: 'Linha', icon: 'arrow-up-right', path: '/inicio/linha' },
+  { id: 'doses', label: 'Doses', icon: 'check', path: '/inicio/doses' },
   { id: 'medicamentos', label: 'Medicamentos', icon: 'pill', path: '/inicio/meds' },
   { id: 'documentos', label: 'Exames/Receitas', icon: 'file-list', path: '/inicio/docs' },
 ];

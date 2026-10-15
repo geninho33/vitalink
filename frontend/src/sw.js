@@ -32,12 +32,41 @@ self.addEventListener('push', (event) => {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: data.tag || undefined,
-      data: { url: data.url || '/inicio' },
+      // Botões (Android/Chrome). iOS ignora e o toque abre o app.
+      actions: Array.isArray(data.actions) ? data.actions.slice(0, 3) : undefined,
+      requireInteraction: Boolean(data.acao_token),
+      data: { url: data.url || '/inicio', acao_token: data.acao_token || null },
     })
   );
 });
 
+async function executarAcaoDose(token, acao) {
+  const res = await fetch('/api/v1/lembretes/acao', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, acao }),
+  });
+  if (!res.ok && res.status !== 409) throw new Error(`HTTP ${res.status}`);
+  const texto = { tomei: 'Dose registrada como tomada.', pular: 'Dose registrada como pulada.', adiar: 'Lembrete adiado 15 min.' };
+  await self.registration.showNotification('VitaLink', {
+    body: res.status === 409 ? 'Esta dose já tinha sido registrada.' : texto[acao],
+    icon: '/icons/icon-192.png',
+    tag: 'vitalink-acao-dose',
+  });
+}
+
 self.addEventListener('notificationclick', (event) => {
+  const acao = event.action;
+  const token = event.notification.data?.acao_token;
+  if (token && ['tomei', 'pular', 'adiar'].includes(acao)) {
+    event.notification.close();
+    event.waitUntil(
+      executarAcaoDose(token, acao).catch(() =>
+        self.clients.openWindow(new URL(event.notification.data?.url || '/inicio/doses', self.location.origin).href)
+      )
+    );
+    return;
+  }
   event.notification.close();
   const url = new URL(event.notification.data?.url || '/inicio', self.location.origin).href;
   event.waitUntil(

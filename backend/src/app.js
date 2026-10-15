@@ -9,6 +9,7 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth.routes');
 const lgpdRoutes = require('./routes/lgpd.routes');
 const pushRoutes = require('./routes/push.routes');
+const dosesController = require('./controllers/doses.controller');
 const menusRoutes = require('./routes/menus.routes');
 const meController = require('./controllers/me.controller');
 const { authenticate } = require('./middleware/auth');
@@ -109,6 +110,8 @@ function createApp() {
   api.use('/auth', authRoutes);
   api.use('/lgpd', lgpdRoutes);
   api.use('/push', pushRoutes);
+  // Botões da notificação (service worker): autenticado por token assinado (dose+usuário), não JWT.
+  api.post('/lembretes/acao', dosesController.acaoPorToken);
   api.use('/menus', menusRoutes);
   api.get('/me/pacientes', authenticate, meController.listMeusPacientes);
   api.get('/me/paciente', authenticate, meController.getMeuPaciente);

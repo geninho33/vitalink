@@ -98,9 +98,10 @@ async function syncRemedioAgenda(remedio, { pacienteId, fromDate } = {}) {
       if (created >= 90) break;
       const iso = `${ymd} ${hora}`;
       const inserted = await query(
+        // Horário de parede no fuso do app (o banco roda em UTC).
         `INSERT INTO medicamento_doses (remedio_id, paciente_id, data_hora, status)
-         VALUES (:remedioId, :pacienteId, :dataHora, 'pendente')`,
-        { remedioId: remedio.id, pacienteId: pid, dataHora: iso }
+         VALUES (:remedioId, :pacienteId, (CAST(:dataHora AS timestamp) AT TIME ZONE :tz), 'pendente')`,
+        { remedioId: remedio.id, pacienteId: pid, dataHora: iso, tz: process.env.APP_TIMEZONE || 'America/Sao_Paulo' }
       );
       await upsertAgendaEvento({
         pacienteId: pid,

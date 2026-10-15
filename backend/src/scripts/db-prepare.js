@@ -499,6 +499,22 @@ async function applyPatchSinaisVitaisFaixas(client) {
   }
 }
 
+async function applyPatchLembretesDoses(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_lembretes_doses.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch lembretes não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch lembretes de doses OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch lembretes de doses: ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -522,6 +538,7 @@ async function main() {
     await applyPatchSinaisVitaisFaixas(client);
     await applyPatchLgpdConsentimento(client);
     await applyPatchPushSubscriptions(client);
+    await applyPatchLembretesDoses(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { DateBrInput, Field, MoneyInput, Modal, TextInput, TextSelect } from '../../../components/forms/FormControls';
 import AutocompleteSelect from '../../../components/forms/AutocompleteSelect';
@@ -245,6 +246,9 @@ export default function MedsView() {
           }
         />
         <div className="flex flex-wrap gap-2 sm:pt-6">
+          <Link to="/inicio/doses" className="inline-flex min-h-11 items-center rounded-xl bg-aqua px-4 text-sm font-semibold text-white">
+            Doses e lembretes
+          </Link>
           <SecondaryButton
             type="button"
             disabled={!list.length || Boolean(printing)}
