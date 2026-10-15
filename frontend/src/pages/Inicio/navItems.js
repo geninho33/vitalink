@@ -20,7 +20,7 @@
 
 export const BOTTOM_NAV_ITEMS = [
   { id: 'inicio', label: 'Sintomas', icon: 'thermometer', path: '/inicio', end: true },
-  { id: 'sinais', label: 'Sinais vitais', icon: 'heart-pulse', path: '/inicio/sinais' },
+  { id: 'sinais', label: 'Sinais', icon: 'heart-pulse', path: '/inicio/sinais' },
   { id: 'perfil', label: 'Perfil', icon: 'circle-user', path: '/inicio/perfil' },
   { id: 'eventos', label: 'Eventos', icon: 'plus', path: '/inicio/eventos' },
   { id: 'especialistas', label: 'Especial.', icon: 'stethoscope', path: '/inicio/especialistas' },

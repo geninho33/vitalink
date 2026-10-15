@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Field, TextInput, TextSelect } from '../../../components/forms/FormControls';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { TextSelect } from '../../../components/forms/FormControls';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
 import { apiRequest } from '../../../services/api';
-import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
+import { EmptyState, PageTitle, Panel, SecondaryButton } from '../ui';
 
 const TIPOS = [
-  { id: 'pressao', label: 'Pressão arterial', unidade: 'mmHg' },
-  { id: 'frequencia_cardiaca', label: 'Frequência cardíaca', unidade: 'bpm' },
+  { id: 'pressao', label: 'Pressão', unidade: 'mmHg' },
   { id: 'glicemia', label: 'Glicemia', unidade: 'mg/dL' },
-  { id: 'temperatura', label: 'Temperatura', unidade: '°C' },
-  { id: 'saturacao_o2', label: 'Saturação O2', unidade: '%' },
-  { id: 'peso', label: 'Peso', unidade: 'kg' },
+  { id: 'frequencia_cardiaca', label: 'Batimentos', unidade: 'bpm' },
+  { id: 'temperatura', label: 'Temperatura', unidade: '°C', decimal: true },
+  { id: 'saturacao_o2', label: 'Saturação', unidade: '%' },
+  { id: 'peso', label: 'Peso', unidade: 'kg', decimal: true },
 ];
-const LABEL = Object.fromEntries(TIPOS.map((t) => [t.id, t.label]));
+const BY_ID = Object.fromEntries(TIPOS.map((t) => [t.id, t]));
+const LAST_TIPO_KEY = 'vitalink:sinais:ultimoTipo';
 
 function nowLocal() {
   const d = new Date();
@@ -20,24 +22,55 @@ function nowLocal() {
   return d.toISOString().slice(0, 16);
 }
 
-function emptyForm(tipo = 'pressao') {
-  return { tipo, valor: '', sistolica: '', diastolica: '', medido_em: nowLocal(), observacao: '' };
+function lerUltimoTipo() {
+  try {
+    const t = window.localStorage.getItem(LAST_TIPO_KEY);
+    return BY_ID[t] ? t : 'pressao';
+  } catch {
+    return 'pressao';
+  }
+}
+
+function formatNum(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toLocaleString('pt-BR') : String(v ?? '');
 }
 
 function formatValor(r) {
-  if (r.tipo === 'pressao') return `${r.sistolica}/${r.diastolica} ${r.unidade}`;
-  const v = Number(r.valor);
-  return `${Number.isFinite(v) ? v.toLocaleString('pt-BR') : r.valor} ${r.unidade}`;
+  if (!r) return '—';
+  if (r.tipo === 'pressao') return `${r.sistolica}/${r.diastolica}`;
+  return formatNum(r.valor);
 }
+
+function quando(iso) {
+  const d = new Date(iso);
+  const hoje = new Date();
+  const mesmoDia = d.toDateString() === hoje.toDateString();
+  return mesmoDia
+    ? `hoje ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+const inputCls =
+  'h-16 w-full rounded-2xl border-2 border-[#cfe0df] bg-white px-4 text-center text-3xl font-bold text-ink focus:border-aqua focus:outline-none';
 
 export default function SinaisView() {
   const { pacienteId, paciente } = usePacienteAtivo();
+  const [params] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [filtro, setFiltro] = useState('');
-  const [form, setForm] = useState(emptyForm());
+  const [tipo, setTipo] = useState(() => (BY_ID[params.get('tipo')] ? params.get('tipo') : lerUltimoTipo()));
+  const [valor, setValor] = useState('');
+  const [sis, setSis] = useState('');
+  const [dia, setDia] = useState('');
+  const [medidoEm, setMedidoEm] = useState(nowLocal());
+  const [mudarHora, setMudarHora] = useState(false);
+  const [observacao, setObservacao] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+  const firstRef = useRef(null);
+  const diaRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!pacienteId) {
@@ -46,23 +79,60 @@ export default function SinaisView() {
     }
     try {
       const res = await apiRequest('/inicio/sinais-vitais', {
-        query: { paciente_id: pacienteId, ...(filtro ? { tipo: filtro } : {}) },
+        query: { paciente_id: pacienteId, limit: 200 },
       });
       setRows(res.data || []);
     } catch {
       setRows([]);
     }
-  }, [pacienteId, filtro]);
+  }, [pacienteId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const tipoAtual = TIPOS.find((t) => t.id === form.tipo) || TIPOS[0];
+  // Último valor de cada tipo (lista já vem ordenada do mais recente).
+  const ultimos = useMemo(() => {
+    const m = {};
+    for (const r of rows) if (!m[r.tipo]) m[r.tipo] = r;
+    return m;
+  }, [rows]);
+
+  const historico = useMemo(
+    () => (filtro ? rows.filter((r) => r.tipo === filtro) : rows).slice(0, 50),
+    [rows, filtro]
+  );
+
+  function escolher(t) {
+    setTipo(t);
+    setValor('');
+    setSis('');
+    setDia('');
+    setError('');
+    setOk('');
+    try {
+      window.localStorage.setItem(LAST_TIPO_KEY, t);
+    } catch {
+      /* ignore */
+    }
+    setTimeout(() => firstRef.current?.focus(), 0);
+  }
+
+  function repetirUltimo() {
+    const u = ultimos[tipo];
+    if (!u) return;
+    if (tipo === 'pressao') {
+      setSis(String(u.sistolica));
+      setDia(String(u.diastolica));
+    } else {
+      setValor(formatNum(u.valor).replace(/\./g, ''));
+    }
+    setOk('');
+  }
 
   async function salvar(e) {
     e.preventDefault();
-    if (!pacienteId) return;
+    if (!pacienteId || saving) return;
     setSaving(true);
     setError('');
     setOk('');
@@ -71,16 +141,24 @@ export default function SinaisView() {
         method: 'POST',
         body: {
           paciente_id: Number(pacienteId),
-          tipo: form.tipo,
-          ...(form.tipo === 'pressao'
-            ? { sistolica: form.sistolica, diastolica: form.diastolica }
-            : { valor: form.valor }),
-          medido_em: form.medido_em ? new Date(form.medido_em).toISOString() : undefined,
-          observacao: form.observacao.trim() || undefined,
+          tipo,
+          ...(tipo === 'pressao' ? { sistolica: sis, diastolica: dia } : { valor }),
+          medido_em: mudarHora && medidoEm ? new Date(medidoEm).toISOString() : undefined,
+          observacao: observacao.trim() || undefined,
         },
       });
-      setForm(emptyForm(form.tipo));
-      setOk('Registro salvo.');
+      try {
+        window.localStorage.setItem(LAST_TIPO_KEY, tipo);
+      } catch {
+        /* ignore */
+      }
+      setOk(`${BY_ID[tipo].label} registrada.`);
+      setValor('');
+      setSis('');
+      setDia('');
+      setObservacao('');
+      setMudarHora(false);
+      setMedidoEm(nowLocal());
       await load();
     } catch (err) {
       setError(err.message || 'Não foi possível salvar.');
@@ -102,91 +180,142 @@ export default function SinaisView() {
   if (!pacienteId) {
     return (
       <div>
-        <PageTitle eyebrow="Sinais vitais" title="Registro de sinais vitais" />
+        <PageTitle eyebrow="Sinais vitais" title="Registrar sinal vital" />
         <EmptyState>Selecione um paciente para registrar sinais vitais.</EmptyState>
       </div>
     );
   }
 
+  const atual = BY_ID[tipo];
+  const ultimo = ultimos[tipo];
+  const podeSalvar = tipo === 'pressao' ? sis && dia : valor;
+
   return (
     <div className="grid gap-4">
       <PageTitle
         eyebrow="Sinais vitais"
-        title={`Registro rápido${paciente?.nome ? ` · ${paciente.nome}` : ''}`}
-        description="Anote as medições feitas em casa. É só um registro: em caso de sintomas, procure atendimento ou ligue 192."
+        title={`Registrar${paciente?.nome ? ` · ${paciente.nome}` : ''}`}
+        description="Toque no tipo, digite o valor e salve. É só um registro: em caso de sintomas, procure atendimento ou ligue 192."
       />
 
+      {/* Cards: último valor por tipo; tocar seleciona o tipo */}
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {TIPOS.map((t) => {
+          const u = ultimos[t.id];
+          const ativo = t.id === tipo;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => escolher(t.id)}
+              aria-pressed={ativo}
+              className={`flex min-h-[84px] flex-col items-start justify-between rounded-2xl border-2 p-2.5 text-left transition ${
+                ativo ? 'border-aqua bg-aqua-soft' : 'border-[#d7e8e7] bg-white'
+              }`}
+            >
+              <span className="text-xs font-bold text-ink">{t.label}</span>
+              <span className="text-lg font-bold leading-tight text-aqua-deep">
+                {u ? formatValor(u) : '—'}
+                <span className="ml-1 text-[10px] font-semibold text-slate-health">{t.unidade}</span>
+              </span>
+              <span className="text-[10px] text-slate-health">{u ? quando(u.medido_em) : 'sem registro'}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <Panel>
-        <form className="grid gap-3 sm:grid-cols-2" onSubmit={salvar}>
-          <div className="flex flex-wrap gap-2 sm:col-span-2">
-            {TIPOS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setForm({ ...emptyForm(t.id), medido_em: form.medido_em })}
-                className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${
-                  form.tipo === t.id
-                    ? 'border-aqua bg-aqua text-white'
-                    : 'border-[#d7e8e7] text-ink hover:bg-[#f4fbfa]'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          {form.tipo === 'pressao' ? (
-            <>
-              <Field label="Sistólica (mmHg)" required>
-                <TextInput
-                  inputMode="numeric"
-                  required
-                  value={form.sistolica}
-                  onChange={(e) => setForm({ ...form, sistolica: e.target.value.replace(/\D/g, '') })}
-                  placeholder="120"
-                />
-              </Field>
-              <Field label="Diastólica (mmHg)" required>
-                <TextInput
-                  inputMode="numeric"
-                  required
-                  value={form.diastolica}
-                  onChange={(e) => setForm({ ...form, diastolica: e.target.value.replace(/\D/g, '') })}
-                  placeholder="80"
-                />
-              </Field>
-            </>
-          ) : (
-            <Field label={`${tipoAtual.label} (${tipoAtual.unidade})`} required>
-              <TextInput
-                inputMode="decimal"
-                required
-                value={form.valor}
-                onChange={(e) => setForm({ ...form, valor: e.target.value.replace(/[^\d.,]/g, '') })}
+        <form onSubmit={salvar} className="grid gap-3">
+          <p className="text-sm font-bold text-ink">
+            {atual.label} <span className="font-medium text-slate-health">({atual.unidade})</span>
+          </p>
+          {tipo === 'pressao' ? (
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <input
+                ref={firstRef}
+                autoFocus
+                aria-label="Sistólica (máxima)"
+                placeholder="12x"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                enterKeyHint="next"
+                maxLength={3}
+                className={inputCls}
+                value={sis}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                  setSis(v);
+                  if (v.length === 3) diaRef.current?.focus();
+                }}
               />
-            </Field>
+              <span className="text-3xl font-bold text-slate-health">/</span>
+              <input
+                ref={diaRef}
+                aria-label="Diastólica (mínima)"
+                placeholder="8x"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                enterKeyHint="done"
+                maxLength={3}
+                className={inputCls}
+                value={dia}
+                onChange={(e) => setDia(e.target.value.replace(/\D/g, '').slice(0, 3))}
+              />
+              <span className="text-center text-[11px] text-slate-health">máxima</span>
+              <span />
+              <span className="text-center text-[11px] text-slate-health">mínima</span>
+            </div>
+          ) : (
+            <input
+              ref={firstRef}
+              autoFocus
+              aria-label={`${atual.label} (${atual.unidade})`}
+              inputMode={atual.decimal ? 'decimal' : 'numeric'}
+              enterKeyHint="done"
+              className={inputCls}
+              value={valor}
+              onChange={(e) =>
+                setValor(e.target.value.replace(atual.decimal ? /[^\d.,]/g : /\D/g, '').slice(0, 6))
+              }
+            />
           )}
-          <Field label="Data e hora da medição">
-            <TextInput
-              type="datetime-local"
-              value={form.medido_em}
-              max={nowLocal()}
-              onChange={(e) => setForm({ ...form, medido_em: e.target.value })}
-            />
-          </Field>
-          <Field label="Observação" hint="Opcional">
-            <TextInput
-              maxLength={500}
-              value={form.observacao}
-              onChange={(e) => setForm({ ...form, observacao: e.target.value })}
-            />
-          </Field>
-          {error ? <p className="text-sm text-red-600 sm:col-span-2">{error}</p> : null}
-          {ok ? <p className="text-sm text-aqua-deep sm:col-span-2">{ok}</p> : null}
-          <div className="sm:col-span-2">
-            <PrimaryButton type="submit" disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar medição'}
-            </PrimaryButton>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            {ultimo ? (
+              <button type="button" onClick={repetirUltimo} className="font-semibold text-vita hover:underline">
+                Repetir último ({formatValor(ultimo)})
+              </button>
+            ) : null}
+            {mudarHora ? (
+              <input
+                type="datetime-local"
+                value={medidoEm}
+                max={nowLocal()}
+                onChange={(e) => setMedidoEm(e.target.value)}
+                className="h-10 rounded-xl border border-[#cfe0df] px-2"
+              />
+            ) : (
+              <button type="button" onClick={() => setMudarHora(true)} className="text-slate-health hover:underline">
+                Agora · mudar horário
+              </button>
+            )}
           </div>
+          <input
+            placeholder="Observação (opcional)"
+            maxLength={500}
+            className="h-11 rounded-xl border border-[#cfe0df] px-3 text-sm"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+          />
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {ok ? <p className="text-sm font-semibold text-aqua-deep">✓ {ok}</p> : null}
+          <button
+            type="submit"
+            disabled={saving || !podeSalvar}
+            className="h-14 w-full rounded-2xl bg-aqua text-lg font-bold text-white transition hover:bg-aqua-deep disabled:opacity-50"
+          >
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
         </form>
       </Panel>
 
@@ -202,13 +331,13 @@ export default function SinaisView() {
             ))}
           </TextSelect>
         </div>
-        {rows.length ? (
+        {historico.length ? (
           <ul className="divide-y divide-[#e2eeee]">
-            {rows.map((r) => (
+            {historico.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div>
                   <p className="font-semibold text-ink">
-                    {LABEL[r.tipo] || r.tipo}: {formatValor(r)}
+                    {BY_ID[r.tipo]?.label || r.tipo}: {formatValor(r)} {r.unidade}
                   </p>
                   <p className="text-xs text-slate-health">
                     {new Date(r.medido_em).toLocaleString('pt-BR')}

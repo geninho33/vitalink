@@ -3,7 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 import Icon from '../../components/Icon';
 import { BOTTOM_NAV_ITEMS } from './navItems';
 
-const PRIMARY_IDS = ['inicio', 'agenda', 'medicamentos', 'documentos'];
+// Celular: 4 atalhos + "Mais" (demais itens). Sinais vitais em destaque.
+const PRIMARY_IDS = ['inicio', 'sinais', 'medicamentos', 'agenda'];
 
 function NavItem({ item, onNavigate, compact }) {
   return (
