@@ -483,6 +483,22 @@ async function applyPatchPushSubscriptions(client) {
   }
 }
 
+async function applyPatchSinaisVitaisFaixas(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_sinais_vitais_faixas.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch faixas não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch faixas de sinais vitais OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch faixas de sinais vitais: ${err.message}`);
+  }
+}
+
 async function main() {
   const client = await waitForAuth();
   try {
@@ -503,6 +519,7 @@ async function main() {
     await applyPatchSecurity20261009(client);
     await applyPatchCpfOpcionalModoFamilia(client);
     await applyPatchSinaisVitais(client);
+    await applyPatchSinaisVitaisFaixas(client);
     await applyPatchLgpdConsentimento(client);
     await applyPatchPushSubscriptions(client);
     await ensureAdminPermissions(client);

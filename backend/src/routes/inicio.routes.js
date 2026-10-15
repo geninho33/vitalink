@@ -22,6 +22,9 @@ router.delete('/medicamentos/:id', requirePermission(rota, 'deletar'), medicamen
 router.get('/corpo-marcas', requirePermission(rota, 'ler'), corpoMarcas.list);
 router.post('/corpo-marcas', requirePermission(rota, 'criar'), corpoMarcas.create);
 router.delete('/corpo-marcas/:id', requirePermission(rota, 'deletar'), corpoMarcas.remove);
+router.get('/sinais-vitais/faixas', requirePermission(rota, 'ler'), sinaisVitais.listFaixas);
+router.put('/sinais-vitais/faixas', requirePermission(rota, 'editar'), sinaisVitais.salvarFaixa);
+router.delete('/sinais-vitais/faixas', requirePermission(rota, 'editar'), sinaisVitais.removerFaixa);
 router.get('/sinais-vitais', requirePermission(rota, 'ler'), sinaisVitais.list);
 router.post('/sinais-vitais', requirePermission(rota, 'criar'), sinaisVitais.create);
 router.delete('/sinais-vitais/:id', requirePermission(rota, 'deletar'), sinaisVitais.remove);
