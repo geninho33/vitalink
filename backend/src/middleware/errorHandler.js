@@ -7,10 +7,15 @@ function notFound(req, res) {
   });
 }
 
+// Tokens de convite vêm na URL: nunca vão para o log.
+function safePath(p) {
+  return String(p || '').replace(/(\/convites\/publico\/)[^/]+/g, '$1[token]');
+}
+
 function errorHandler(err, req, res, _next) {
   logger.error('Unhandled error', {
     method: req.method,
-    path: req.path,
+    path: safePath(req.path),
     code: err.code,
     message: err.message,
   });
