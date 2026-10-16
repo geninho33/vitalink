@@ -9,30 +9,7 @@ function sha256(text) {
   return crypto.createHash('sha256').update(String(text), 'utf8').digest('hex');
 }
 
-// Versão vigente (ativa, já em vigor, mais recente) de cada tipo de documento.
-const VIGENTES_SQL = `
-  SELECT DISTINCT ON (d.tipo) d.id, d.tipo, d.versao, d.titulo, d.conteudo, d.obrigatorio, d.vigente_desde
-  FROM lgpd_documentos d
-  WHERE d.ativo = TRUE AND d.vigente_desde <= NOW()
-  ORDER BY d.tipo, d.vigente_desde DESC, d.id DESC`;
-
-async function documentosVigentes() {
-  return query(VIGENTES_SQL);
-}
-
-async function pendentesDoUsuario(usuarioId) {
-  return query(
-    `SELECT v.* FROM (${VIGENTES_SQL}) v
-     WHERE v.obrigatorio = TRUE
-       AND NOT EXISTS (
-         SELECT 1 FROM lgpd_consentimentos c
-         WHERE c.usuario_id = :uid AND c.documento_id = v.id AND c.revogado_em IS NULL
-       )
-     ORDER BY CASE v.tipo
-       WHEN 'termos_uso' THEN 1 WHEN 'politica_privacidade' THEN 2 ELSE 3 END`,
-    { uid: usuarioId }
-  );
-}
+const { documentosVigentes, pendentesDoUsuario } = require('../services/lgpdDocs.service');
 
 async function listDocumentos(_req, res, next) {
   try {

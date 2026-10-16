@@ -40,6 +40,13 @@ export default function ConsentGate({ children }) {
     carregar();
   }, [carregar, usuario?.id]);
 
+  // A API respondeu 403 CONSENTIMENTO_PENDENTE (ex.: revogado em outro aparelho ou nova versão): reabre o bloqueio.
+  useEffect(() => {
+    const h = () => carregar();
+    window.addEventListener('vitalink:consentimento-pendente', h);
+    return () => window.removeEventListener('vitalink:consentimento-pendente', h);
+  }, [carregar]);
+
   if (location.pathname === '/termos') return children;
 
   if (erroCarga) {

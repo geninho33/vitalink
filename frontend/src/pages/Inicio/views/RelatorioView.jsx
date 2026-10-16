@@ -160,7 +160,7 @@ export default function RelatorioView() {
           <div className="grid gap-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-health">Link temporário para o médico</h2>
             <p className="text-xs text-slate-health">
-              Quem tiver o link vê apenas este PDF, até expirar ou você cancelar. Cada abertura fica registrada.
+              Quem tiver o link vê apenas este PDF, até expirar ou ser cancelado. Cada abertura fica registrada. O responsável vê e cancela todos os links; cuidadores, os que criaram.
             </p>
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span>Validade:</span>
@@ -197,7 +197,7 @@ export default function RelatorioView() {
                         {l.criado_por_nome ? ` · por ${l.criado_por_nome}` : ''}
                       </p>
                     </div>
-                    {l.situacao === 'ativo' ? (
+                    {l.situacao === 'ativo' && l.pode_revogar ? (
                       <button type="button" onClick={() => revogar(l.id)} className="h-10 rounded-xl border border-[#cfe0df] px-3 text-sm font-semibold text-ink">Revogar</button>
                     ) : null}
                   </li>

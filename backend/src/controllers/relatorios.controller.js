@@ -64,10 +64,9 @@ async function baixar(req, res, next) {
   }
 }
 
-async function exigirGestor(user, pacienteId) {
-  if (!(await podeGerenciar(user, pacienteId))) {
-    throw httpError(403, 'forbidden', 'Apenas o responsável pelo paciente pode criar ou gerenciar links do relatório.');
-  }
+/** Membros vinculados (responsável, cuidador, autocuidado) ou perfis com acesso ao paciente. */
+async function exigirMembro(user, pacienteId) {
+  await assertPacienteAccess(user, pacienteId);
 }
 
 async function criarLink(req, res, next) {
@@ -75,7 +74,7 @@ async function criarLink(req, res, next) {
     const b = req.body || {};
     const pacienteId = Number(b.paciente_id);
     if (!pacienteId) validationError('Informe o paciente.');
-    await exigirGestor(req.user, pacienteId);
+    await exigirMembro(req.user, pacienteId);
     const periodo = relatorio.normalizarPeriodo(b.inicio, b.fim);
     const horas = b.validade_horas == null ? VALIDADE_PADRAO_H : Number(b.validade_horas);
     if (!Number.isInteger(horas) || horas < VALIDADE_MIN_H || horas > VALIDADE_MAX_H) {
@@ -112,15 +111,21 @@ async function listarLinks(req, res, next) {
   try {
     const pacienteId = Number(req.query.paciente_id);
     if (!pacienteId) validationError('Informe o paciente.');
-    await exigirGestor(req.user, pacienteId);
+    await exigirMembro(req.user, pacienteId);
+    // Responsável vê todos os links do paciente; cuidador vê só os que criou.
+    const gestor = await podeGerenciar(req.user, pacienteId);
     const rows = await query(
-      `SELECT l.id, l.periodo_inicio, l.periodo_fim, l.expires_at, l.revogado_em, l.visualizacoes,
+      `SELECT l.id, l.criado_por, l.periodo_inicio, l.periodo_fim, l.expires_at, l.revogado_em, l.visualizacoes,
               l.ultima_visualizacao_em, l.created_at, u.nome AS criado_por_nome
        FROM relatorio_links l LEFT JOIN usuarios u ON u.id = l.criado_por
-       WHERE l.paciente_id = :pid ORDER BY l.created_at DESC LIMIT 50`,
-      { pid: pacienteId }
+       WHERE l.paciente_id = :pid ${gestor ? '' : 'AND l.criado_por = :uid'}
+       ORDER BY l.created_at DESC LIMIT 50`,
+      { pid: pacienteId, uid: req.user.id }
     );
-    return res.json({ data: rows.map((l) => ({ ...l, situacao: situacao(l) })) });
+    return res.json({
+      data: rows.map((l) => ({ ...l, situacao: situacao(l), pode_revogar: gestor || Number(l.criado_por) === Number(req.user.id) })),
+      escopo: gestor ? 'todos' : 'meus',
+    });
   } catch (err) {
     return next(err);
   }
@@ -129,9 +134,12 @@ async function listarLinks(req, res, next) {
 async function revogarLink(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const [l] = await query('SELECT id, paciente_id, revogado_em FROM relatorio_links WHERE id = :id', { id });
+    const [l] = await query('SELECT id, paciente_id, criado_por, revogado_em FROM relatorio_links WHERE id = :id', { id });
     if (!l) throw httpError(404, 'not_found', 'Link não encontrado.');
-    await exigirGestor(req.user, l.paciente_id);
+    await exigirMembro(req.user, l.paciente_id);
+    if (Number(l.criado_por) !== Number(req.user.id) && !(await podeGerenciar(req.user, l.paciente_id))) {
+      throw httpError(403, 'forbidden', 'Você só pode revogar os links que criou. O responsável pode revogar qualquer um.');
+    }
     if (l.revogado_em) throw httpError(409, 'conflict', 'Este link já foi revogado.');
     await query('UPDATE relatorio_links SET revogado_em = NOW(), revogado_por = :uid WHERE id = :id', { id, uid: req.user.id });
     await writeAudit({

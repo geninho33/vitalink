@@ -499,6 +499,22 @@ async function applyPatchSinaisVitaisFaixas(client) {
   }
 }
 
+async function applyPatchLgpdReaceite(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_lgpd_reaceite.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch LGPD reaceite não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch LGPD reaceite OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch LGPD reaceite: ${err.message}`);
+  }
+}
+
 async function applyPatchLgpdDireitos(client) {
   if (!cfg.runMigrations) return;
   const patchFile = path.join(SQL_DIR, 'patch_lgpd_direitos.sql');
@@ -590,6 +606,7 @@ async function main() {
     await applyPatchConvites(client);
     await applyPatchRelatorioLinks(client);
     await applyPatchLgpdDireitos(client);
+    await applyPatchLgpdReaceite(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

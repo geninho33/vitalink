@@ -261,3 +261,24 @@ Se houver problemas críticos:
 **Nota:** Rollback após aplicar patch SQL pode requerer reverter manualmente as constraints criadas.
 
 ## 📞 Suporte
+
+## Retenção de backups do VitaLink (LGPD — máximo de 30 dias)
+
+A Política de Privacidade (v1.1.1) informa que cópias de segurança guardam dados por no máximo 30 dias.
+
+**Backups manuais de deploy** (`/root/backups/vitalink-<timestamp>/vitalink.dump`, criados antes de cada deploy):
+- Script: `deploy/scripts/vitalink-backup-rotate.sh` (instalado em `/usr/local/sbin/vitalink-backup-rotate.sh`).
+- Apaga só diretórios `/root/backups/vitalink-*` com mais de 30 dias (`VITALINK_BACKUP_DIAS`), conferindo o caminho real; nunca toca em backups de outros apps.
+- Agenda: `/etc/cron.d/vitalink-backup-rotate`, diariamente às 04:30 (horário do servidor).
+- Log: `/var/log/vitalink-backup-rotate.log`.
+- Simular: `/usr/local/sbin/vitalink-backup-rotate.sh --dry-run`.
+
+Instalação/atualização (após `git pull` em `/var/vitalink`):
+
+```bash
+install -m 750 /var/vitalink/deploy/scripts/vitalink-backup-rotate.sh /usr/local/sbin/vitalink-backup-rotate.sh
+echo '30 4 * * * root /usr/local/sbin/vitalink-backup-rotate.sh >/dev/null 2>&1' > /etc/cron.d/vitalink-backup-rotate
+chmod 644 /etc/cron.d/vitalink-backup-rotate
+```
+
+**Backup diário automático:** já existe o `vps-backup.timer` (03:15, compartilhado por todos os apps da VPS, gerenciado fora deste repositório), que gera `vitalink.pgdump` diário em `/var/backups/vps/daily` (mantém 7 dias), cópias semanais em `/var/backups/vps/weekly` (mantém as 4 últimas, ~28–34 dias) e envia para um destino externo via `rclone copy`. Por isso não foi criado um segundo dump diário. **Atenção:** para cumprir os 30 dias também nesse backup compartilhado, é preciso reduzir a retenção semanal (ex.: 3 semanas) e definir expiração no destino externo (o `rclone copy` não apaga arquivos antigos no remoto). Isso deve ser feito por quem administra a VPS, sem alterar os backups dos outros apps.

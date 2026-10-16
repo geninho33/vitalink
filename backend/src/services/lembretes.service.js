@@ -3,6 +3,7 @@ const { query } = require('../config/database');
 const env = require('../config/env');
 const logger = require('../utils/logger');
 const push = require('./push.service');
+const { consentimentoSaudeValido } = require('./lgpdDocs.service');
 
 const TZ = process.env.APP_TIMEZONE || 'America/Sao_Paulo';
 const MAX_ATRASO_NOTIFICAR_MIN = 120; // não notifica doses muito antigas (ex.: após o deploy)
@@ -122,6 +123,8 @@ async function enviarParaDestinatarios(dose, cfg, fase) {
   const resumo = { usuarios: 0, enviados: 0, removidos: 0, falhas: 0 };
   for (const [uid, papeis] of users) {
     if (!deveReceber(papeis, cfg, fase)) continue;
+    // Sem consentimento de saúde vigente: não envia dados de remédio por notificação.
+    if (!(await consentimentoSaudeValido(uid).catch(() => false))) continue;
     resumo.usuarios += 1;
     try {
       const r = await push.sendToUser(uid, {

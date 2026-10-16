@@ -3,6 +3,7 @@ const { writeAudit } = require('../services/audit.service');
 const { assertPacienteAccess } = require('../services/pacienteScope.service');
 const { validationError } = require('../utils/validation');
 const lembretes = require('../services/lembretes.service');
+const { consentimentoSaudeValido } = require('../services/lgpdDocs.service');
 
 const ACOES = {
   tomei: { status: 'tomada', agenda: 'concluido', audit: 'dose_tomada' },
@@ -141,6 +142,13 @@ async function acaoPorToken(req, res, next) {
     });
     if (!urows[0] || urows[0].status !== 'ativo') {
       return res.status(401).json({ error: 'unauthorized', message: 'Usuário inválido.' });
+    }
+    if (!(await consentimentoSaudeValido(Number(urows[0].id)))) {
+      return res.status(403).json({
+        error: 'CONSENTIMENTO_PENDENTE',
+        code: 'CONSENTIMENTO_PENDENTE',
+        message: 'Abra o VitaLink e aceite o consentimento para dados de saúde para registrar doses.',
+      });
     }
     const user = { id: Number(urows[0].id), perfilId: Number(urows[0].perfil_id) };
     const out = await aplicarAcao({ doseId: t.doseId, acao, user, minutos: 15, req });

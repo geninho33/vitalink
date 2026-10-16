@@ -88,6 +88,10 @@ export async function apiRequest(path, { method = 'GET', body, query, skipAuthRe
       );
     }
 
+    if (response.status === 403 && (data?.code === 'CONSENTIMENTO_PENDENTE' || data?.error === 'CONSENTIMENTO_PENDENTE')
+        && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vitalink:consentimento-pendente'));
+    }
     const err = new Error(message);
     err.status = response.status;
     err.code = data?.error;

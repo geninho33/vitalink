@@ -1,5 +1,22 @@
 const { verifyToken } = require('../utils/jwt');
 const { query } = require('../config/database');
+const { consentimentoSaudeValido } = require('../services/lgpdDocs.service');
+
+// Rotas que continuam acessíveis sem o consentimento de dados de saúde vigente:
+// login/sessão/onboarding, LGPD (aceite, revogação, exportação, exclusão), push e menus.
+const ROTAS_SEM_CONSENTIMENTO = [/^\/auth(\/|$)/, /^\/lgpd(\/|$)/, /^\/push(\/|$)/, /^\/menus(\/|$)/, /^\/convites\/publico\//];
+function rotaRelativa(req) {
+  const full = String(req.originalUrl || '').split('?')[0];
+  const prefix = process.env.API_PREFIX || '/api/v1';
+  return full.startsWith(prefix) ? full.slice(prefix.length) || '/' : full;
+}
+function consentimentoPendenteResponse(res) {
+  return res.status(403).json({
+    error: 'CONSENTIMENTO_PENDENTE',
+    code: 'CONSENTIMENTO_PENDENTE',
+    message: 'É preciso aceitar o consentimento para dados de saúde (versão vigente) para acessar estes dados.',
+  });
+}
 const logger = require('../utils/logger');
 const { resolvePapel } = require('../services/papel.service');
 
@@ -121,6 +138,10 @@ async function authenticate(req, res, next) {
       onboardingConcluido: user.onboarding_concluido !== false && user.onboarding_concluido !== 0,
     };
     req.auth = { token, decoded };
+    const rota = rotaRelativa(req);
+    if (!ROTAS_SEM_CONSENTIMENTO.some((re) => re.test(rota))) {
+      if (!(await consentimentoSaudeValido(req.user.id))) return consentimentoPendenteResponse(res);
+    }
     return next();
   } catch (err) {
     logger.error('Erro inesperado no authenticate', { message: err.message });
@@ -131,4 +152,4 @@ async function authenticate(req, res, next) {
   }
 }
 
-module.exports = { authenticate };
+module.exports = { authenticate, consentimentoPendenteResponse };
