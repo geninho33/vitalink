@@ -499,6 +499,22 @@ async function applyPatchSinaisVitaisFaixas(client) {
   }
 }
 
+async function applyPatchLgpdDireitos(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_lgpd_direitos.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch LGPD direitos não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch LGPD direitos OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch LGPD direitos: ${err.message}`);
+  }
+}
+
 async function applyPatchRelatorioLinks(client) {
   if (!cfg.runMigrations) return;
   const patchFile = path.join(SQL_DIR, 'patch_relatorio_links.sql');
@@ -573,6 +589,7 @@ async function main() {
     await applyPatchLembretesDoses(client);
     await applyPatchConvites(client);
     await applyPatchRelatorioLinks(client);
+    await applyPatchLgpdDireitos(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

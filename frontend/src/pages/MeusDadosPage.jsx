@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import PageHeader, { PlaceholderCard } from '../components/PageHeader';
 import { Link } from 'react-router-dom';
 import AppPwaPanel from '../components/AppPwaPanel';
+import PrivacidadePanel from '../components/PrivacidadePanel';
 import { PASSWORD_HINT, validateStrongPassword } from '../utils/validation';
 
 export default function MeusDadosPage() {
@@ -98,6 +99,9 @@ export default function MeusDadosPage() {
         </PlaceholderCard>
       </div>
       <AppPwaPanel />
+      <div className="mt-4">
+        <PrivacidadePanel />
+      </div>
       <p className="mt-4 text-sm">
         <Link to="/termos" className="font-semibold text-vita hover:underline">
           Termos de Uso, Privacidade e Consentimento (LGPD)

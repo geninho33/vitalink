@@ -46,7 +46,18 @@ const relatorioPublicoLimiter = rateLimit({
   message: { error: 'too_many_requests', message: 'Muitas solicitações. Tente novamente em alguns minutos.' },
 });
 
+// Exportação LGPD: consulta pesada; por usuário autenticado.
+const exportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_EXPORT) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `u:${req.user?.id || 'anon'}`,
+  message: { error: 'too_many_requests', message: 'Muitas exportações seguidas. Tente novamente em 1 hora.' },
+});
+
 module.exports = {
+  exportLimiter,
   relatorioPublicoLimiter,
   conviteLimiter,
   authLimiter,

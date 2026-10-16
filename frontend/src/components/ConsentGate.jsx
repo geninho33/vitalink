@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
+import ExclusaoConta from './ExclusaoConta';
 
 const TIPO_LABEL = {
   termos_uso: 'Termos de Uso',
@@ -21,6 +22,7 @@ export default function ConsentGate({ children }) {
   const [marcado, setMarcado] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [mostrarExclusao, setMostrarExclusao] = useState(false);
 
   const carregar = useCallback(async () => {
     setErroCarga('');
@@ -138,7 +140,20 @@ export default function ConsentGate({ children }) {
         <p className="mt-4 text-xs text-slate-health">
           Registramos data, hora, IP, navegador e a versão do texto aceito como comprovação.
         </p>
+
       </form>
+      <div className="mx-auto mt-4 w-full max-w-2xl rounded-3xl border border-[#d0e4ef] bg-white p-6">
+        <div>
+          <button type="button" onClick={() => setMostrarExclusao((v) => !v)} className="text-sm font-semibold text-red-700 hover:underline">
+            {mostrarExclusao ? 'Fechar' : 'Não quero continuar: pedir a exclusão da minha conta'}
+          </button>
+          {mostrarExclusao ? (
+            <div className="mt-3">
+              <ExclusaoConta compacto />
+            </div>
+          ) : null}
+        </div>
+      </div>
     </main>
   );
 }

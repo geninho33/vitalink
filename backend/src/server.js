@@ -2,6 +2,7 @@ const { createApp } = require('./app');
 const env = require('./config/env');
 const logger = require('./utils/logger');
 const { iniciarAgendador } = require('./services/lembretes.service');
+const { iniciarJobExclusao } = require('./services/lgpdDados.service');
 
 const app = createApp();
 
@@ -12,5 +13,8 @@ app.listen(env.port, '0.0.0.0', () => {
     env: env.nodeEnv,
   });
   // Agendador de lembretes de dose (uma instância do backend; reivindicação atômica no banco).
-  if (env.nodeEnv !== 'test') iniciarAgendador();
+  if (env.nodeEnv !== 'test') {
+    iniciarAgendador();
+    iniciarJobExclusao();
+  }
 });
