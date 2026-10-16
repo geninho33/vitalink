@@ -10,7 +10,8 @@ const authRoutes = require('./routes/auth.routes');
 const lgpdRoutes = require('./routes/lgpd.routes');
 const pushRoutes = require('./routes/push.routes');
 const convitesController = require('./controllers/convites.controller');
-const { conviteLimiter } = require('./middleware/rateLimiter');
+const { conviteLimiter, relatorioPublicoLimiter } = require('./middleware/rateLimiter');
+const relatoriosController = require('./controllers/relatorios.controller');
 const dosesController = require('./controllers/doses.controller');
 const menusRoutes = require('./routes/menus.routes');
 const meController = require('./controllers/me.controller');
@@ -121,6 +122,12 @@ function createApp() {
   api.get('/convites', authenticate, convitesController.listar);
   api.post('/convites/:id/revogar', authenticate, convitesController.revogar);
   api.get('/rede-cuidado/membros', authenticate, convitesController.membros);
+  // Relatório em PDF para o médico + links temporários (público entrega só o PDF).
+  api.get('/relatorios/publico/:token', relatorioPublicoLimiter, relatoriosController.publico);
+  api.get('/relatorios/paciente/:pacienteId/pdf', authenticate, relatoriosController.baixar);
+  api.post('/relatorios/links', authenticate, relatoriosController.criarLink);
+  api.get('/relatorios/links', authenticate, relatoriosController.listarLinks);
+  api.post('/relatorios/links/:id/revogar', authenticate, relatoriosController.revogarLink);
   api.delete('/rede-cuidado/membros/:usuarioId', authenticate, convitesController.removerMembro);
   api.use('/menus', menusRoutes);
   api.get('/me/pacientes', authenticate, meController.listMeusPacientes);

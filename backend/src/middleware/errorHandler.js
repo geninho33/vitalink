@@ -9,7 +9,7 @@ function notFound(req, res) {
 
 // Tokens de convite vêm na URL: nunca vão para o log.
 function safePath(p) {
-  return String(p || '').replace(/(\/convites\/publico\/)[^/]+/g, '$1[token]');
+  return String(p || '').replace(/(\/(?:convites|relatorios)\/publico\/)[^/]+/g, '$1[token]');
 }
 
 function errorHandler(err, req, res, _next) {

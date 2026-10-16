@@ -499,6 +499,22 @@ async function applyPatchSinaisVitaisFaixas(client) {
   }
 }
 
+async function applyPatchRelatorioLinks(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_relatorio_links.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch relatorio_links não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch links de relatório OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch links de relatório: ${err.message}`);
+  }
+}
+
 async function applyPatchConvites(client) {
   if (!cfg.runMigrations) return;
   const patchFile = path.join(SQL_DIR, 'patch_convites.sql');
@@ -556,6 +572,7 @@ async function main() {
     await applyPatchPushSubscriptions(client);
     await applyPatchLembretesDoses(client);
     await applyPatchConvites(client);
+    await applyPatchRelatorioLinks(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

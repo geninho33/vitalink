@@ -19,6 +19,7 @@ import CorpoView from './pages/Inicio/views/CorpoView';
 import SinaisView from './pages/Inicio/views/SinaisView';
 import DosesView from './pages/Inicio/views/DosesView';
 import RedeView from './pages/Inicio/views/RedeView';
+import RelatorioView from './pages/Inicio/views/RelatorioView';
 import ConvitePage from './pages/ConvitePage';
 import LinhaView from './pages/Inicio/views/LinhaView';
 import MedsView from './pages/Inicio/views/MedsView';
@@ -104,6 +105,7 @@ export default function App() {
             <Route path="sinais" element={<SinaisView />} />
             <Route path="doses" element={<DosesView />} />
             <Route path="rede" element={<RedeView />} />
+            <Route path="relatorio" element={<RelatorioView />} />
             <Route path="linha" element={<LinhaView />} />
             <Route path="meds" element={<MedsView />} />
             <Route path="docs" element={<DocsView />} />

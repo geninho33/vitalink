@@ -336,4 +336,4 @@ async function removerMembro(req, res, next) {
   }
 }
 
-module.exports = { criar, listar, revogar, previa, aceitar, membros, removerMembro, hashToken };
+module.exports = { criar, listar, revogar, previa, aceitar, membros, removerMembro, hashToken, podeGerenciar };

@@ -37,7 +37,17 @@ const conviteLimiter = rateLimit({
   },
 });
 
+// Link público do relatório em PDF (geração custa CPU).
+const relatorioPublicoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_RELATORIO) || 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too_many_requests', message: 'Muitas solicitações. Tente novamente em alguns minutos.' },
+});
+
 module.exports = {
+  relatorioPublicoLimiter,
   conviteLimiter,
   authLimiter,
   sensitiveAuthLimiter,

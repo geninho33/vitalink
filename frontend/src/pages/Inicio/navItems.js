@@ -29,6 +29,7 @@ export const BOTTOM_NAV_ITEMS = [
   { id: 'timeline', label: 'Linha', icon: 'arrow-up-right', path: '/inicio/linha' },
   { id: 'doses', label: 'Doses', icon: 'check', path: '/inicio/doses' },
   { id: 'rede', label: 'Família', icon: 'users', path: '/inicio/rede' },
+  { id: 'relatorio', label: 'Relatório', icon: 'file-text', path: '/inicio/relatorio' },
   { id: 'medicamentos', label: 'Medicamentos', icon: 'pill', path: '/inicio/meds' },
   { id: 'documentos', label: 'Exames/Receitas', icon: 'file-list', path: '/inicio/docs' },
 ];

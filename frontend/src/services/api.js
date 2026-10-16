@@ -283,3 +283,36 @@ export async function switchContextRequest({ papel_id, perfil_id, paciente_id } 
     },
   });
 }
+
+/** Baixa um arquivo autenticado (ex.: PDF do relatório) e dispara o download no navegador. */
+export async function apiDownload(path, { query, filename = 'arquivo' } = {}) {
+  const token = getToken();
+  const res = await fetch(buildUrl(path, query), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`;
+    try {
+      const j = await res.json();
+      msg = j.message || msg;
+    } catch {
+      /* ignore */
+    }
+    if (res.status === 401) {
+      clearSession();
+      emitUnauthorized('Sessão expirada. Faça login novamente.');
+    }
+    throw new Error(msg);
+  }
+  const cd = res.headers.get('content-disposition') || '';
+  const m = cd.match(/filename="([^"]+)"/);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = m ? m[1] : filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
