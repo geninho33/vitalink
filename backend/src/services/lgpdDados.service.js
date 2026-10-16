@@ -210,6 +210,9 @@ async function executarExclusao(pedido) {
     for (const item of plano) {
       if (item.acao === 'excluir_paciente') {
         resumo.arquivos_apagados += await apagarArquivosFisicos(client, item.paciente_id);
+        // Vínculos por paciente antes (FK SET NULL em usuario_perfis colidiria com o papel padrão).
+        await client.query('DELETE FROM usuario_perfis WHERE paciente_id = $1', [item.paciente_id]);
+        await client.query('DELETE FROM usuario_paciente WHERE paciente_id = $1', [item.paciente_id]);
         await client.query('DELETE FROM pacientes WHERE id = $1', [item.paciente_id]);
       } else {
         if (item.acao === 'transferir' && item.novo_gestor_id) {
@@ -233,11 +236,11 @@ async function executarExclusao(pedido) {
     await client.query('DELETE FROM auth_tokens WHERE usuario_id = $1', [uid]);
     await client.query('DELETE FROM usuario_perfis WHERE usuario_id = $1', [uid]);
     await client.query('DELETE FROM usuario_paciente WHERE usuario_id = $1', [uid]);
-    const anonPessoa = `SET nome = 'Pessoa excluída', cpf = NULL, email = NULL, telefone_principal = NULL, telefone_secundario = NULL,
-      foto_url = NULL, cep = NULL, logradouro = NULL, numero = NULL, complemento = NULL, bairro = NULL, observacoes = NULL,
-      status = 'inativo', usuario_id = NULL WHERE usuario_id = $1`;
-    await client.query(`UPDATE responsaveis ${anonPessoa}`, [uid]);
-    await client.query(`UPDATE cuidadores ${anonPessoa}`, [uid]);
+    // Cadastro de pessoa do próprio titular (responsável/cuidador): já desvinculado acima; removido.
+    // FKs: pacientes/vínculos de cuidador ficam NULL, paciente_responsaveis é apagado em cascata.
+    const pessoasR = await client.query('DELETE FROM responsaveis WHERE usuario_id = $1', [uid]);
+    const pessoasC = await client.query('DELETE FROM cuidadores WHERE usuario_id = $1', [uid]);
+    resumo.cadastros_pessoa_removidos = pessoasR.rowCount + pessoasC.rowCount;
     const senhaInutil = `!excluido!${crypto.randomBytes(24).toString('hex')}`;
     await client.query(
       `UPDATE usuarios SET nome = 'Usuário excluído', email = $2, cpf = NULL, telefone = NULL, data_nascimento = NULL,
