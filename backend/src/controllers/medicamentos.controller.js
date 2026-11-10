@@ -11,6 +11,7 @@ const {
   consumoDiario,
   clearFutureDoses,
 } = require('../services/medicamentoAgenda.service');
+const { resolverFarmaciaId } = require('../services/farmaciaRapida.service');
 const { parseIsoDate, validationError } = require('../utils/validation');
 const { syncReceitaMedicamento } = require('../services/receitaMedicamento.service');
 
@@ -160,10 +161,9 @@ async function create(req, res, next) {
 
     const nome = String(b.nome_comercial || b.nome || '').trim();
     const valor = parseMoney(b.valor);
-    const farmaciaId = Number(b.farmacia_id);
+    const farmaciaId = await resolverFarmaciaId(req, b);
     if (!nome) validationError('Informe o nome do medicamento.');
-    if (!farmaciaId) validationError('Selecione a farmácia.');
-    if (valor == null || valor < 0) validationError('Informe o valor do medicamento no formato R$ 0,00.');
+    if (valor != null && valor < 0) validationError('O valor do medicamento não pode ser negativo.');
 
     const estoque = Number(b.quantidade_estoque);
     if (!Number.isFinite(estoque) || estoque < 0) {
@@ -182,7 +182,7 @@ async function create(req, res, next) {
          :instrucoes, :intervalo)`,
       {
         nome,
-        principio: String(b.principio_ativo || nome).trim(),
+        principio: String(b.principio_ativo || '').trim() || null,
         dose: String(b.quantidade_administrar || b.dosagem || '').trim() || '1',
         estoque,
         indicacao: String(b.indicacao || b.purpose || 'Uso conforme prescrição').trim(),
@@ -304,7 +304,7 @@ async function createCompra(req, res, next) {
       {
         remedioId,
         pacienteId: remedio.paciente_id,
-        farmaciaId: b.farmacia_id || remedio.farmacia_id,
+        farmaciaId: (await resolverFarmaciaId(req, b)) || remedio.farmacia_id || null,
         quantidade,
         valor,
         dataCompra,

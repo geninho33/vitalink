@@ -2,26 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Modal } from '../../../components/forms/FormControls';
 import FileUploadField from '../../../components/FileUploadField';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
-import { apiRequest, assetUrl } from '../../../services/api';
+import { apiRequest } from '../../../services/api';
+import ProtectedFileLink, { ProtectedFilePreview, printProtectedFile } from '../../../components/ProtectedFileLink';
 import { EmptyState, PageTitle, Panel } from '../ui';
-
-function printDocument(file) {
-  const popup = window.open('', '_blank', 'noopener,width=900,height=700');
-  if (!popup) return;
-  const href = file.href;
-  const isImage = String(file.mime || file.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(href || '');
-  const isPdf = file.mime === 'application/pdf' || /\.pdf$/i.test(href || '');
-  popup.document.write(`<!doctype html><html lang="pt-BR"><head><title>${file.name}</title>
-    <style>html,body{margin:0;height:100%;font-family:Arial,sans-serif}img,iframe{width:100%;height:100%;border:0;object-fit:contain}</style>
-    </head><body>`);
-  if (isImage) popup.document.write(`<img src="${href}" alt="${file.name}">`);
-  else if (isPdf) popup.document.write(`<iframe src="${href}" title="${file.name}"></iframe>`);
-  else popup.document.write(`<p style="padding:24px"><a href="${href}" target="_blank" rel="noopener">Abrir documento</a></p>`);
-  popup.document.write('</body></html>');
-  popup.document.close();
-  popup.focus();
-  setTimeout(() => popup.print(), 400);
-}
 
 function mapDoc(row) {
   return {
@@ -29,7 +12,7 @@ function mapDoc(row) {
     name: row.titulo,
     tipo: row.tipo,
     date: row.data_documento,
-    href: row.arquivo_caminho ? assetUrl(row.arquivo_caminho) : '',
+    caminho: row.arquivo_caminho || '',
     mime: '',
     especialidade: row.especialidade,
   };
@@ -163,16 +146,14 @@ export default function DocsView() {
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {file.href ? (
+                {file.caminho ? (
                   <>
-                    <a
-                      href={file.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <ProtectedFileLink
+                      caminho={file.caminho}
                       className="inline-flex min-h-10 items-center rounded-xl border border-[#d7e8e7] px-3 text-sm font-semibold"
                     >
                       Abrir
-                    </a>
+                    </ProtectedFileLink>
                     <button
                       type="button"
                       className="min-h-10 rounded-xl border border-[#d7e8e7] px-3 text-sm font-semibold"
@@ -183,7 +164,7 @@ export default function DocsView() {
                     <button
                       type="button"
                       className="min-h-10 rounded-xl border border-[#d7e8e7] px-3 text-sm font-semibold"
-                      onClick={() => printDocument(file)}
+                      onClick={() => printProtectedFile(file).catch((err) => window.alert(err.message || 'Não foi possível imprimir.'))}
                     >
                       Imprimir
                     </button>
@@ -200,12 +181,8 @@ export default function DocsView() {
       )}
 
       <Modal open={Boolean(preview)} title={preview?.name || 'Documento'} onClose={() => setPreview(null)}>
-        {preview?.href ? (
-          /\.pdf$/i.test(preview.href) ? (
-            <iframe title={preview.name} src={preview.href} className="h-[70vh] w-full rounded-xl border-0" />
-          ) : (
-            <img src={preview.href} alt={preview.name} className="mx-auto max-h-[70vh] object-contain" />
-          )
+        {preview?.caminho ? (
+          <ProtectedFilePreview caminho={preview.caminho} title={preview.name} />
         ) : null}
       </Modal>
     </div>

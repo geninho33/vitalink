@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import FileUploadField from '../../components/FileUploadField';
 import { DateBrInput, Field, Modal, TextInput, TextSelect } from '../../components/forms/FormControls';
-import { apiRequest, assetUrl } from '../../services/api';
+import { apiRequest } from '../../services/api';
+import ProtectedFileLink from '../../components/ProtectedFileLink';
 
 function usePacientes() {
   const [options, setOptions] = useState([]);
@@ -284,14 +285,12 @@ export default function ExamesReceitasPage() {
                           </p>
                         </div>
                         {doc.arquivo_caminho ? (
-                          <a
-                            href={assetUrl(doc.arquivo_caminho)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <ProtectedFileLink
+                            caminho={doc.arquivo_caminho}
                             className="text-sm font-semibold text-aqua hover:underline"
                           >
                             Abrir arquivo
-                          </a>
+                          </ProtectedFileLink>
                         ) : (
                           <span className="text-xs text-slate-health">Sem arquivo</span>
                         )}

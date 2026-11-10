@@ -1,60 +1,71 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import TimelineRail from '../../../components/TimelineRail';
-import { formatDateBr, storageGet } from '../localStore';
+import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
+import { apiRequest } from '../../../services/api';
+import { isEventoRotineiroOuMedicao } from '../../../utils/timelineFiltro';
 import { EmptyState, PageTitle, Panel } from '../ui';
 
 function timelineDateValue(value) {
-  const date = String(value || '').slice(0, 10);
-  return new Date(`${date}T12:00:00`).getTime() || 0;
+  if (!value) return 0;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? 0 : t;
 }
 
 export default function LinhaView() {
-  const [filter, setFilter] = useState('all');
+  const { pacienteId } = usePacienteAtivo();
+  const [mostrarTudo, setMostrarTudo] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const events = useMemo(() => {
-    const items = [];
-    storageGet('health-events', []).forEach((item) => {
-      items.push({
-        id: `health-${item.id}`,
-        source: 'health',
-        date: item.date || item.createdAt,
-        type: item.type || 'Evento de saúde',
-        title: item.description,
-        doctor: item.doctor,
-        diagnosis: item.diagnosis,
-        exams: item.exams,
-        status: 'concluido',
-        detail: 'Evento registrado no prontuário.',
-      });
-    });
-    storageGet('appointments', []).forEach((item) => {
-      items.push({
-        id: `appointment-${item.id}`,
-        source: 'appointment',
-        date: item.date || item.createdAt,
-        type: 'Agenda',
-        title: item.title,
-        time: item.time,
-        status: 'pendente',
-        detail: item.time ? `Horário: ${item.time}` : 'Horário a definir.',
-      });
-    });
-    return items.sort((a, b) => timelineDateValue(a.date) - timelineDateValue(b.date));
-  }, []);
+  const load = useCallback(async () => {
+    if (!pacienteId) {
+      setEvents([]);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const r = await apiRequest(`/timeline/${pacienteId}`);
+      setEvents(r.data || []);
+    } catch (err) {
+      setError(err.message || 'Não foi possível carregar a linha do tempo.');
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [pacienteId]);
 
-  const visible = events.filter((item) => filter === 'all' || item.source === filter);
-  const activeId = selectedId || visible[visible.length - 1]?.id;
-  const active = visible.find((e) => e.id === activeId);
+  useEffect(() => {
+    load();
+    setSelectedId(null);
+  }, [load]);
 
-  const railItems = visible.map((item) => ({
+  const visiveis = useMemo(() => {
+    const base = (events || []).filter((e) => String(e.tipo || '') !== 'medicamento');
+    const filtrados = mostrarTudo ? base : base.filter((e) => !isEventoRotineiroOuMedicao(e));
+    return [...filtrados].sort(
+      (a, b) => timelineDateValue(a.data_hora_inicio) - timelineDateValue(b.data_hora_inicio)
+    );
+  }, [events, mostrarTudo]);
+
+  const ocultos = useMemo(
+    () => (events || []).filter((e) => String(e.tipo || '') !== 'medicamento' && isEventoRotineiroOuMedicao(e)).length,
+    [events]
+  );
+
+  const activeId = selectedId || visiveis[visiveis.length - 1]?.id;
+  const active = visiveis.find((e) => Number(e.id) === Number(activeId));
+
+  const railItems = visiveis.map((item) => ({
     id: item.id,
-    title: item.title,
-    category: item.type,
-    status: item.status,
-    subtitle: formatDateBr(item.date, item.time),
-    selected: item.id === activeId,
+    title: item.titulo,
+    category: item.tipo,
+    status: item.status || 'pendente',
+    subtitle: item.data_hora_inicio ? new Date(item.data_hora_inicio).toLocaleString('pt-BR') : '',
+    selected: Number(item.id) === Number(activeId),
     onClick: () => setSelectedId(item.id),
   }));
 
@@ -63,24 +74,24 @@ export default function LinhaView() {
       <PageTitle
         eyebrow="Histórico clínico"
         title="Linha do tempo"
-        description="Eventos de saúde organizados cronologicamente, com seus detalhes e documentos."
+        description="Fatos relevantes do paciente em ordem cronológica. Medições de pressão e observações de rotina ficam ocultas por padrão."
       />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <label className="grid gap-1 text-sm">
-          <span className="font-semibold text-ink">Mostrar</span>
-          <select
-            value={filter}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={mostrarTudo}
             onChange={(e) => {
-              setFilter(e.target.value);
+              setMostrarTudo(e.target.checked);
               setSelectedId(null);
             }}
-            className="min-h-11 rounded-xl border border-[#cfe0df] bg-[#f8fcfc] px-3 text-sm outline-none focus:border-aqua focus:ring-2 focus:ring-aqua/20"
-          >
-            <option value="all">Todos os eventos</option>
-            <option value="health">Eventos de saúde</option>
-            <option value="appointment">Agenda</option>
-          </select>
+          />
+          Mostrar tudo
+          {!mostrarTudo && ocultos ? (
+            <span className="font-normal text-slate-health">({ocultos} medições/observações ocultas)</span>
+          ) : null}
         </label>
         <Link
           to="/inicio/eventos"
@@ -90,9 +101,17 @@ export default function LinhaView() {
         </Link>
       </div>
 
-      {visible.length === 0 ? (
+      {!pacienteId ? (
+        <EmptyState>Selecione um paciente no topo para ver a linha do tempo.</EmptyState>
+      ) : loading ? (
+        <p className="text-sm text-slate-health">Carregando…</p>
+      ) : error ? (
+        <p className="text-sm text-red-600">{error}</p>
+      ) : visiveis.length === 0 ? (
         <EmptyState>
-          Nenhum evento encontrado. Cadastre um evento de saúde para iniciar a linha do tempo.
+          {ocultos
+            ? 'Nenhum fato relevante no momento. Use “Mostrar tudo” para ver medições de pressão e observações de rotina.'
+            : 'Nenhum evento encontrado. Cadastre uma consulta ou um evento de saúde para iniciar a linha do tempo.'}
         </EmptyState>
       ) : (
         <>
@@ -100,42 +119,14 @@ export default function LinhaView() {
 
           {active ? (
             <Panel className="mt-5">
-              <p className="text-xs font-bold uppercase tracking-wider text-aqua">{active.type}</p>
-              <h2 className="font-display text-xl font-bold text-ink">{active.title}</h2>
+              <p className="text-xs font-bold uppercase tracking-wider text-aqua">{active.tipo}</p>
+              <h2 className="font-display text-xl font-bold text-ink">{active.titulo}</h2>
               <p className="mt-1 text-sm text-slate-health">
-                {formatDateBr(active.date, active.time)}
+                {active.data_hora_inicio
+                  ? new Date(active.data_hora_inicio).toLocaleString('pt-BR')
+                  : ''}
               </p>
-              <dl className="mt-4 grid gap-2 text-sm">
-                {active.doctor ? (
-                  <div>
-                    <dt className="text-slate-health">Médico(a)</dt>
-                    <dd className="font-semibold text-ink">{active.doctor}</dd>
-                  </div>
-                ) : null}
-                {active.diagnosis ? (
-                  <div>
-                    <dt className="text-slate-health">Diagnóstico</dt>
-                    <dd className="font-semibold text-ink">{active.diagnosis}</dd>
-                  </div>
-                ) : null}
-                {active.exams ? (
-                  <div>
-                    <dt className="text-slate-health">Exames e orientações</dt>
-                    <dd className="font-semibold text-ink">{active.exams}</dd>
-                  </div>
-                ) : null}
-                {!active.doctor && !active.diagnosis && !active.exams ? (
-                  <p className="text-slate-health">{active.detail}</p>
-                ) : null}
-              </dl>
-              <div className="mt-4">
-                <Link
-                  to="/inicio/eventos"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#d7e8e7] px-4 text-sm font-semibold text-ink hover:bg-[#f4fbfa]"
-                >
-                  Abrir prontuário
-                </Link>
-              </div>
+              {active.descricao ? <p className="mt-3 text-sm text-ink">{active.descricao}</p> : null}
             </Panel>
           ) : null}
         </>

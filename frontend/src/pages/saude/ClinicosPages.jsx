@@ -20,6 +20,7 @@ import { formatLocalLabel, formatMedicoLabel, searchEspecialidades, searchLocais
 import { isValidCrm, isValidUf, UF_LIST } from '../../utils/validation';
 import { apiRequest, assetUrl } from '../../services/api';
 import { printMedicamentosFromLoader } from '../../utils/printMedicamentos';
+import SexoBoneco from '../../components/SexoBoneco';
 import {
   buscarPacientePorCpf,
   PacienteExistenteAviso,
@@ -144,43 +145,6 @@ function MultiCheckboxField({ label, hint, options, valueIds, onChange, footer }
       </div>
       {footer}
     </Field>
-  );
-}
-
-function SexoBodyPreview({ sexo, medicos, medicoIds }) {
-  if (sexo !== 'masculino' && sexo !== 'feminino') return null;
-  const imgSrc = sexo === 'masculino' ? '/Sexo Masculino.png' : '/Sexo Feminino.png';
-  const linked = (medicos || []).filter((m) => (medicoIds || []).includes(m.id));
-  const hotspots = useMemo(() => {
-    const seen = new Set();
-    return linked
-      .map((m) => {
-        const key = Object.keys(SPECIALTY_HOTSPOTS).find((k) =>
-          normalizeSpecialty(m.especialidade).includes(k)
-        );
-        if (!key || seen.has(key)) return null;
-        seen.add(key);
-        return { key, label: m.especialidade, pos: SPECIALTY_HOTSPOTS[key] };
-      })
-      .filter(Boolean);
-  }, [medicos, medicoIds]);
-
-  return (
-    <div className="sm:col-span-2">
-      <Field label="Mapa por especialidade" hint="Áreas dos médicos vinculados">
-        <div className="relative mx-auto max-w-xs">
-          <img src={imgSrc} alt="" className="w-full rounded-xl border border-[#d7e8e7]" />
-          {hotspots.map((h) => (
-            <span
-              key={h.key}
-              title={h.label}
-              className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-aqua shadow-md"
-              style={{ top: h.pos.top, left: h.pos.left }}
-            />
-          ))}
-        </div>
-      </Field>
-    </div>
   );
 }
 
@@ -604,7 +568,7 @@ function PacienteForm({ form, setForm, editing, responsaveis, medicos }) {
               <option value="nao_informado">Não informado</option>
             </TextSelect>
           </Field>
-          <SexoBodyPreview
+          <SexoBoneco
             sexo={form.sexo}
             medicos={medicos}
             medicoIds={form.medico_ids || []}
@@ -1160,27 +1124,29 @@ export function RemediosPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           <AutocompleteSelect
             label="Farmácia"
-            required
             hint={
-              <Link to="/farmacias" className="text-aqua-deep underline">
-                Cadastrar nova farmácia
-              </Link>
+              <span>
+                Opcional.{' '}
+                <Link to="/farmacias" className="text-aqua-deep underline">
+                  Cadastrar farmácia
+                </Link>
+              </span>
             }
             value={form.farmacia_id ? String(form.farmacia_id) : ''}
             selectedLabel={form.farmacia_label || ''}
             fetchOptions={searchFarmacias}
-            placeholder="Buscar farmácia…"
+            allowFreeText
+            placeholder="Buscar ou digitar o nome da farmácia…"
             onChange={(value, opt) =>
               setForm({
                 ...form,
-                farmacia_id: value ? Number(value) : '',
-                farmacia_label: opt?.label || '',
+                farmacia_id: opt?.raw?.id ? Number(opt.raw.id) : (value && /^\d+$/.test(String(value)) ? Number(value) : ''),
+                farmacia_label: opt?.label || value || '',
               })
             }
           />
-          <Field label="Valor do medicamento" required>
+          <Field label="Valor do medicamento" hint="Opcional">
             <MoneyInput
-              required
               value={form.valor}
               onChange={(valor) => setForm({ ...form, valor })}
             />
@@ -1191,6 +1157,7 @@ export function RemediosPage() {
             required
             showPrincipioAtivo
             showConcentracao
+            requiredPrincipio={false}
           />
           <Field label="Laboratório">
             <TextInput
@@ -1376,7 +1343,9 @@ export function RemediosPage() {
           ? Number(form.medico_prescritor_id)
           : null,
         farmacia_id: form.farmacia_id ? Number(form.farmacia_id) : null,
+        farmacia_nome: !form.farmacia_id && form.farmacia_label ? form.farmacia_label : undefined,
         valor: form.valor != null && form.valor !== '' ? Number(form.valor) : null,
+        principio_ativo: form.principio_ativo || null,
         consumo_diario:
           form.consumo_diario !== '' && form.consumo_diario != null
             ? Number(form.consumo_diario)

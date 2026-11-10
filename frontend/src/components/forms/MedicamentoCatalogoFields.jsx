@@ -51,6 +51,7 @@ export default function MedicamentoCatalogoFields({
   showPrincipioAtivo = false,
   showConcentracao = false,
   required = true,
+  requiredPrincipio = false,
 }) {
   const dosagens = Array.isArray(form.catalogoDosagens) ? form.catalogoDosagens : [];
   const formas = Array.isArray(form.catalogoFormas) ? form.catalogoFormas : [];
@@ -113,9 +114,9 @@ export default function MedicamentoCatalogoFields({
         />
       </div>
       {showPrincipioAtivo ? (
-        <Field label="Princípio ativo" required={required}>
+        <Field label="Princípio ativo" hint={requiredPrincipio ? undefined : 'Opcional'}>
           <TextInput
-            required={required}
+            required={requiredPrincipio}
             value={form.principio_ativo || ''}
             onChange={(e) => setForm({ ...form, principio_ativo: e.target.value })}
           />

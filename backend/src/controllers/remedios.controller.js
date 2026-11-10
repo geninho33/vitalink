@@ -49,10 +49,10 @@ async function createRemedio(req, res, next) {
       instrucoes_uso,
     } = req.body || {};
 
-    if (!nome_comercial || !principio_ativo) {
+    if (!nome_comercial) {
       return res.status(400).json({
         error: 'validation_error',
-        message: 'Campos obrigatórios: nome_comercial, principio_ativo.',
+        message: 'Campo obrigatório: nome_comercial.',
       });
     }
 
@@ -65,7 +65,7 @@ async function createRemedio(req, res, next) {
          :registro_anvisa, :instrucoes_uso)`,
       {
         nome_comercial,
-        principio_ativo,
+        principio_ativo: principio_ativo || null,
         concentracao: concentracao || null,
         forma_farmaceutica,
         registro_anvisa: registro_anvisa || null,

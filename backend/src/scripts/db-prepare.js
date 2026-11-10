@@ -499,6 +499,22 @@ async function applyPatchSinaisVitaisFaixas(client) {
   }
 }
 
+async function applyPatchAjustesNov2026(client) {
+  if (!cfg.runMigrations) return;
+  const patchFile = path.join(SQL_DIR, 'patch_ajustes_nov2026.sql');
+  if (!fs.existsSync(patchFile)) {
+    log(`AVISO: patch ajustes nov/2026 não encontrado: ${patchFile}`);
+    return;
+  }
+  log(`Aplicando ${path.basename(patchFile)} (idempotente)...`);
+  try {
+    await client.query(fs.readFileSync(patchFile, 'utf8'));
+    log('Patch ajustes nov/2026 OK.');
+  } catch (err) {
+    log(`AVISO ao aplicar patch ajustes nov/2026: ${err.message}`);
+  }
+}
+
 async function applyPatchLgpdReaceite(client) {
   if (!cfg.runMigrations) return;
   const patchFile = path.join(SQL_DIR, 'patch_lgpd_reaceite.sql');
@@ -607,6 +623,7 @@ async function main() {
     await applyPatchRelatorioLinks(client);
     await applyPatchLgpdDireitos(client);
     await applyPatchLgpdReaceite(client);
+    await applyPatchAjustesNov2026(client);
     await ensureAdminPermissions(client);
   } finally {
     await client.end().catch(() => {});

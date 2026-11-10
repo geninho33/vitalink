@@ -67,6 +67,7 @@ export default function AgendaView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [especialidades, setEspecialidades] = useState(() => loadCatalog('especialidades'));
   const [quick, setQuick] = useState(null);
   const [quickValue, setQuickValue] = useState('');
@@ -140,28 +141,55 @@ export default function AgendaView() {
     }));
   }
 
+  function corpoConsulta() {
+    const time = form.time || '08:00';
+    return {
+      paciente_id: Number(pacienteId),
+      medico_id: form.medico_id ? Number(form.medico_id) : null,
+      profissional_nome: form.doctor.trim() || form.title.trim(),
+      especialidade: form.specialty.trim() || 'Clínica geral',
+      local_tipo: 'clinica',
+      local_descricao: [form.location.trim(), form.contact.trim()].filter(Boolean).join(' · ') || null,
+      data_hora: `${form.date}T${time}:00`,
+      observacoes: form.title.trim(),
+      status: 'pendente',
+    };
+  }
+
+  function startEdit(a) {
+    setEditingId(a.id);
+    setConfirmId(null);
+    setForm({
+      title: a.title || '',
+      specialty: a.specialty || '',
+      doctor: a.doctor || '',
+      medico_id: a.raw?.medico_id ? String(a.raw.medico_id) : '',
+      date: a.date || '',
+      time: a.time || '',
+      location: a.location || '',
+      contact: a.contact || '',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(empty());
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!pacienteId || !form.title.trim() || !form.date) return;
     setSaving(true);
     setError('');
     try {
-      const time = form.time || '08:00';
-      await apiRequest('/consultas', {
-        method: 'POST',
-        body: {
-          paciente_id: Number(pacienteId),
-          medico_id: form.medico_id ? Number(form.medico_id) : null,
-          profissional_nome: form.doctor.trim() || form.title.trim(),
-          especialidade: form.specialty.trim() || 'Clínica geral',
-          local_tipo: 'clinica',
-          local_descricao: [form.location.trim(), form.contact.trim()].filter(Boolean).join(' · ') || null,
-          data_hora: `${form.date}T${time}:00`,
-          observacoes: form.title.trim(),
-          status: 'pendente',
-        },
-      });
+      if (editingId) {
+        await apiRequest(`/consultas/${editingId}`, { method: 'PUT', body: corpoConsulta() });
+      } else {
+        await apiRequest('/consultas', { method: 'POST', body: { ...corpoConsulta(), status: 'pendente' } });
+      }
       setForm(empty());
+      setEditingId(null);
       await refresh();
     } catch (err) {
       setError(err.message || 'Não foi possível salvar.');
@@ -314,10 +342,15 @@ export default function AgendaView() {
             />
           </Field>
           {error ? <p className="sm:col-span-2 text-sm text-red-600">{error}</p> : null}
-          <div className="sm:col-span-2">
-            <PrimaryButton type="submit" className="w-full" disabled={saving}>
-              {saving ? 'Salvando…' : 'Adicionar especialista / consulta'}
+          <div className="sm:col-span-2 flex flex-wrap gap-2">
+            <PrimaryButton type="submit" className="flex-1" disabled={saving}>
+              {saving ? 'Salvando…' : editingId ? 'Salvar alterações' : 'Adicionar especialista / consulta'}
             </PrimaryButton>
+            {editingId ? (
+              <button type="button" onClick={cancelEdit} className="min-h-11 rounded-xl border border-[#d7e8e7] px-4 text-sm font-semibold">
+                Cancelar edição
+              </button>
+            ) : null}
           </div>
         </form>
       </Panel>
@@ -354,23 +387,31 @@ export default function AgendaView() {
                   <GoogleCalendarButton compact event={consultaToCalendarEvent(a.raw || a)} />
                 </div>
                 {confirmId === a.id ? (
-                  <div className="mt-2 flex gap-2">
-                    <button type="button" className="text-sm font-semibold text-slate-health" onClick={() => setConfirmId(null)}>
-                      Cancelar
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" className="min-h-10 rounded-xl border border-[#d7e8e7] px-3 text-sm font-semibold" onClick={() => setConfirmId(null)}>
+                      Voltar
                     </button>
-                    <button type="button" className="text-sm font-semibold text-red-600" onClick={() => remove(a.id)}>
+                    <button type="button" className="min-h-10 rounded-xl bg-red-600 px-3 text-sm font-semibold text-white" onClick={() => remove(a.id)}>
                       Confirmar exclusão
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="mt-2 min-h-10 text-lg leading-none text-slate-health hover:text-red-600"
-                    aria-label="Excluir"
-                    onClick={() => setConfirmId(a.id)}
-                  >
-                    ×
-                  </button>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-xl border border-aqua px-3 text-sm font-semibold text-aqua-deep"
+                      onClick={() => startEdit(a)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-xl border border-[#d7e8e7] px-3 text-sm font-semibold text-red-700"
+                      onClick={() => setConfirmId(a.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 )}
               </div>
             </article>

@@ -6,7 +6,8 @@ import { formatLocalLabel, searchFarmacias } from '../../../utils/redeSaude';
 import MedicamentoCatalogoFields from '../../../components/forms/MedicamentoCatalogoFields';
 import FileUploadField from '../../../components/FileUploadField';
 import { usePacienteAtivo } from '../../../context/PacienteAtivoContext';
-import { apiRequest, assetUrl } from '../../../services/api';
+import { apiRequest } from '../../../services/api';
+import ProtectedFileLink from '../../../components/ProtectedFileLink';
 import { printMedicamentos } from '../../../utils/printMedicamentos';
 import { medicamentoToCalendarEvent } from '../../../utils/googleCalendar';
 import GoogleCalendarButton from '../../../components/GoogleCalendarButton';
@@ -119,7 +120,10 @@ export default function MedsView() {
         body: {
           ...form,
           paciente_id: Number(pacienteId),
-          farmacia_id: Number(form.farmacia_id),
+          farmacia_id: form.farmacia_id ? Number(form.farmacia_id) : null,
+          farmacia_nome: !form.farmacia_id && form.farmacia_label ? form.farmacia_label : undefined,
+          valor: form.valor != null && form.valor !== '' ? form.valor : null,
+          principio_ativo: form.principio_ativo || null,
           quantidade_estoque: Number(form.quantidade_estoque),
           consumo_diario: Number(form.consumo_diario) || 1,
           intervalo_horas: Number(form.intervalo_horas) || null,
@@ -276,26 +280,26 @@ export default function MedsView() {
 
       <Panel className="mb-5">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
-          <MedicamentoCatalogoFields form={form} setForm={setForm} required />
+          <MedicamentoCatalogoFields form={form} setForm={setForm} required showPrincipioAtivo requiredPrincipio={false} />
           <AutocompleteSelect
             label="Farmácia"
-            required
+            hint="Opcional — busque, cadastre ou digite o nome"
             value={form.farmacia_id}
             selectedLabel={form.farmacia_label}
             fetchOptions={searchFarmacias}
-            placeholder="Buscar por nome, bairro ou cidade…"
-            onCreate={() => setQuickFarm({ nome: '', telefone: '' })}
+            allowFreeText
+            placeholder="Buscar ou digitar o nome da farmácia…"
+            onCreate={() => setQuickFarm({ nome: form.farmacia_label || '', telefone: '' })}
             onChange={(value, opt) =>
               setForm({
                 ...form,
-                farmacia_id: value,
-                farmacia_label: opt?.label || '',
+                farmacia_id: opt?.raw?.id ? String(opt.raw.id) : '',
+                farmacia_label: opt?.label || value || '',
               })
             }
           />
-          <Field label="Valor do medicamento" required>
+          <Field label="Valor do medicamento" hint="Opcional">
             <MoneyInput
-              required
               value={form.valor}
               onChange={(valor) => setForm({ ...form, valor })}
             />
@@ -404,14 +408,12 @@ export default function MedsView() {
               <strong className="block text-lg text-ink">{m.nome_comercial}</strong>
               <div className="mt-1 flex flex-wrap items-center gap-3">
                 {m.receita_caminho ? (
-                  <a
-                    href={assetUrl(m.receita_caminho)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <ProtectedFileLink
+                    caminho={m.receita_caminho}
                     className="inline-block text-xs font-semibold text-aqua-deep hover:underline"
                   >
                     Ver receita anexada
-                  </a>
+                  </ProtectedFileLink>
                 ) : null}
                 <button
                   type="button"

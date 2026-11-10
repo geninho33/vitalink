@@ -434,12 +434,9 @@ const remedios = createCrudController({
   searchable: ['remedios.nome_comercial', 'remedios.principio_ativo', 'remedios.registro_anvisa'],
   requiredCreate: [
     'nome_comercial',
-    'principio_ativo',
     'quantidade_administrar',
     'quantidade_estoque',
     'indicacao',
-    'farmacia_id',
-    'valor',
   ],
   optional: [
     'laboratorio',
@@ -473,8 +470,10 @@ const remedios = createCrudController({
     } else {
       n.medico_prescritor_id = Number(n.medico_prescritor_id);
     }
+    if (n.principio_ativo != null && String(n.principio_ativo).trim() === '') n.principio_ativo = null;
     if (n.farmacia_id === '' || n.farmacia_id == null) n.farmacia_id = null;
     else n.farmacia_id = Number(n.farmacia_id);
+    if (n.valor === '' || n.valor == null) n.valor = null;
     if (n.paciente_id === '' || n.paciente_id == null) n.paciente_id = null;
     else n.paciente_id = Number(n.paciente_id);
     if (n.valor != null && n.valor !== '') n.valor = Number(n.valor);
@@ -496,6 +495,12 @@ const remedios = createCrudController({
     ) rec ON TRUE
     LEFT JOIN arquivos ar ON ar.id = rec.arquivo_id`,
   afterSave: async (id, payload, req) => {
+    const nomeFarm = String(req?.body?.farmacia_nome || req?.body?.farmacia_label || '').trim();
+    if (!payload?.farmacia_id && nomeFarm) {
+      const { resolverFarmaciaId } = require('../services/farmaciaRapida.service');
+      const fid = await resolverFarmaciaId(req, { farmacia_nome: nomeFarm });
+      if (fid) await query('UPDATE remedios SET farmacia_id = :fid WHERE id = :id', { fid, id });
+    }
     const rows = await query('SELECT * FROM remedios WHERE id = :id LIMIT 1', { id });
     if (rows[0]?.paciente_id) {
       await syncRemedioAgenda(rows[0]);

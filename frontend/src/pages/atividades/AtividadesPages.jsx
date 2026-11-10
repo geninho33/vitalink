@@ -11,6 +11,7 @@ import {
 import PageHeader, { PlaceholderCard } from '../../components/PageHeader';
 import MonthCalendar from '../../components/MonthCalendar';
 import TimelineRail from '../../components/TimelineRail';
+import { isEventoRotineiroOuMedicao } from '../../utils/timelineFiltro';
 import { DateBrInput, Field, TextInput, TextSelect, TextTextarea, Modal } from '../../components/forms/FormControls';
 import AutocompleteSelect from '../../components/forms/AutocompleteSelect';
 import { searchEspecialidades, searchMedicos } from '../../utils/redeSaude';
@@ -1099,6 +1100,7 @@ export function TimelinePage() {
   const [q, setQ] = useState(searchParams.get('q') || '');
   const [events, setEvents] = useState([]);
   const [highlightId, setHighlightId] = useState(null);
+  const [mostrarTudo, setMostrarTudo] = useState(false);
 
   useEffect(() => {
     const fromUrl = searchParams.get('paciente_id') || '';
@@ -1122,9 +1124,10 @@ export function TimelinePage() {
 
   const filtered = useMemo(() => {
     const base = (events || []).filter((e) => String(e.tipo || '') !== 'medicamento');
+    const relevantes = mostrarTudo ? base : base.filter((e) => !isEventoRotineiroOuMedicao(e));
     const term = q.trim().toLocaleLowerCase('pt-BR');
-    if (!term) return base;
-    return base.filter((e) => {
+    if (!term) return relevantes;
+    return relevantes.filter((e) => {
       const hay = [
         e.titulo,
         e.descricao,
@@ -1137,7 +1140,7 @@ export function TimelinePage() {
         .toLocaleLowerCase('pt-BR');
       return hay.includes(term);
     });
-  }, [events, q]);
+  }, [events, q, mostrarTudo]);
 
   useEffect(() => {
     if (q.trim() && filtered[0]) setHighlightId(filtered[0].id);
@@ -1220,6 +1223,10 @@ export function TimelinePage() {
             />
           </Field>
         </div>
+        <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink">
+          <input type="checkbox" className="h-4 w-4" checked={mostrarTudo} onChange={(e) => setMostrarTudo(e.target.checked)} />
+          Mostrar tudo (incluir medições de pressão e observações de rotina)
+        </label>
 
         <div className="mt-6">
           {pacienteId ? (

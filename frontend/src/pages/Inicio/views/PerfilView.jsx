@@ -5,6 +5,7 @@ import { apiRequest } from '../../../services/api';
 import { toIsoDate } from '../../../utils/validation';
 import { calculateAge } from '../localStore';
 import { EmptyState, PageTitle, Panel, PrimaryButton, SecondaryButton } from '../ui';
+import SexoBoneco from '../../../components/SexoBoneco';
 
 const BLOOD = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'NI'];
 
@@ -241,6 +242,7 @@ export default function PerfilView() {
               <option value="nao_informado">Não informado</option>
             </TextSelect>
           </Field>
+          <SexoBoneco sexo={form.sexo} />
           <Field label="Data de nascimento" required>
             <DateBrInput
               required

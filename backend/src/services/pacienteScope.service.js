@@ -174,16 +174,13 @@ async function medicosScopeForCrud(req) {
 }
 
 async function remediosScopeForCrud(req) {
+  // A tabela remedios não tem usuario_id — o recorte é só por paciente vinculado.
   const ids = await listAllowedPacienteIds(req.user);
   if (ids === null) return null;
-  const params = { scopeOwnerId: Number(req.user.id) };
-  if (!ids.length) {
-    return { sql: 'remedios.usuario_id = :scopeOwnerId', params };
-  }
-  params.scopePacienteIds = ids;
+  if (!ids.length) return { sql: 'FALSE', params: {} };
   return {
-    sql: '(remedios.paciente_id = ANY(:scopePacienteIds) OR remedios.usuario_id = :scopeOwnerId)',
-    params,
+    sql: 'remedios.paciente_id = ANY(:scopePacienteIds)',
+    params: { scopePacienteIds: ids },
   };
 }
 
